@@ -64,8 +64,11 @@ ${[...staticUrls, ...productUrls].map(url => `  <url>
     res.send(xml);
   });
 
-  // Serve static assets from public
+  // Serve static assets from public with direct mounts for /assets and fallback /src/assets
   app.use(express.static(path.resolve(__dirname, 'public')));
+  app.use('/assets', express.static(path.resolve(__dirname, 'public', 'assets')));
+  app.use('/src/assets', express.static(path.resolve(__dirname, 'public', 'assets')));
+  app.use('/src/assets', express.static(path.resolve(__dirname, 'src', 'assets')));
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');

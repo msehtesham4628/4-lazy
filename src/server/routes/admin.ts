@@ -426,7 +426,7 @@ adminRouter.post('/categories', (req: AuthenticatedRequest, res: Response) => {
     slug,
     name: name.trim(),
     description: description || 'Architectural streetwear category.',
-    image: image || '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+    image: image || '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
     itemCount: 0
   };
 

@@ -252,7 +252,7 @@ productsRouter.post('/admin/products/bulk-import', requireAdmin, (req: Authentic
       isFeatured: false,
       isPublished: true,
       colorGroups: item.colorGroups || [
-        { colorName: 'Washed Black', colorHex: '#141416', images: ['/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'] }
+        { colorName: 'Washed Black', colorHex: '#141416', images: ['/assets/images/product_oversized_heavy_tee_1794056020516.jpg'] }
       ],
       variants: item.variants || [
         {
@@ -262,7 +262,7 @@ productsRouter.post('/admin/products/bulk-import', requireAdmin, (req: Authentic
           size: 'M',
           sku: `4L-IMP-${Math.floor(1000 + Math.random() * 9000)}-M`,
           stock: 25,
-          images: ['/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg']
+          images: ['/assets/images/product_oversized_heavy_tee_1794056020516.jpg']
         }
       ],
       details: item.details || {

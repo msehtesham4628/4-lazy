@@ -102,7 +102,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     care: 'Machine wash cold inside-out. Hang dry in shade.',
     colorName: 'Washed Black',
     colorHex: '#141416',
-    imageUrl: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+    imageUrl: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
     stockS: 20,
     stockM: 35,
     stockL: 40,
@@ -155,7 +155,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [categoryForm, setCategoryForm] = useState({
     name: '',
     description: '',
-    image: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'
+    image: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg'
   });
 
   // Coupons
@@ -368,7 +368,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       care: 'Machine wash cold. Hang dry in shade.',
       colorName: 'Washed Black',
       colorHex: '#141416',
-      imageUrl: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+      imageUrl: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
       stockS: 20,
       stockM: 35,
       stockL: 40,
@@ -531,7 +531,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               size: (row['size'] || 'L') as any,
               sku: row['sku'] || `4L-CSV-${1000 + i}`,
               stock: Number(row['stock']) || 25,
-              images: ['/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg']
+              images: ['/assets/images/product_oversized_heavy_tee_1794056020516.jpg']
             }
           ]
         });
@@ -1673,14 +1673,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   <div className="flex gap-2 mt-2">
                     <button
                       type="button"
-                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg' })}
+                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg' })}
                       className="text-[10px] text-[#E5A914] bg-neutral-950 border border-neutral-800 px-2 py-1 rounded"
                     >
                       Use Campaign Shot
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/src/assets/images/campaign_editorial_lookbook_1794056022183.jpg' })}
+                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/assets/images/campaign_editorial_lookbook_1794056022183.jpg' })}
                       className="text-[10px] text-neutral-300 bg-neutral-950 border border-neutral-800 px-2 py-1 rounded"
                     >
                       Use Lookbook Shot
@@ -1729,7 +1729,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <button
                   onClick={() => {
                     setEditingCategory(null);
-                    setCategoryForm({ name: '', description: '', image: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg' });
+                    setCategoryForm({ name: '', description: '', image: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg' });
                     setShowCategoryModal(true);
                   }}
                   className="bg-[#E5A914] text-black font-extrabold px-3 py-1.5 rounded text-xs uppercase tracking-wider flex items-center gap-1"
@@ -1742,7 +1742,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 {categories.map(cat => (
                   <div key={cat.id} className="bg-neutral-950 border border-neutral-800 rounded-lg overflow-hidden group">
                     <div className="h-32 bg-neutral-900 relative">
-                      <img src={cat.image || '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'} alt={cat.name} className="w-full h-full object-cover" />
+                      <img src={cat.image || '/assets/images/product_oversized_heavy_tee_1794056020516.jpg'} alt={cat.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="p-3 flex justify-between items-start">
                       <div>

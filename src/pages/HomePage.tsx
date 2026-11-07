@@ -11,7 +11,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({
-    heroImageUrl: '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+    heroImageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
     heroHeading: 'LESS EFFORT. MORE STYLE.',
     heroSubhead: 'Engineered for the relaxed vanguard. 280–500 GSM custom-loomed heavyweight textiles, architectural drop-shoulder geometry, and minimalist everyday confidence.',
     heroButtonText: 'Shop Collection'
@@ -28,7 +28,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       if (catData.categories && catData.categories.length > 0) setCategories(catData.categories);
       if (setData.settings) {
         setSettings({
-          heroImageUrl: setData.settings.heroImageUrl || '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+          heroImageUrl: setData.settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
           heroHeading: setData.settings.heroHeading || 'LESS EFFORT. MORE STYLE.',
           heroSubhead: setData.settings.heroSubhead || 'Engineered for the relaxed vanguard. 280–500 GSM custom-loomed heavyweight textiles, architectural drop-shoulder geometry, and minimalist everyday confidence.',
           heroButtonText: setData.settings.heroButtonText || 'Shop Collection'
@@ -37,8 +37,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
     }).finally(() => setLoading(false));
   }, []);
 
-  const heroImg = settings.heroImageUrl || '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg';
-  const lookbookImg = '/src/assets/images/campaign_editorial_lookbook_1794056022183.jpg';
+  const heroImg = settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg';
+  const lookbookImg = '/assets/images/campaign_editorial_lookbook_1794056022183.jpg';
 
   return (
     <div className="space-y-24 pb-20">
@@ -158,7 +158,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               className="group relative h-[420px] rounded-lg overflow-hidden border border-neutral-800 cursor-pointer bg-neutral-900"
             >
               <img
-                src={cat.image || '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'}
+                src={cat.image || '/assets/images/product_oversized_heavy_tee_1794056020516.jpg'}
                 alt={cat.name || cat.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                 referrerPolicy="no-referrer"

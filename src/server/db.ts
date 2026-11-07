@@ -52,11 +52,11 @@ export function getInitialSeedData(): DatabaseSchema {
   const adminHash = bcrypt.hashSync('admin123', passwordSalt);
   const customerHash = bcrypt.hashSync('lazy123', passwordSalt);
 
-  const heroImg = '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg';
-  const teeImg = '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg';
-  const hoodieImg = '/src/assets/images/product_streetwear_hoodie_1794056020931.jpg';
-  const cargoImg = '/src/assets/images/product_cargo_trousers_1794056021752.jpg';
-  const lookbookImg = '/src/assets/images/campaign_editorial_lookbook_1794056022183.jpg';
+  const heroImg = '/assets/images/hero_streetwear_campaign_1794056018871.jpg';
+  const teeImg = '/assets/images/product_oversized_heavy_tee_1794056020516.jpg';
+  const hoodieImg = '/assets/images/product_streetwear_hoodie_1794056020931.jpg';
+  const cargoImg = '/assets/images/product_cargo_trousers_1794056021752.jpg';
+  const lookbookImg = '/assets/images/campaign_editorial_lookbook_1794056022183.jpg';
   const logoImg = '/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png';
 
   const categories: Category[] = [
