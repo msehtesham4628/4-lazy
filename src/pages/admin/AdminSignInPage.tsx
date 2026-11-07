@@ -82,26 +82,51 @@ export const AdminSignInPage: React.FC<AdminSignInPageProps> = ({ onNavigate }) 
         )}
 
         {/* Quick One-Click Admin Access */}
-        <div className="p-3.5 bg-neutral-950 border border-[#E5A914]/30 rounded-xl space-y-2">
+        <div className="p-3.5 bg-neutral-950 border border-[#E5A914]/30 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-white uppercase flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-[#E5A914]" />
-              Super Admin Quick Access
+              Executive Demo Logins
             </span>
-            <span className="text-[10px] text-emerald-400 font-mono">1-CLICK</span>
+            <span className="text-[10px] text-emerald-400 font-mono">1-CLICK INSTANT ACCESS</span>
           </div>
-          <p className="text-[11px] text-neutral-400">
-            Instant authentication for evaluation with pre-seeded demo store credentials.
-          </p>
-          <button
-            type="button"
-            onClick={handleQuickAdminLogin}
-            disabled={loading}
-            className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-2.5 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-98"
-          >
-            {loading ? 'Authenticating...' : 'Sign In as Super Admin'}
-            <ArrowRight className="w-4 h-4" />
-          </button>
+
+          <div className="grid grid-cols-1 gap-2">
+            <button
+              type="button"
+              onClick={handleQuickAdminLogin}
+              disabled={loading}
+              className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-2.5 px-3 rounded text-xs uppercase tracking-wider flex items-center justify-between transition-transform active:scale-98"
+            >
+              <div className="text-left">
+                <span className="block font-black leading-tight">Super Admin (Founder)</span>
+                <span className="text-[10px] opacity-80 font-mono lowercase">admin@4lazyfashion.com · pass: admin123</span>
+              </div>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                setEmail('manager@4lazyfashion.com');
+                setPassword('manager123');
+                setLoading(true);
+                setErrorMsg('');
+                const res = await login('manager@4lazyfashion.com', 'manager123');
+                setLoading(false);
+                if (res.success) onNavigate('admin');
+                else setErrorMsg(res.error || 'Failed to authenticate.');
+              }}
+              disabled={loading}
+              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700/80 font-bold py-2 px-3 rounded text-xs uppercase tracking-wider flex items-center justify-between transition-all"
+            >
+              <div className="text-left">
+                <span className="block font-bold text-[#E5A914] leading-tight">Store Operations Manager</span>
+                <span className="text-[10px] text-neutral-400 font-mono lowercase">manager@4lazyfashion.com · pass: manager123</span>
+              </div>
+              <ArrowRight className="w-4 h-4 shrink-0 text-neutral-400" />
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center my-4">

@@ -210,25 +210,90 @@ export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
               {loading ? 'Authenticating...' : 'Sign In'}
             </button>
 
-            {/* Quick Demo Autofill Helper */}
-            <div className="pt-3 border-t border-neutral-800 text-center space-y-2">
-              <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">
-                Quick Test Credentials:
-              </span>
-              <div className="flex gap-2">
+            {/* Quick Demo Logins Helper */}
+            <div className="pt-4 border-t border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-white uppercase flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[#E5A914]" />
+                  Instant 1-Click Demo Logins
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono">READY TO TEST</span>
+              </div>
+
+              <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={fillAdmin}
-                  className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-xs py-1.5 px-2 rounded text-[#E5A914] font-medium border border-neutral-700"
+                  onClick={async () => {
+                    setEmail('aryan@example.com');
+                    setPassword('lazy123');
+                    setLoading(true);
+                    setErrorMsg('');
+                    const res = await login('aryan@example.com', 'lazy123');
+                    setLoading(false);
+                    if (res.success) onNavigate('account');
+                    else setErrorMsg(res.error || 'Failed to login.');
+                  }}
+                  className="w-full bg-neutral-950 hover:bg-neutral-800/80 border border-neutral-800 p-2.5 rounded-lg text-left flex items-center justify-between group transition-all"
                 >
-                  Autofill Admin
+                  <div>
+                    <span className="text-xs font-bold text-white group-hover:text-[#E5A914] transition-colors flex items-center gap-1.5">
+                      Aryan Verma <span className="text-[10px] text-amber-400 font-normal bg-amber-500/10 px-1 rounded">VIP Buyer</span>
+                    </span>
+                    <span className="text-[10px] text-neutral-400 block font-mono">aryan@example.com · Mumbai (Orders History)</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-[#E5A914] bg-[#E5A914]/10 px-2 py-1 rounded">
+                    Sign In &rarr;
+                  </span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={fillCustomer}
-                  className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-xs py-1.5 px-2 rounded text-neutral-200 font-medium border border-neutral-700"
+                  onClick={async () => {
+                    setEmail('riya.sharma@example.com');
+                    setPassword('lazy123');
+                    setLoading(true);
+                    setErrorMsg('');
+                    const res = await login('riya.sharma@example.com', 'lazy123');
+                    setLoading(false);
+                    if (res.success) onNavigate('account');
+                    else setErrorMsg(res.error || 'Failed to login.');
+                  }}
+                  className="w-full bg-neutral-950 hover:bg-neutral-800/80 border border-neutral-800 p-2.5 rounded-lg text-left flex items-center justify-between group transition-all"
                 >
-                  Autofill Customer
+                  <div>
+                    <span className="text-xs font-bold text-white group-hover:text-[#E5A914] transition-colors flex items-center gap-1.5">
+                      Riya Sharma <span className="text-[10px] text-emerald-400 font-normal bg-emerald-500/10 px-1 rounded">Stylist</span>
+                    </span>
+                    <span className="text-[10px] text-neutral-400 block font-mono">riya.sharma@example.com · Delhi (Delivered Orders)</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-neutral-300 bg-neutral-800 px-2 py-1 rounded">
+                    Sign In &rarr;
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setEmail('admin@4lazyfashion.com');
+                    setPassword('admin123');
+                    setLoading(true);
+                    setErrorMsg('');
+                    const res = await login('admin@4lazyfashion.com', 'admin123');
+                    setLoading(false);
+                    if (res.success) onNavigate('admin');
+                    else setErrorMsg(res.error || 'Failed to login.');
+                  }}
+                  className="w-full bg-[#E5A914]/10 hover:bg-[#E5A914]/20 border border-[#E5A914]/30 p-2.5 rounded-lg text-left flex items-center justify-between transition-all"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-[#E5A914] flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-[#E5A914]" /> Super Admin (Founder)
+                    </span>
+                    <span className="text-[10px] text-neutral-400 block font-mono">admin@4lazyfashion.com · Console Access</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-black bg-[#E5A914] px-2.5 py-1 rounded">
+                    Admin &rarr;
+                  </span>
                 </button>
               </div>
             </div>
