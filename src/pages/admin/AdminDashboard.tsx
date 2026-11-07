@@ -184,7 +184,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [mongoStats, setMongoStats] = useState<any>(null);
   const [mongoUriInput, setMongoUriInput] = useState('');
   const [mongoLoading, setMongoLoading] = useState(false);
-  const [mongoMsg, setMongoMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [mongoMsg, setMongoMsg] = useState<{ type: 'success' | 'error'; text: string; isWhitelist?: boolean } | null>(null);
 
   const fetchMongoStatus = async () => {
     try {
@@ -222,7 +222,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         fetchCategories();
         fetchOverview();
       } else {
-        setMongoMsg({ type: 'error', text: data.error || 'Connection failed' });
+        const isWl = Boolean(
+          data.isWhitelistError ||
+          data.error?.toLowerCase().includes('whitelist') ||
+          data.error?.toLowerCase().includes('could not connect to any servers') ||
+          data.error?.toLowerCase().includes('serverselectiontimeoutms')
+        );
+        setMongoMsg({
+          type: 'error',
+          text: data.error || 'Connection failed',
+          isWhitelist: isWl
+        });
       }
     } catch (err: any) {
       setMongoMsg({ type: 'error', text: err.message || 'Connection error' });
@@ -1993,9 +2003,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
 
                 {mongoMsg && (
-                  <div className={`p-3 text-xs rounded flex items-center justify-between ${mongoMsg.type === 'success' ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300' : 'bg-red-950/60 border border-red-500/40 text-red-300'}`}>
-                    <span>{mongoMsg.text}</span>
-                    <button type="button" onClick={() => setMongoMsg(null)} className="text-neutral-400 hover:text-white">&times;</button>
+                  <div className={`p-4 text-xs rounded-xl space-y-2.5 ${mongoMsg.type === 'success' ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300' : 'bg-red-950/60 border border-red-500/40 text-red-200'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-semibold leading-relaxed">{mongoMsg.text}</span>
+                      <button type="button" onClick={() => setMongoMsg(null)} className="text-neutral-400 hover:text-white shrink-0 p-1">&times;</button>
+                    </div>
+
+                    {mongoMsg.isWhitelist && (
+                      <div className="mt-3 p-3.5 bg-black/75 rounded-lg border border-amber-500/40 text-amber-200 text-xs space-y-2">
+                        <div className="flex items-center gap-2 text-amber-400 font-bold uppercase tracking-wider text-[11px]">
+                          <span>Fix MongoDB Atlas IP Whitelist (Takes ~10 seconds):</span>
+                        </div>
+                        <ol className="list-decimal list-inside space-y-1.5 text-neutral-300 text-[11px] leading-relaxed">
+                          <li>Open your <a href="https://cloud.mongodb.com" target="_blank" rel="noreferrer" className="underline font-bold text-amber-400 hover:text-amber-300">MongoDB Atlas Dashboard</a> (Cluster <strong>Zentrixa</strong>).</li>
+                          <li>In the left sidebar under <strong>Security</strong>, click <strong>Network Access</strong>.</li>
+                          <li>Click the green <strong>"+ Add IP Address"</strong> button.</li>
+                          <li>Click <strong>"Allow Access From Anywhere"</strong> (this automatically sets <code className="text-amber-300 bg-neutral-900 px-1 py-0.5 rounded font-mono">0.0.0.0/0</code>).</li>
+                          <li>Click <strong>Confirm</strong>, wait ~10 seconds for the status to say <em>Active</em>, and click <strong>"Connect Atlas"</strong> below.</li>
+                        </ol>
+                      </div>
+                    )}
                   </div>
                 )}
 

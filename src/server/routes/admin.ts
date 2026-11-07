@@ -745,9 +745,11 @@ adminRouter.post('/mongodb/connect', async (req: AuthenticatedRequest, res: Resp
       existingProductCount: count
     });
   } else {
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
-      error: result.error || 'Failed to connect to MongoDB.'
+      error: result.error || 'Failed to connect to MongoDB.',
+      isWhitelistError: (result as any).isWhitelistError,
+      isAuthError: (result as any).isAuthError
     });
   }
 });

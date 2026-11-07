@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, X, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard.tsx';
-import { Product, Category } from '../types/index.ts';
+import type { Product, Category } from '../types/index.ts';
+import { fallbackProducts, fallbackCategories } from '../data/fallbackCatalog.ts';
 
 interface ShopPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -9,9 +10,9 @@ interface ShopPageProps {
 }
 
 export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, initialParams }) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(fallbackProducts);
+  const [categories, setCategories] = useState<Category[]>(fallbackCategories);
+  const [loading, setLoading] = useState(false);
 
   // Filter States
   const [selectedCategory, setSelectedCategory] = useState<string>(initialParams?.category || 'all');

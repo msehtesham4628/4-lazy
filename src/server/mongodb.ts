@@ -353,24 +353,42 @@ export function getMongoStats() {
 /**
  * Connect to MongoDB Atlas or local MongoDB
  */
-export async function connectMongoDB(uri?: string): Promise<{ connected: boolean; host?: string; error?: string }> {
+export async function connectMongoDB(uri?: string): Promise<{
+  connected: boolean;
+  host?: string;
+  error?: string;
+  isWhitelistError?: boolean;
+  isAuthError?: boolean;
+}> {
   const targetUri = (uri || process.env.MONGODB_URI || '').trim();
   if (!targetUri) {
     return { connected: false, error: 'No MongoDB URI provided. Set MONGODB_URI or enter a connection string.' };
   }
 
   try {
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.disconnect();
+    if (mongoose.connection.readyState !== 0) {
+      try {
+        await mongoose.disconnect();
+      } catch {
+        // ignore disconnect failure
+      }
     }
 
-    currentMongoUri = targetUri;
+    let cleanUri = targetUri;
+    // If the URI ends without a database name, add 4lazy
+    if (/^mongodb(\+srv)?:\/\/[^/]+\/?$/.test(cleanUri)) {
+      cleanUri = cleanUri.replace(/\/?$/, '/4lazy?retryWrites=true&w=majority');
+    } else if (/^mongodb(\+srv)?:\/\/[^/]+\/\?/.test(cleanUri)) {
+      cleanUri = cleanUri.replace(/\/\?/, '/4lazy?');
+    }
+
+    currentMongoUri = cleanUri;
     lastError = null;
 
     console.log(`Connecting to MongoDB...`);
-    await mongoose.connect(targetUri, {
-      serverSelectionTimeoutMS: 6000,
-      connectTimeoutMS: 8000
+    await mongoose.connect(cleanUri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 6000
     });
 
     mongoConnected = true;
@@ -381,11 +399,32 @@ export async function connectMongoDB(uri?: string): Promise<{ connected: boolean
     };
   } catch (err: any) {
     mongoConnected = false;
-    lastError = err?.message || String(err);
-    console.error(`MongoDB connection failed: ${lastError}`);
+    const rawMsg = err?.message || String(err);
+    const isWhitelistError =
+      rawMsg.includes('whitelist') ||
+      rawMsg.includes('Could not connect to any servers') ||
+      rawMsg.includes('serverSelectionTimeoutMS') ||
+      rawMsg.includes('ENOTFOUND') ||
+      rawMsg.includes('querySrv');
+    const isAuthError =
+      rawMsg.includes('Authentication failed') ||
+      rawMsg.includes('bad auth') ||
+      rawMsg.includes('auth failed');
+
+    let friendlyError = rawMsg;
+    if (isWhitelistError) {
+      friendlyError = 'MongoDB Atlas IP Whitelist Required: Your Atlas cluster is blocking access. Go to MongoDB Atlas > Network Access > Add IP Address > "Allow Access from Anywhere" (0.0.0.0/0), wait ~10 seconds, then reconnect.';
+    } else if (isAuthError) {
+      friendlyError = 'MongoDB Atlas Authentication Failed: Invalid database username or password. Please verify the user credentials in your Atlas Database Access panel.';
+    }
+
+    lastError = friendlyError;
+    console.warn(`[MongoDB Connection Notice] ${friendlyError}`);
     return {
       connected: false,
-      error: lastError || 'Connection failed'
+      error: friendlyError,
+      isWhitelistError,
+      isAuthError
     };
   }
 }

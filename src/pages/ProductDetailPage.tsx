@@ -13,7 +13,8 @@ import {
   Minus,
   Check
 } from 'lucide-react';
-import { Product, ProductVariant, Review } from '../types/index.ts';
+import type { Product, ProductVariant, Review } from '../types/index.ts';
+import { fallbackProducts } from '../data/fallbackCatalog.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';
 import { SizeGuideModal } from '../components/SizeGuideModal.tsx';
@@ -52,16 +53,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
     fetch(`/api/products/${slug}`)
       .then(res => res.json())
       .then(data => {
-        if (data.product) {
-          setProduct(data.product);
+        const prod = data.product || fallbackProducts.find(p => p.slug === slug || p.id === slug);
+        if (prod) {
+          setProduct(prod);
           setReviews(data.reviews || []);
-          setRelatedProducts(data.relatedProducts || []);
+          setRelatedProducts(data.relatedProducts && data.relatedProducts.length > 0 ? data.relatedProducts : fallbackProducts.filter(p => p.id !== prod.id).slice(0, 4));
           setSelectedColorIndex(0);
           setActiveImageIndex(0);
 
           // Find first available size
-          const firstColorVariants = data.product.variants.filter(
-            (v: ProductVariant) => v.colorName.toLowerCase() === data.product.colorGroups[0]?.colorName.toLowerCase()
+          const firstColorVariants = prod.variants.filter(
+            (v: ProductVariant) => v.colorName.toLowerCase() === prod.colorGroups[0]?.colorName.toLowerCase()
           );
           if (firstColorVariants.length > 0) {
             const inStockVar = firstColorVariants.find((v: ProductVariant) => v.stock > 0) || firstColorVariants[0];
@@ -69,7 +71,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
           }
         }
       })
-      .catch(err => console.error(err))
+      .catch(() => {
+        const fallback = fallbackProducts.find(p => p.slug === slug || p.id === slug);
+        if (fallback) {
+          setProduct(fallback);
+          setRelatedProducts(fallbackProducts.filter(p => p.id !== fallback.id).slice(0, 4));
+          setSelectedColorIndex(0);
+          setActiveImageIndex(0);
+          const firstColorVariants = fallback.variants.filter(
+            (v: ProductVariant) => v.colorName.toLowerCase() === fallback.colorGroups[0]?.colorName.toLowerCase()
+          );
+          if (firstColorVariants.length > 0) {
+            setSelectedSize(firstColorVariants[0].size);
+          }
+        }
+      })
       .finally(() => setLoading(false));
   }, [slug]);
 

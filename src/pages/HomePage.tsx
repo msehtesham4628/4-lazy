@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, Shield, RotateCcw, Truck } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard.tsx';
-import { Product } from '../types/index.ts';
+import type { Product } from '../types/index.ts';
+import { fallbackProducts, fallbackCategories } from '../data/fallbackCatalog.ts';
 
 interface HomePageProps {
   onNavigate: (page: string, params?: any) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>(fallbackProducts);
+  const [categories, setCategories] = useState<any[]>(fallbackCategories);
   const [settings, setSettings] = useState<any>({
     heroImageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
     heroHeading: 'LESS EFFORT. MORE STYLE.',
@@ -24,8 +25,16 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       fetch('/api/categories').then(res => res.json()).catch(() => ({ categories: [] })),
       fetch('/api/settings').then(res => res.json()).catch(() => ({ settings: null }))
     ]).then(([prodData, catData, setData]) => {
-      if (prodData.products) setProducts(prodData.products);
-      if (catData.categories && catData.categories.length > 0) setCategories(catData.categories);
+      if (prodData.products && prodData.products.length > 0) {
+        setProducts(prodData.products);
+      } else {
+        setProducts(fallbackProducts);
+      }
+      if (catData.categories && catData.categories.length > 0) {
+        setCategories(catData.categories);
+      } else {
+        setCategories(fallbackCategories);
+      }
       if (setData.settings) {
         setSettings({
           heroImageUrl: setData.settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
