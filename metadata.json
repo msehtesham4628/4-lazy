@@ -1,0 +1,8 @@
+{
+  "name": "4 LAZY | Luxury Streetwear & Oversized Fashion",
+  "description": "Discover 4 LAZY – Less Effort, More Style. Premium oversized heavyweight t-shirts, hoodies, cargo trousers, and luxury minimalist streetwear collections.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
