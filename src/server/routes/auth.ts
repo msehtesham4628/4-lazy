@@ -1,9 +1,9 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { getDB, saveDB } from '../db.ts';
-import { generateToken, authenticate, AuthenticatedRequest } from '../authMiddleware.ts';
+import { generateToken, authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendWelcomeEmail, sendOtpEmail } from '../emailService.ts';
-import { User, UserAddress } from '../../types/index.ts';
+import type { User, UserAddress } from '../../types/index.ts';
 
 export const authRouter = Router();
 

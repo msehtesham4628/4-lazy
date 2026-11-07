@@ -114,12 +114,12 @@
     }
   ],
   "passwords": {
-    "usr_admin_001": "$2b$10$0xGHJMN/Y9bulE.77Eux7.YyzRzLiWmwHmU1o20W4/Ss5GJI4sz7e",
-    "usr_admin_002": "$2b$10$0xGHJMN/Y9bulE.77Eux7.sC14deYQdTh9ZMj8FEnIze1owch1koi",
-    "usr_cust_001": "$2b$10$0xGHJMN/Y9bulE.77Eux7.HxMKUTF5FNjlhmJ.Yr6m4xrwYzgfugO",
-    "usr_cust_002": "$2b$10$0xGHJMN/Y9bulE.77Eux7.HxMKUTF5FNjlhmJ.Yr6m4xrwYzgfugO",
-    "usr_cust_003": "$2b$10$0xGHJMN/Y9bulE.77Eux7.HxMKUTF5FNjlhmJ.Yr6m4xrwYzgfugO",
-    "usr_cust_004": "$2b$10$0xGHJMN/Y9bulE.77Eux7.HxMKUTF5FNjlhmJ.Yr6m4xrwYzgfugO"
+    "usr_admin_001": "$2b$10$vExHhZSVj/W3vUGhCUba9.G99s23VThqQGF3EcfdD5z6mhG8N/t/a",
+    "usr_admin_002": "$2b$10$vExHhZSVj/W3vUGhCUba9.tIt2pbHBYpnNtScFgjpvPrFpy0qP9Si",
+    "usr_cust_001": "$2b$10$vExHhZSVj/W3vUGhCUba9.sCqS4SnNl809npqogIVNR0DP4/CS09m",
+    "usr_cust_002": "$2b$10$vExHhZSVj/W3vUGhCUba9.sCqS4SnNl809npqogIVNR0DP4/CS09m",
+    "usr_cust_003": "$2b$10$vExHhZSVj/W3vUGhCUba9.sCqS4SnNl809npqogIVNR0DP4/CS09m",
+    "usr_cust_004": "$2b$10$vExHhZSVj/W3vUGhCUba9.sCqS4SnNl809npqogIVNR0DP4/CS09m"
   },
   "otps": {},
   "products": [

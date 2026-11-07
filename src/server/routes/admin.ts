@@ -1,8 +1,21 @@
-import { Router, Response } from 'express';
-import { getDB, saveDB } from '../db.ts';
-import { requireAdmin, AuthenticatedRequest } from '../authMiddleware.ts';
+import { Router, type Response } from 'express';
+import { getDB, saveDB, setDB } from '../db.ts';
+import { requireAdmin, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendShippingUpdateEmail } from '../emailService.ts';
-import { OrderStatus, InventoryTransaction } from '../../types/index.ts';
+import type { OrderStatus, InventoryTransaction } from '../../types/index.ts';
+import {
+  getMongoStats,
+  connectMongoDB,
+  syncLocalToMongo,
+  syncMongoToLocal,
+  isMongoConnected,
+  ProductModel,
+  UserModel,
+  OrderModel,
+  CategoryModel,
+  CouponModel,
+  ReturnRequestModel
+} from '../mongodb.ts';
 
 export const adminRouter = Router();
 
@@ -673,5 +686,105 @@ adminRouter.get('/tally/export-csv', (req: AuthenticatedRequest, res: Response) 
   res.header('Content-Type', 'text/csv');
   res.attachment('4LAZY_GST_Sales_Register.csv');
   return res.send(headers + rows);
+});
+
+// ----------------------------------------------------
+// MONGODB ATLAS ENDPOINTS
+// ----------------------------------------------------
+
+// GET /api/admin/mongodb/status
+adminRouter.get('/mongodb/status', async (req: AuthenticatedRequest, res: Response) => {
+  const stats = getMongoStats();
+  let collections: Record<string, number> = {};
+
+  if (stats.connected) {
+    try {
+      collections = {
+        products: await ProductModel.countDocuments(),
+        users: await UserModel.countDocuments(),
+        orders: await OrderModel.countDocuments(),
+        categories: await CategoryModel.countDocuments(),
+        coupons: await CouponModel.countDocuments(),
+        returns: await ReturnRequestModel.countDocuments()
+      };
+    } catch (err: any) {
+      console.warn('Failed to query Mongo collection counts:', err?.message);
+    }
+  }
+
+  return res.json({
+    ...stats,
+    collections
+  });
+});
+
+// POST /api/admin/mongodb/connect
+adminRouter.post('/mongodb/connect', async (req: AuthenticatedRequest, res: Response) => {
+  const { uri } = req.body;
+  if (!uri || typeof uri !== 'string') {
+    return res.status(400).json({ error: 'MongoDB connection string (URI) is required.' });
+  }
+
+  const result = await connectMongoDB(uri.trim());
+  if (result.connected) {
+    const count = await ProductModel.countDocuments().catch(() => 0);
+    if (count === 0) {
+      // MongoDB is fresh, push all local demo data
+      await syncLocalToMongo(getDB());
+    } else {
+      // MongoDB already has data, load it into local memory
+      const pullResult = await syncMongoToLocal();
+      if (pullResult.success && pullResult.data) {
+        setDB(pullResult.data);
+      }
+    }
+    return res.json({
+      success: true,
+      message: 'Successfully connected to MongoDB Atlas cluster!',
+      host: result.host,
+      existingProductCount: count
+    });
+  } else {
+    return res.status(500).json({
+      success: false,
+      error: result.error || 'Failed to connect to MongoDB.'
+    });
+  }
+});
+
+// POST /api/admin/mongodb/sync (Push local data to MongoDB)
+adminRouter.post('/mongodb/sync', async (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const result = await syncLocalToMongo(db);
+  if (result.success) {
+    return res.json({
+      success: true,
+      message: 'All collections successfully synchronized to MongoDB Atlas.',
+      syncedCounts: result.syncedCounts
+    });
+  } else {
+    return res.status(500).json({
+      success: false,
+      error: result.error || 'Failed to synchronize with MongoDB.'
+    });
+  }
+});
+
+// POST /api/admin/mongodb/pull (Pull MongoDB data into local server)
+adminRouter.post('/mongodb/pull', async (req: AuthenticatedRequest, res: Response) => {
+  const result = await syncMongoToLocal();
+  if (result.success && result.data) {
+    setDB(result.data);
+    return res.json({
+      success: true,
+      message: 'Successfully fetched latest catalog, products, and users from MongoDB Atlas.',
+      loadedCounts: result.loadedCounts
+    });
+  } else {
+    return res.status(500).json({
+      success: false,
+      error: result.error || 'Failed to pull data from MongoDB.'
+    });
+  }
 });
 

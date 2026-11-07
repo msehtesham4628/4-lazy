@@ -1,8 +1,8 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import { getDB, saveDB } from '../db.ts';
-import { optionalAuthenticate, authenticate, AuthenticatedRequest } from '../authMiddleware.ts';
+import { optionalAuthenticate, authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendOrderConfirmationEmail } from '../emailService.ts';
-import { Order, OrderItem, UserAddress, InventoryTransaction } from '../../types/index.ts';
+import type { Order, OrderItem, UserAddress, InventoryTransaction } from '../../types/index.ts';
 
 export const ordersRouter = Router();
 

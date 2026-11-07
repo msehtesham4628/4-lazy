@@ -1,5 +1,5 @@
 import { getDB, saveDB } from './db.ts';
-import { EmailLog, Order } from '../types/index.ts';
+import type { EmailLog, Order } from '../types/index.ts';
 
 export function sendEmail({
   to,

@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
-import {
+import { syncLocalToMongo, isMongoConnected } from './mongodb.ts';
+import { getFullSeedData } from './seedData.ts';
+import type {
   Product,
   Category,
   User,
@@ -18,7 +20,7 @@ import {
 const DATA_DIR = path.resolve(process.cwd(), '.data');
 const DB_FILE = path.resolve(DATA_DIR, 'db.json');
 
-interface DatabaseSchema {
+export interface DatabaseSchema {
   users: User[];
   passwords: Record<string, string>; // userId -> passwordHash
   otps: Record<string, { code: string; expiresAt: number }>; // email -> OTP
@@ -513,15 +515,38 @@ export function getDB(): DatabaseSchema {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       db = JSON.parse(raw);
       if (db) {
+        const fullSeed = getFullSeedData() as any;
+        if (!db.products || db.products.length < 10) {
+          db.products = fullSeed.products;
+          db.categories = fullSeed.categories;
+        }
+        if (!db.users || db.users.length < 6) {
+          db.users = fullSeed.users;
+          db.passwords = { ...fullSeed.passwords, ...(db.passwords || {}) };
+        }
+        if (!db.settings) {
+          db.settings = fullSeed.settings;
+        }
         db.returnRequests = db.returnRequests || [];
+        db.carts = db.carts || {};
+        db.wishlists = db.wishlists || {};
+        return db;
       }
-      return db!;
     } catch (err) {
       console.warn('Failed to parse existing db.json, re-initializing with seed data', err);
     }
   }
 
   db = getInitialSeedData();
+  saveDB();
+  return db;
+}
+
+export function setDB(updatedDB: Partial<DatabaseSchema>): DatabaseSchema {
+  if (!db) {
+    db = getDB();
+  }
+  db = { ...db, ...updatedDB } as DatabaseSchema;
   saveDB();
   return db;
 }
@@ -533,6 +558,13 @@ export function saveDB() {
     const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
     fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), 'utf-8');
     fs.renameSync(tempFile, DB_FILE);
+
+    // If MongoDB Atlas is connected, asynchronously replicate changes
+    if (isMongoConnected()) {
+      syncLocalToMongo(db).catch(err => {
+        console.warn('MongoDB background synchronization warning:', err?.message || err);
+      });
+    }
   } catch (err) {
     console.error('Error saving db.json:', err);
   }

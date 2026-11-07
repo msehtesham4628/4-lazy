@@ -1,7 +1,7 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import { getDB, saveDB } from '../db.ts';
-import { requireAdmin, AuthenticatedRequest, optionalAuthenticate } from '../authMiddleware.ts';
-import { Product, ProductVariant, Review } from '../../types/index.ts';
+import { requireAdmin, optionalAuthenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
+import type { Product, ProductVariant, Review } from '../../types/index.ts';
 
 export const productsRouter = Router();
 

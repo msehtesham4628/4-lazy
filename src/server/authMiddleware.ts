@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { getDB } from './db.ts';
-import { User } from '../types/index.ts';
+import type { User } from '../types/index.ts';
 
 const JWT_SECRET = process.env.JWT_SECRET || '4lazy_super_secure_jwt_token_secret_key_2026';
 

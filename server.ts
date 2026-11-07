@@ -7,6 +7,7 @@ import { ordersRouter } from './src/server/routes/orders.ts';
 import { adminRouter } from './src/server/routes/admin.ts';
 import { paymentsRouter } from './src/server/routes/payments.ts';
 import { getDB } from './src/server/db.ts';
+import { initMongoDB } from './src/server/mongodb.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,8 +20,11 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // Initialize DB
-  getDB();
+  // Initialize DB and bootstrap MongoDB Atlas if configured
+  const initialData = getDB();
+  initMongoDB(initialData).catch(err => {
+    console.warn('MongoDB initialization notice:', err?.message || err);
+  });
 
   // Mount API Routers
   app.use('/api/auth', authRouter);

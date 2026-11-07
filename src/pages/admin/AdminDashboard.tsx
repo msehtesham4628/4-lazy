@@ -31,7 +31,9 @@ import {
   Image as ImageIcon,
   Menu,
   LogOut,
-  Store
+  Store,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import {
@@ -177,6 +179,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   // Emails
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [selectedEmailPreview, setSelectedEmailPreview] = useState<EmailLog | null>(null);
+
+  // MongoDB Atlas State
+  const [mongoStats, setMongoStats] = useState<any>(null);
+  const [mongoUriInput, setMongoUriInput] = useState('');
+  const [mongoLoading, setMongoLoading] = useState(false);
+  const [mongoMsg, setMongoMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchMongoStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/mongodb/status', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMongoStats(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch MongoDB status:', e);
+    }
+  };
+
+  const handleConnectMongo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mongoUriInput.trim()) return;
+    setMongoLoading(true);
+    setMongoMsg(null);
+    try {
+      const res = await fetch('/api/admin/mongodb/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ uri: mongoUriInput.trim() })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMongoMsg({ type: 'success', text: data.message || 'Connected to MongoDB Atlas!' });
+        fetchMongoStatus();
+        fetchProductsList();
+        fetchCategories();
+        fetchOverview();
+      } else {
+        setMongoMsg({ type: 'error', text: data.error || 'Connection failed' });
+      }
+    } catch (err: any) {
+      setMongoMsg({ type: 'error', text: err.message || 'Connection error' });
+    } finally {
+      setMongoLoading(false);
+    }
+  };
+
+  const handleSyncMongo = async () => {
+    setMongoLoading(true);
+    setMongoMsg(null);
+    try {
+      const res = await fetch('/api/admin/mongodb/sync', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMongoMsg({ type: 'success', text: `Sync Complete: ${data.message}` });
+        fetchMongoStatus();
+        fetchProductsList();
+        fetchOverview();
+      } else {
+        setMongoMsg({ type: 'error', text: data.error || 'Failed to sync with MongoDB' });
+      }
+    } catch (err: any) {
+      setMongoMsg({ type: 'error', text: err.message || 'Sync error' });
+    } finally {
+      setMongoLoading(false);
+    }
+  };
+
+  const handlePullMongo = async () => {
+    setMongoLoading(true);
+    setMongoMsg(null);
+    try {
+      const res = await fetch('/api/admin/mongodb/pull', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMongoMsg({ type: 'success', text: `Loaded from Atlas: ${data.message}` });
+        fetchMongoStatus();
+        fetchProductsList();
+        fetchCategories();
+        fetchOrdersList();
+        fetchOverview();
+      } else {
+        setMongoMsg({ type: 'error', text: data.error || 'Failed to pull from MongoDB' });
+      }
+    } catch (err: any) {
+      setMongoMsg({ type: 'error', text: err.message || 'Pull error' });
+    } finally {
+      setMongoLoading(false);
+    }
+  };
 
   const fetchOverview = async () => {
     try {
@@ -327,7 +430,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         fetchTallySummary(),
         fetchCoupons(),
         fetchSettings(),
-        fetchEmails()
+        fetchEmails(),
+        fetchMongoStatus()
       ]).finally(() => setLoading(false));
     }
   }, [isAdmin, token]);
@@ -1865,12 +1969,145 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-widest hover:bg-[#d49b10]"
-              >
-                Save Store Settings
-              </button>
+              {/* MONGODB ATLAS INTEGRATION CARD */}
+              <div className="pt-6 border-t border-neutral-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-[#E5A914]" />
+                    <div>
+                      <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">MongoDB Atlas &amp; Mongoose ODM</h3>
+                      <p className="text-[11px] text-neutral-400">Enterprise cloud document database integration for products, users, orders, and inventory.</p>
+                    </div>
+                  </div>
+                  {mongoStats?.connected ? (
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full uppercase shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      MongoDB Atlas Connected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full uppercase shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      Persistent Store Active (Atlas Ready)
+                    </span>
+                  )}
+                </div>
+
+                {mongoMsg && (
+                  <div className={`p-3 text-xs rounded flex items-center justify-between ${mongoMsg.type === 'success' ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300' : 'bg-red-950/60 border border-red-500/40 text-red-300'}`}>
+                    <span>{mongoMsg.text}</span>
+                    <button type="button" onClick={() => setMongoMsg(null)} className="text-neutral-400 hover:text-white">&times;</button>
+                  </div>
+                )}
+
+                {/* Status & Stats Details */}
+                <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase text-neutral-500 block">Database Engine</span>
+                      <span className="font-bold text-white">MongoDB &amp; Mongoose</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-neutral-500 block">Active Host</span>
+                      <span className="font-mono text-neutral-300 truncate block text-[11px]">{mongoStats?.host || 'Cloud Atlas / Local'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-neutral-500 block">Database Name</span>
+                      <span className="font-mono text-[#E5A914] text-[11px]">{mongoStats?.dbName || '4lazy'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-neutral-500 block">Status</span>
+                      <span className="text-emerald-400 font-semibold text-[11px]">{mongoStats?.status || 'Active'}</span>
+                    </div>
+                  </div>
+
+                  {/* Collection Metrics */}
+                  {mongoStats?.connected && mongoStats?.collections && (
+                    <div className="pt-3 border-t border-neutral-900 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                      <div className="p-2 bg-neutral-900 rounded">
+                        <span className="text-[10px] text-neutral-400 block uppercase">Products</span>
+                        <span className="font-mono font-bold text-white text-xs">{mongoStats.collections.products || 0}</span>
+                      </div>
+                      <div className="p-2 bg-neutral-900 rounded">
+                        <span className="text-[10px] text-neutral-400 block uppercase">Users</span>
+                        <span className="font-mono font-bold text-white text-xs">{mongoStats.collections.users || 0}</span>
+                      </div>
+                      <div className="p-2 bg-neutral-900 rounded">
+                        <span className="text-[10px] text-neutral-400 block uppercase">Orders</span>
+                        <span className="font-mono font-bold text-white text-xs">{mongoStats.collections.orders || 0}</span>
+                      </div>
+                      <div className="p-2 bg-neutral-900 rounded">
+                        <span className="text-[10px] text-neutral-400 block uppercase">Categories</span>
+                        <span className="font-mono font-bold text-white text-xs">{mongoStats.collections.categories || 0}</span>
+                      </div>
+                      <div className="p-2 bg-neutral-900 rounded">
+                        <span className="text-[10px] text-neutral-400 block uppercase">Coupons</span>
+                        <span className="font-mono font-bold text-white text-xs">{mongoStats.collections.coupons || 0}</span>
+                      </div>
+                      <div className="p-2 bg-neutral-900 rounded">
+                        <span className="text-[10px] text-neutral-400 block uppercase">Returns</span>
+                        <span className="font-mono font-bold text-white text-xs">{mongoStats.collections.returns || 0}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Connect Custom MongoDB Atlas URI Form */}
+                <div className="space-y-2">
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400">
+                    MongoDB Atlas Connection URI (MONGODB_URI)
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="password"
+                      value={mongoUriInput}
+                      onChange={e => setMongoUriInput(e.target.value)}
+                      placeholder="mongodb+srv://username:password@cluster0.mongodb.net/4lazy?retryWrites=true&w=majority"
+                      className="flex-1 bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono focus:outline-none focus:border-neutral-600"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleConnectMongo}
+                        disabled={mongoLoading || !mongoUriInput.trim()}
+                        className="bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider whitespace-nowrap"
+                      >
+                        {mongoLoading ? 'Connecting...' : 'Connect Atlas'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSyncMongo}
+                        disabled={mongoLoading}
+                        className="bg-[#E5A914] hover:bg-[#d49b10] disabled:opacity-50 text-black font-extrabold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap"
+                        title="Push all products, categories, orders, and users into MongoDB Atlas"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${mongoLoading ? 'animate-spin' : ''}`} />
+                        Push to Atlas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePullMongo}
+                        disabled={mongoLoading || !mongoStats?.connected}
+                        className="bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap"
+                        title="Pull latest live collections from MongoDB Atlas into local store"
+                      >
+                        Pull from Atlas
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-neutral-500">
+                    Configuring <code className="text-neutral-400">MONGODB_URI</code> connects your MongoDB Atlas cluster directly with Mongoose ODM models.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-800">
+                <button
+                  type="submit"
+                  className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-widest hover:bg-[#d49b10]"
+                >
+                  Save Store Settings
+                </button>
+              </div>
             </form>
           </div>
         )}
