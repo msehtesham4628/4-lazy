@@ -28,7 +28,10 @@ import {
   ChevronRight,
   ExternalLink,
   Layers,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Menu,
+  LogOut,
+  Store
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import {
@@ -62,8 +65,9 @@ type AdminTab =
   | 'emails';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
-  const { user, token, isAdmin } = useAuth();
+  const { user, token, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [adminNavMenuOpen, setAdminNavMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Overview Data
@@ -740,136 +744,210 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     return true;
   });
 
+  const navTabs: { id: AdminTab; label: string; icon: any; badge?: string | number; badgeColor?: string }[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'products', label: 'Products', icon: Package, badge: products.length },
+    { id: 'inventory', label: 'Inventory', icon: Boxes, badge: lowStockItems.length > 0 ? `${lowStockItems.length} Low` : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: orders.length },
+    { id: 'returns', label: 'Returns', icon: RotateCcw, badge: returns.length > 0 ? returns.length : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
+    { id: 'customers', label: 'Customers', icon: Users, badge: customers.length > 0 ? customers.length : undefined },
+    { id: 'tally', label: 'Tally & GST', icon: FileSpreadsheet },
+    { id: 'content', label: 'CMS & Images', icon: FileText },
+    { id: 'coupons', label: 'Coupons', icon: Tag, badge: coupons.length > 0 ? coupons.length : undefined },
+    { id: 'emails', label: 'Emails', icon: Mail },
+    { id: 'settings', label: 'Settings', icon: Settings }
+  ];
+
   return (
-    <div className="min-h-screen bg-[#09090b] text-neutral-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#09090b] text-neutral-100 flex flex-col">
       
-      {/* Admin Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-neutral-950 border-r border-neutral-800 p-5 flex flex-col justify-between shrink-0">
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 pb-4 border-b border-neutral-800">
-            <img
-              src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
-              alt="4 LAZY Logo"
-              className="w-8 h-8 object-contain rounded"
-              referrerPolicy="no-referrer"
-            />
-            <div>
-              <span className="font-display text-sm font-black text-white tracking-wider">4 LAZY PORTAL</span>
-              <span className="text-[10px] block text-[#E5A914] font-mono">SUPER ADMIN CONSOLE</span>
+      {/* Top Admin Sticky Navigation Bar with Complete Menu Bar in Nav */}
+      <header className="sticky top-0 z-40 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 shadow-2xl">
+        {/* Nav Header Main Row */}
+        <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          
+          {/* Brand & Monogram & Mobile Drawer Toggle */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setAdminNavMenuOpen(!adminNavMenuOpen)}
+              className="xl:hidden p-2 text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors"
+              aria-label="Toggle navigation menu"
+            >
+              {adminNavMenuOpen ? <X className="w-5 h-5 text-[#E5A914]" /> : <Menu className="w-5 h-5" />}
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center p-1 shadow-inner">
+                <img
+                  src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
+                  alt="4 LAZY Logo"
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-sm font-black text-white tracking-wider">4 LAZY</span>
+                  <span className="text-[9px] font-bold tracking-widest text-[#E5A914] bg-[#E5A914]/10 border border-[#E5A914]/30 px-1.5 py-0.5 rounded uppercase font-mono">
+                    ADMIN
+                  </span>
+                </div>
+                <span className="text-[10px] text-neutral-400 font-mono hidden sm:block">
+                  EXECUTIVE CONSOLE
+                </span>
+              </div>
             </div>
           </div>
 
-          <nav className="space-y-1 text-xs font-semibold uppercase tracking-wider">
+          {/* Nav Quick Action Cluster */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
-              onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'overview' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
+              onClick={openAddProductModal}
+              className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
+              title="Add a new garment to the catalog"
             >
-              <LayoutDashboard className="w-4 h-4" /> Overview Dashboard
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Add Product</span>
             </button>
+
             <button
-              onClick={() => setActiveTab('orders')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'orders' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
+              onClick={() => setShowBulkModal(true)}
+              className="bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-800 hover:border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+              title="Upload products in bulk via CSV / Excel"
             >
-              <span className="flex items-center gap-2.5"><ShoppingBag className="w-4 h-4" /> Orders</span>
-              <span className="text-[10px] font-mono font-bold bg-neutral-800 px-1.5 py-0.5 rounded text-white">{orders.length}</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden md:inline">Excel Upload</span>
             </button>
+
             <button
-              onClick={() => setActiveTab('returns')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'returns' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
+              onClick={() => onNavigate('home')}
+              className="text-neutral-400 hover:text-white bg-neutral-900/60 hover:bg-neutral-800 border border-neutral-800/80 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="Preview Public Storefront"
             >
-              <span className="flex items-center gap-2.5"><RotateCcw className="w-4 h-4" /> Returns &amp; Exchanges</span>
-              <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-[#E5A914] px-1.5 py-0.5 rounded">{returns.length}</span>
+              <Store className="w-3.5 h-3.5 text-neutral-400" />
+              <span className="hidden lg:inline">Storefront</span>
             </button>
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'products' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <span className="flex items-center gap-2.5"><Package className="w-4 h-4" /> Products Catalog</span>
-              <span className="text-[10px] font-mono font-bold text-neutral-400">{products.length}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('inventory')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'inventory' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <span className="flex items-center gap-2.5"><Boxes className="w-4 h-4" /> Inventory Matrix</span>
-              {lowStockItems.length > 0 && (
-                <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-[#E5A914] px-1.5 py-0.5 rounded">{lowStockItems.length} Low</span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('customers')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'customers' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <Users className="w-4 h-4" /> Customer Data
-            </button>
-            <button
-              onClick={() => setActiveTab('tally')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'tally' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <FileSpreadsheet className="w-4 h-4" /> Tally &amp; GST Reports
-            </button>
-            <button
-              onClick={() => setActiveTab('content')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'content' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <FileText className="w-4 h-4" /> Website CMS &amp; Images
-            </button>
-            <button
-              onClick={() => setActiveTab('coupons')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'coupons' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <Tag className="w-4 h-4" /> Coupons &amp; Privileges
-            </button>
-            <button
-              onClick={() => setActiveTab('emails')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'emails' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <Mail className="w-4 h-4" /> Automated Email Logs
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'settings' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-              }`}
-            >
-              <Settings className="w-4 h-4" /> Store Settings
-            </button>
-          </nav>
+
+            <div className="h-5 w-px bg-neutral-800 hidden sm:block" />
+
+            {/* Admin User / Logout */}
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex flex-col text-right">
+                <span className="text-xs font-semibold text-white leading-tight">
+                  {user?.name || 'Super Admin'}
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono">
+                  ACTIVE SESSION
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                title="Sign out of Admin Console"
+                className="p-2 text-neutral-400 hover:text-red-400 hover:bg-neutral-900 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="pt-6 border-t border-neutral-800">
-          <button
-            onClick={() => onNavigate('home')}
-            className="w-full text-left text-xs text-neutral-400 hover:text-white py-1 flex items-center justify-between"
-          >
-            <span>Return to Storefront</span>
-            <span>&rarr;</span>
-          </button>
+        {/* The Menu Bar in Nav – Horizontal Sliding Module Bar */}
+        <div className="border-t border-neutral-900 bg-neutral-950/90">
+          <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8">
+            <nav className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar" aria-label="Admin Navigation Tabs">
+              {navTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setAdminNavMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all shrink-0 ${
+                      isActive
+                        ? 'bg-[#E5A914] text-black font-extrabold shadow-sm'
+                        : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{tab.label}</span>
+                    {tab.badge !== undefined && (
+                      <span
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
+                          isActive
+                            ? 'bg-black/20 text-black'
+                            : tab.badgeColor || 'bg-neutral-800 text-neutral-300'
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
         </div>
-      </aside>
+
+        {/* Mobile / Compact Menu Drawer Overlay */}
+        {adminNavMenuOpen && (
+          <div className="xl:hidden border-t border-neutral-800 bg-neutral-950/98 backdrop-blur-xl px-4 py-4 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {navTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setAdminNavMenuOpen(false);
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-left transition-all ${
+                      isActive
+                        ? 'bg-[#E5A914] text-black font-extrabold shadow'
+                        : 'bg-neutral-900/60 hover:bg-neutral-900 text-neutral-300 hover:text-white border border-neutral-800/80'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{tab.label}</span>
+                    </span>
+                    {tab.badge !== undefined && (
+                      <span className={`text-[10px] font-mono font-bold px-1 rounded ${isActive ? 'bg-black/20 text-black' : 'bg-neutral-800 text-neutral-400'}`}>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-xs text-neutral-400">
+              <button
+                onClick={() => onNavigate('home')}
+                className="flex items-center gap-1.5 hover:text-white"
+              >
+                <Store className="w-4 h-4" />
+                <span>Return to Storefront</span>
+              </button>
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 text-red-400 hover:text-red-300"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* Main Admin Content Container */}
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+      <main className="flex-1 max-w-[1700px] w-full mx-auto p-4 sm:p-6 lg:p-10 overflow-y-auto">
         
         {/* OVERVIEW DASHBOARD */}
         {activeTab === 'overview' && metrics && (
