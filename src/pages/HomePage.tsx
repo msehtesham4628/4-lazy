@@ -9,41 +9,36 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({
+    heroImageUrl: '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+    heroHeading: 'LESS EFFORT. MORE STYLE.',
+    heroSubhead: 'Engineered for the relaxed vanguard. 280–500 GSM custom-loomed heavyweight textiles, architectural drop-shoulder geometry, and minimalist everyday confidence.',
+    heroButtonText: 'Shop Collection'
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/products')
-      .then(res => res.json())
-      .then(data => {
-        setProducts(data.products || []);
-      })
-      .catch(err => console.error('Error fetching home products:', err))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/products').then(res => res.json()).catch(() => ({ products: [] })),
+      fetch('/api/categories').then(res => res.json()).catch(() => ({ categories: [] })),
+      fetch('/api/settings').then(res => res.json()).catch(() => ({ settings: null }))
+    ]).then(([prodData, catData, setData]) => {
+      if (prodData.products) setProducts(prodData.products);
+      if (catData.categories && catData.categories.length > 0) setCategories(catData.categories);
+      if (setData.settings) {
+        setSettings({
+          heroImageUrl: setData.settings.heroImageUrl || '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+          heroHeading: setData.settings.heroHeading || 'LESS EFFORT. MORE STYLE.',
+          heroSubhead: setData.settings.heroSubhead || 'Engineered for the relaxed vanguard. 280–500 GSM custom-loomed heavyweight textiles, architectural drop-shoulder geometry, and minimalist everyday confidence.',
+          heroButtonText: setData.settings.heroButtonText || 'Shop Collection'
+        });
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
-  const heroImg = '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg';
+  const heroImg = settings.heroImageUrl || '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg';
   const lookbookImg = '/src/assets/images/campaign_editorial_lookbook_1794056022183.jpg';
-
-  const categories = [
-    {
-      title: 'Oversized T-Shirts',
-      desc: '280 GSM Combed Cotton · Drop Shoulder',
-      image: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
-      category: 'Oversized T-Shirts'
-    },
-    {
-      title: '500 GSM Boxy Hoodies',
-      desc: 'Custom Loopback French Terry · Sculptural Hood',
-      image: '/src/assets/images/product_streetwear_hoodie_1794056020931.jpg',
-      category: 'Hoodies & Sweatshirts'
-    },
-    {
-      title: 'Pleated Utility Cargos',
-      desc: '340 GSM High Density Twill · Magnetic Flaps',
-      image: '/src/assets/images/product_cargo_trousers_1794056021752.jpg',
-      category: 'Trousers & Cargo'
-    }
-  ];
 
   return (
     <div className="space-y-24 pb-20">
@@ -67,13 +62,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <span>DROP 04 // THE BRUTALIST HEAVYWEIGHTS</span>
           </div>
 
-          <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight uppercase leading-[0.95] max-w-4xl mx-auto text-balance">
-            LESS EFFORT. <br className="hidden sm:inline" />
-            MORE STYLE.
+          <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight uppercase leading-[0.95] max-w-4xl mx-auto text-balance whitespace-pre-line">
+            {settings.heroHeading || 'LESS EFFORT. \nMORE STYLE.'}
           </h1>
 
           <p className="mt-6 text-sm sm:text-base lg:text-lg text-neutral-300 max-w-2xl mx-auto font-normal leading-relaxed text-balance">
-            Engineered for the relaxed vanguard. 280–500 GSM custom-loomed heavyweight textiles, architectural drop-shoulder geometry, and minimalist everyday confidence.
+            {settings.heroSubhead || 'Engineered for the relaxed vanguard. 280–500 GSM custom-loomed heavyweight textiles, architectural drop-shoulder geometry, and minimalist everyday confidence.'}
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -81,7 +75,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               onClick={() => onNavigate('shop')}
               className="w-full sm:w-auto bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-8 py-3.5 rounded text-xs uppercase tracking-widest transition-all duration-200 active:scale-95 shadow-xl flex items-center justify-center gap-2"
             >
-              Shop Collection
+              {settings.heroButtonText || 'Shop Collection'}
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
@@ -157,15 +151,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {categories.map((cat) => (
+          {categories.slice(0, 6).map((cat: any) => (
             <div
-              key={cat.title}
-              onClick={() => onNavigate('shop', { category: cat.category })}
+              key={cat.id || cat.title || cat.name}
+              onClick={() => onNavigate('shop', { category: cat.name || cat.category || cat.title })}
               className="group relative h-[420px] rounded-lg overflow-hidden border border-neutral-800 cursor-pointer bg-neutral-900"
             >
               <img
-                src={cat.image}
-                alt={cat.title}
+                src={cat.image || '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'}
+                alt={cat.name || cat.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                 referrerPolicy="no-referrer"
               />
@@ -174,10 +168,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                   CATEGORY
                 </span>
                 <h3 className="font-display text-xl font-bold text-white uppercase">
-                  {cat.title}
+                  {cat.name || cat.title}
                 </h3>
                 <p className="text-xs text-neutral-300 mt-1 line-clamp-1">
-                  {cat.desc}
+                  {cat.description || cat.desc || 'Premium heavyweight architectural streetwear.'}
                 </p>
                 <div className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white group-hover:text-[#E5A914] transition-colors">
                   <span>Explore Silhouette</span>

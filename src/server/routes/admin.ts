@@ -408,3 +408,270 @@ adminRouter.get('/emails', (req: AuthenticatedRequest, res: Response) => {
   const db = getDB();
   return res.json({ emails: db.emailLogs });
 });
+
+// Category Management (CMS category images & text)
+adminRouter.get('/categories', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  return res.json({ categories: db.categories });
+});
+
+adminRouter.post('/categories', (req: AuthenticatedRequest, res: Response) => {
+  const { name, description, image } = req.body;
+  if (!name) return res.status(400).json({ error: 'Category name is required' });
+
+  const db = getDB();
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  const newCat = {
+    id: `cat_${Date.now()}`,
+    slug,
+    name: name.trim(),
+    description: description || 'Architectural streetwear category.',
+    image: image || '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+    itemCount: 0
+  };
+
+  db.categories.push(newCat);
+  db.adminLogs.unshift({
+    id: `log_${Date.now()}`,
+    adminEmail: req.user!.email,
+    action: 'CATEGORY_CREATED',
+    details: `Created category ${newCat.name}`,
+    timestamp: new Date().toISOString()
+  });
+
+  saveDB();
+  return res.status(201).json({ category: newCat });
+});
+
+adminRouter.put('/categories/:id', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const cat = db.categories.find(c => c.id === req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Category not found' });
+
+  Object.assign(cat, req.body);
+  db.adminLogs.unshift({
+    id: `log_${Date.now()}`,
+    adminEmail: req.user!.email,
+    action: 'CATEGORY_UPDATED',
+    details: `Updated category ${cat.name} (${cat.id})`,
+    timestamp: new Date().toISOString()
+  });
+
+  saveDB();
+  return res.json({ category: cat });
+});
+
+adminRouter.delete('/categories/:id', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  db.categories = db.categories.filter(c => c.id !== req.params.id);
+  saveDB();
+  return res.json({ success: true });
+});
+
+// Returns & Exchanges Management
+adminRouter.get('/returns', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  return res.json({ returns: db.returnRequests || [] });
+});
+
+adminRouter.put('/returns/:id/status', (req: AuthenticatedRequest, res: Response) => {
+  const { status, notes, pickupAwb } = req.body;
+  const db = getDB();
+  const ret = db.returnRequests.find(r => r.id === req.params.id);
+  if (!ret) return res.status(404).json({ error: 'Return request not found' });
+
+  if (status) ret.status = status;
+  if (notes !== undefined) ret.notes = notes;
+  if (pickupAwb !== undefined) ret.pickupAwb = pickupAwb;
+  ret.updatedAt = new Date().toISOString();
+
+  // If status is Refund Completed, restock inventory if not already refunded
+  if (status === 'Refund Completed') {
+    const order = db.orders.find(o => o.id === ret.orderId || o.orderNumber === ret.orderNumber);
+    if (order && order.payment.status !== 'refunded') {
+      order.payment.status = 'refunded';
+      order.status = 'Returned';
+      for (const item of ret.items) {
+        const prod = db.products.find(p => p.id === item.productId);
+        if (prod) {
+          const variant = prod.variants.find(v => v.sku === item.variantSku || (v.size === item.size && v.colorName === item.colorName));
+          if (variant) {
+            variant.stock += item.quantity;
+          }
+        }
+      }
+    }
+  }
+
+  db.adminLogs.unshift({
+    id: `log_${Date.now()}`,
+    adminEmail: req.user!.email,
+    action: 'RETURN_STATUS_UPDATED',
+    details: `Updated return ${ret.id} to ${ret.status}`,
+    timestamp: new Date().toISOString()
+  });
+
+  saveDB();
+  return res.json({ returnRequest: ret });
+});
+
+// Tally & Financial Accounting Integration
+adminRouter.get('/tally/summary', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+
+  let grossProductSales = 0;
+  let totalDiscounts = 0;
+  let totalShippingRevenue = 0;
+  let totalTaxCollected = 0;
+  let totalRefunds = 0;
+  let completedOrdersCount = 0;
+
+  const paymentModesBreakup: Record<string, number> = {
+    upi: 0,
+    card: 0,
+    razorpay: 0,
+    stripe: 0,
+    cod: 0
+  };
+
+  db.orders.forEach(o => {
+    if (o.payment.status === 'completed') {
+      completedOrdersCount++;
+      grossProductSales += o.subtotal;
+      totalDiscounts += o.discount;
+      totalShippingRevenue += o.shippingFee;
+      totalTaxCollected += o.tax;
+      const provider = o.payment.provider || 'upi';
+      paymentModesBreakup[provider] = (paymentModesBreakup[provider] || 0) + o.total;
+    } else if (o.payment.status === 'refunded') {
+      totalRefunds += o.total;
+    }
+  });
+
+  const netTaxableValue = Math.max(0, grossProductSales - totalDiscounts);
+  const cgstAmount = Math.round(totalTaxCollected / 2);
+  const sgstAmount = totalTaxCollected - cgstAmount;
+  const netRevenue = netTaxableValue + totalTaxCollected + totalShippingRevenue - totalRefunds;
+
+  return res.json({
+    summary: {
+      completedOrdersCount,
+      grossProductSales,
+      totalDiscounts,
+      netTaxableValue,
+      totalShippingRevenue,
+      cgstAmount,
+      sgstAmount,
+      totalTaxCollected,
+      totalRefunds,
+      netRevenue,
+      paymentModesBreakup
+    }
+  });
+});
+
+// Export Sales Voucher XML for Tally ERP 9 / TallyPrime
+adminRouter.get('/tally/export-xml', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const paidOrders = db.orders.filter(o => o.payment.status === 'completed');
+
+  const vouchersXml = paidOrders.map(o => {
+    const invDate = new Date(o.createdAt).toISOString().split('T')[0].replace(/-/g, '');
+    const taxable = Math.max(0, o.subtotal - o.discount);
+    const cgst = Math.round(o.tax / 2);
+    const sgst = o.tax - cgst;
+    const paymentLedger = o.payment.provider === 'upi' ? 'Razorpay UPI Ledger' : 'HDFC Bank Account';
+
+    return `
+      <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Invoice Voucher View">
+        <DATE>${invDate}</DATE>
+        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
+        <VOUCHERNUMBER>${o.orderNumber}</VOUCHERNUMBER>
+        <PARTYLEDGERNAME>${o.customer.name.replace(/&/g, '&amp;')}</PARTYLEDGERNAME>
+        <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
+        <BASICBUYERNAME>${o.customer.name.replace(/&/g, '&amp;')}</BASICBUYERNAME>
+        <BASICPLACEOFSUPPLY>${o.shippingAddress.state}</BASICPLACEOFSUPPLY>
+        <NARRATION>4 LAZY Order #${o.orderNumber} - ${o.items.map(i => `${i.productTitle} (${i.quantity})`).join(', ')}</NARRATION>
+        
+        <!-- Dr Party / Bank Ledger -->
+        <ALLLEDGERENTRIES.LIST>
+          <LEDGERNAME>${paymentLedger}</LEDGERNAME>
+          <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+          <AMOUNT>-${o.total}</AMOUNT>
+        </ALLLEDGERENTRIES.LIST>
+
+        <!-- Cr Sales Account -->
+        <ALLLEDGERENTRIES.LIST>
+          <LEDGERNAME>Streetwear Sales Account</LEDGERNAME>
+          <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+          <AMOUNT>${taxable}</AMOUNT>
+        </ALLLEDGERENTRIES.LIST>
+
+        <!-- Cr CGST @ 2.5% -->
+        <ALLLEDGERENTRIES.LIST>
+          <LEDGERNAME>Output CGST @ 2.5%</LEDGERNAME>
+          <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+          <AMOUNT>${cgst}</AMOUNT>
+        </ALLLEDGERENTRIES.LIST>
+
+        <!-- Cr SGST @ 2.5% -->
+        <ALLLEDGERENTRIES.LIST>
+          <LEDGERNAME>Output SGST @ 2.5%</LEDGERNAME>
+          <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+          <AMOUNT>${sgst}</AMOUNT>
+        </ALLLEDGERENTRIES.LIST>
+
+        ${o.shippingFee > 0 ? `
+        <!-- Cr Shipping Charges -->
+        <ALLLEDGERENTRIES.LIST>
+          <LEDGERNAME>Freight &amp; Delivery Recovery</LEDGERNAME>
+          <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+          <AMOUNT>${o.shippingFee}</AMOUNT>
+        </ALLLEDGERENTRIES.LIST>` : ''}
+      </VOUCHER>`;
+  }).join('\n');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ENVELOPE>
+  <HEADER>
+    <TALLYREQUEST>Import Data</TALLYREQUEST>
+  </HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>4 LAZY APPAREL INC</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          ${vouchersXml}
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>`;
+
+  res.header('Content-Type', 'application/xml');
+  res.attachment('4LAZY_Tally_Sales_Vouchers.xml');
+  return res.send(xml);
+});
+
+// Export GST Sales Register CSV
+adminRouter.get('/tally/export-csv', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const headers = 'Invoice No,Invoice Date,Customer Name,State,PIN Code,Taxable Value,CGST (2.5%),SGST (2.5%),Delivery Charges,Invoice Total,Payment Provider,Status\n';
+  const rows = db.orders.map(o => {
+    const invDate = new Date(o.createdAt).toISOString().split('T')[0];
+    const taxable = Math.max(0, o.subtotal - o.discount);
+    const cgst = Math.round(o.tax / 2);
+    const sgst = o.tax - cgst;
+    return `"${o.orderNumber}","${invDate}","${o.customer.name.replace(/"/g, '""')}","${o.shippingAddress.state}","${o.shippingAddress.pinCode}",${taxable},${cgst},${sgst},${o.shippingFee},${o.total},"${o.payment.provider}","${o.payment.status}"`;
+  }).join('\n');
+
+  res.header('Content-Type', 'text/csv');
+  res.attachment('4LAZY_GST_Sales_Register.csv');
+  return res.send(headers + rows);
+});
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -22,10 +22,27 @@ import {
   X,
   Search,
   ArrowUpDown,
-  DollarSign
+  DollarSign,
+  FileSpreadsheet,
+  Printer,
+  ChevronRight,
+  ExternalLink,
+  Layers,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { Order, Product, Coupon, StoreSettings, EmailLog, InventoryTransaction } from '../../types/index.ts';
+import {
+  Order,
+  Product,
+  Category,
+  Coupon,
+  StoreSettings,
+  EmailLog,
+  InventoryTransaction,
+  ReturnRequest,
+  ProductVariant,
+  ProductColorGroup
+} from '../../types/index.ts';
 
 interface AdminDashboardProps {
   onNavigate: (page: string, params?: any) => void;
@@ -34,11 +51,13 @@ interface AdminDashboardProps {
 type AdminTab =
   | 'overview'
   | 'products'
-  | 'orders'
   | 'inventory'
+  | 'orders'
+  | 'returns'
   | 'customers'
-  | 'coupons'
+  | 'tally'
   | 'content'
+  | 'coupons'
   | 'settings'
   | 'emails';
 
@@ -55,15 +74,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   // Products
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState('');
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [bulkCsvText, setBulkCsvText] = useState('');
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Excel / CSV Bulk Upload
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkCsvText, setBulkCsvText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Product Form State (for Add / Edit)
+  const [productForm, setProductForm] = useState({
+    title: '',
+    subtitle: '',
+    category: 'Oversized T-Shirts',
+    basePrice: 1999,
+    discountPrice: 1699,
+    description: '',
+    isFeatured: false,
+    isPublished: true,
+    fabric: '100% Combed Compact Cotton',
+    gsm: 280,
+    fit: 'Boxy drop-shoulder streetwear cut',
+    care: 'Machine wash cold inside-out. Hang dry in shade.',
+    colorName: 'Washed Black',
+    colorHex: '#141416',
+    imageUrl: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+    stockS: 20,
+    stockM: 35,
+    stockL: 40,
+    stockXL: 25,
+    stockXXL: 10
+  });
 
   // Orders
   const [orders, setOrders] = useState<Order[]>([]);
-  const [orderFilter, setOrderFilter] = useState('all');
   const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
   const [trackingForm, setTrackingForm] = useState({
     courierCompany: 'Blue Dart Express',
@@ -72,16 +118,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     estimatedDeliveryDate: '',
     statusNotes: ''
   });
+  const [viewInvoiceOrder, setViewInvoiceOrder] = useState<Order | null>(null);
+
+  // Returns
+  const [returns, setReturns] = useState<ReturnRequest[]>([]);
+  const [selectedReturn, setSelectedReturn] = useState<ReturnRequest | null>(null);
+  const [returnStatusForm, setReturnStatusForm] = useState({
+    status: 'Approved',
+    pickupAwb: '',
+    notes: ''
+  });
 
   // Inventory
   const [inventoryMatrix, setInventoryMatrix] = useState<any[]>([]);
+  const [inventoryFilter, setInventoryFilter] = useState<'all' | 'low' | 'out'>('all');
   const [inventoryTx, setInventoryTx] = useState<InventoryTransaction[]>([]);
   const [adjustModalItem, setAdjustModalItem] = useState<any | null>(null);
-  const [adjustQty, setAdjustQty] = useState<number>(0);
-  const [adjustReason, setAdjustReason] = useState('Stock replenishment');
+  const [adjustQty, setAdjustQty] = useState<number>(10);
+  const [adjustReason, setAdjustReason] = useState('Stock replenishment from manufacturing mill');
 
   // Customers
   const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerOrders, setSelectedCustomerOrders] = useState<Order[] | null>(null);
+
+  // Tally & GST Accounting
+  const [tallySummary, setTallySummary] = useState<any>(null);
+
+  // Categories & CMS
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    image: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'
+  });
 
   // Coupons
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -95,7 +166,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     usageLimit: 500
   });
 
-  // Settings & Content
+  // Settings & CMS Content
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
@@ -129,6 +200,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/admin/categories', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await res.json();
+      setCategories(d.categories || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchOrdersList = async () => {
     try {
       const res = await fetch('/api/admin/orders', {
@@ -136,6 +219,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       });
       const d = await res.json();
       setOrders(d.orders || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchReturnsList = async () => {
+    try {
+      const res = await fetch('/api/admin/returns', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await res.json();
+      setReturns(d.returns || []);
     } catch (e) {
       console.error(e);
     }
@@ -161,6 +256,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       });
       const d = await res.json();
       setCustomers(d.customers || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchTallySummary = async () => {
+    try {
+      const res = await fetch('/api/admin/tally/summary', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await res.json();
+      setTallySummary(d.summary);
     } catch (e) {
       console.error(e);
     }
@@ -208,9 +315,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       Promise.all([
         fetchOverview(),
         fetchProductsList(),
+        fetchCategories(),
         fetchOrdersList(),
+        fetchReturnsList(),
         fetchInventory(),
         fetchCustomers(),
+        fetchTallySummary(),
         fetchCoupons(),
         fetchSettings(),
         fetchEmails()
@@ -224,10 +334,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         <AlertTriangle className="w-12 h-12 text-[#E5A914] mx-auto mb-3" />
         <h2 className="font-display text-xl font-bold text-white uppercase">Administrator Access Required</h2>
         <p className="text-xs text-neutral-400 mt-2">
-          Please authenticate with administrator credentials (e.g. <strong>admin@4lazyfashion.com</strong> / <strong>admin123</strong>) to access the store management console.
+          Please sign in with administrator credentials (e.g. <strong>admin@4lazyfashion.com</strong> / <strong>admin123</strong>) to access the store management console.
         </p>
         <button
-          onClick={() => onNavigate('login')}
+          onClick={() => onNavigate('admin-login')}
           className="mt-6 bg-[#E5A914] text-black font-extrabold px-6 py-2.5 text-xs uppercase tracking-widest rounded"
         >
           Sign In as Admin
@@ -235,6 +345,230 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       </div>
     );
   }
+
+  // PRODUCT CRUD
+  const openAddProductModal = () => {
+    setEditingProduct(null);
+    setProductForm({
+      title: '',
+      subtitle: '',
+      category: categories[0]?.name || 'Oversized T-Shirts',
+      basePrice: 1999,
+      discountPrice: 1699,
+      description: 'Custom heavyweight luxury streetwear piece.',
+      isFeatured: false,
+      isPublished: true,
+      fabric: '100% Combed Compact Cotton',
+      gsm: 280,
+      fit: 'Boxy drop-shoulder streetwear fit',
+      care: 'Machine wash cold. Hang dry in shade.',
+      colorName: 'Washed Black',
+      colorHex: '#141416',
+      imageUrl: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+      stockS: 20,
+      stockM: 35,
+      stockL: 40,
+      stockXL: 25,
+      stockXXL: 10
+    });
+    setShowProductModal(true);
+  };
+
+  const openEditProductModal = (product: Product) => {
+    setEditingProduct(product);
+    const firstColor = product.colorGroups[0] || { colorName: 'Washed Black', colorHex: '#141416', images: [] };
+    const stockMap: Record<string, number> = {};
+    product.variants.forEach(v => {
+      stockMap[v.size] = v.stock;
+    });
+
+    setProductForm({
+      title: product.title,
+      subtitle: product.subtitle || '',
+      category: product.category,
+      basePrice: product.basePrice,
+      discountPrice: product.discountPrice || 0,
+      description: product.description,
+      isFeatured: product.isFeatured,
+      isPublished: product.isPublished,
+      fabric: product.details.fabric,
+      gsm: product.details.gsm || 280,
+      fit: product.details.fit,
+      care: product.details.care,
+      colorName: firstColor.colorName,
+      colorHex: firstColor.colorHex,
+      imageUrl: firstColor.images[0] || product.variants[0]?.images[0] || '',
+      stockS: stockMap['S'] || 15,
+      stockM: stockMap['M'] || 25,
+      stockL: stockMap['L'] || 30,
+      stockXL: stockMap['XL'] || 15,
+      stockXXL: stockMap['XXL'] || 10
+    });
+    setShowProductModal(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const codePrefix = productForm.title.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '4L');
+      const variants: ProductVariant[] = [
+        { id: `var_${Date.now()}_s`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'S', sku: `4L-${codePrefix}-S`, stock: Number(productForm.stockS), images: [productForm.imageUrl] },
+        { id: `var_${Date.now()}_m`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'M', sku: `4L-${codePrefix}-M`, stock: Number(productForm.stockM), images: [productForm.imageUrl] },
+        { id: `var_${Date.now()}_l`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'L', sku: `4L-${codePrefix}-L`, stock: Number(productForm.stockL), images: [productForm.imageUrl] },
+        { id: `var_${Date.now()}_xl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XL', sku: `4L-${codePrefix}-XL`, stock: Number(productForm.stockXL), images: [productForm.imageUrl] },
+        { id: `var_${Date.now()}_xxl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XXL', sku: `4L-${codePrefix}-XXL`, stock: Number(productForm.stockXXL), images: [productForm.imageUrl] }
+      ];
+
+      const payload = {
+        title: productForm.title,
+        subtitle: productForm.subtitle,
+        category: productForm.category,
+        basePrice: Number(productForm.basePrice),
+        discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
+        description: productForm.description,
+        isFeatured: productForm.isFeatured,
+        isPublished: productForm.isPublished,
+        colorGroups: [
+          { colorName: productForm.colorName, colorHex: productForm.colorHex, images: [productForm.imageUrl] }
+        ],
+        variants,
+        details: {
+          fabric: productForm.fabric,
+          gsm: Number(productForm.gsm),
+          fit: productForm.fit,
+          care: productForm.care
+        }
+      };
+
+      const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products';
+      const method = editingProduct ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setShowProductModal(false);
+        fetchProductsList();
+        fetchInventory();
+        fetchOverview();
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Failed to save product');
+      }
+    } catch (e: any) {
+      alert('Error saving product: ' + e.message);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Are you sure you want to permanently delete this piece from the catalog?')) return;
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchProductsList();
+        fetchInventory();
+        fetchOverview();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // EXCEL / CSV BULK IMPORT
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setBulkCsvText(content);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkImport = async () => {
+    try {
+      const lines = bulkCsvText.trim().split('\n');
+      if (lines.length < 2) return alert('Please provide at least a header row and one product row.');
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const productsToImport: any[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 3) continue;
+
+        const row: any = {};
+        headers.forEach((h, idx) => {
+          row[h] = cols[idx];
+        });
+
+        productsToImport.push({
+          title: row['title'] || row['name'] || `4 LAZY Drop Piece ${i}`,
+          category: row['category'] || 'Oversized T-Shirts',
+          basePrice: Number(row['price']) || 1999,
+          discountPrice: row['saleprice'] ? Number(row['saleprice']) : undefined,
+          description: row['description'] || 'Imported via bulk CSV upload.',
+          variants: [
+            {
+              id: `var_${Date.now()}_${i}`,
+              colorName: row['color'] || 'Washed Black',
+              colorHex: '#141416',
+              size: (row['size'] || 'L') as any,
+              sku: row['sku'] || `4L-CSV-${1000 + i}`,
+              stock: Number(row['stock']) || 25,
+              images: ['/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg']
+            }
+          ]
+        });
+      }
+
+      const res = await fetch('/api/admin/products/bulk-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ products: productsToImport })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        setShowBulkModal(false);
+        setBulkCsvText('');
+        fetchProductsList();
+        fetchInventory();
+        fetchOverview();
+      } else {
+        alert(data.error);
+      }
+    } catch (err: any) {
+      alert('Error parsing CSV: ' + err.message);
+    }
+  };
+
+  const downloadSampleTemplate = () => {
+    const csvContent = "data:text/csv;charset=utf-8,title,category,price,saleprice,color,size,sku,stock,description\n" +
+      "Heavyweight Boxy Drop Tee,Oversized T-Shirts,1999,1699,Washed Black,L,4L-TEE-WB-L,30,280 GSM combed cotton luxury oversized tee\n" +
+      "500 GSM French Terry Hoodie,Hoodies & Sweatshirts,4299,3899,Vintage Charcoal,XL,4L-HD-VC-XL,20,500 GSM heavyweight boxy hoodie\n" +
+      "Tailored Utility Cargos,Trousers & Cargo,3799,3299,Bone Off-White,M,4L-CG-BO-M,25,Pleated cotton twill cargo trousers with magnetic flaps";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "4lazy_product_import_template.csv");
+    document.body.appendChild(link);
+    link.click();
+  };
 
   // ORDER ACTIONS
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -280,14 +614,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   };
 
-  const handleProcessRefund = async (orderId: string) => {
-    if (!confirm('Are you sure you want to process a full refund and return stock to inventory?')) return;
+  // RETURNS MANAGEMENT ACTIONS
+  const handleUpdateReturnStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReturn) return;
+
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(`/api/admin/returns/${selectedReturn.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(returnStatusForm)
       });
       if (res.ok) {
+        setSelectedReturn(null);
+        fetchReturnsList();
         fetchOrdersList();
         fetchInventory();
         fetchOverview();
@@ -327,34 +670,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   };
 
-  // COUPON CREATION
-  const handleCreateCoupon = async (e: React.FormEvent) => {
+  // CATEGORY MANAGEMENT
+  const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/coupons', {
-        method: 'POST',
+      const url = editingCategory ? `/api/admin/categories/${editingCategory.id}` : '/api/admin/categories';
+      const method = editingCategory ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(newCoupon)
+        body: JSON.stringify(categoryForm)
       });
       if (res.ok) {
-        setShowCouponModal(false);
-        fetchCoupons();
+        setShowCategoryModal(false);
+        fetchCategories();
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const handleDeleteCoupon = async (id: string) => {
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this category?')) return;
     try {
-      await fetch(`/api/admin/coupons/${id}`, {
+      await fetch(`/api/admin/categories/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchCoupons();
+      fetchCategories();
     } catch (e) {
       console.error(e);
     }
@@ -383,69 +730,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   };
 
-  // BULK CSV IMPORT
-  const handleBulkImport = async () => {
-    try {
-      const lines = bulkCsvText.trim().split('\n');
-      if (lines.length < 2) return alert('Please enter at least 1 header and 1 product row.');
+  // Filtered inventory calculations
+  const totalStockCount = inventoryMatrix.reduce((sum, item) => sum + item.stock, 0);
+  const totalValuation = inventoryMatrix.reduce((sum, item) => sum + (item.stock * item.price), 0);
 
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      const productsToImport: any[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim());
-        if (cols.length < 3) continue;
-
-        const row: any = {};
-        headers.forEach((h, idx) => {
-          row[h] = cols[idx];
-        });
-
-        productsToImport.push({
-          title: row['title'] || row['name'],
-          category: row['category'] || 'Oversized T-Shirts',
-          basePrice: Number(row['price']) || 1999,
-          discountPrice: row['saleprice'] ? Number(row['saleprice']) : undefined,
-          description: row['description'] || 'Imported via CSV batch.',
-          variants: [
-            {
-              id: `var_${Date.now()}_${i}`,
-              colorName: row['color'] || 'Washed Black',
-              colorHex: '#141416',
-              size: (row['size'] || 'L') as any,
-              sku: row['sku'] || `4L-CSV-${1000 + i}`,
-              stock: Number(row['stock']) || 20,
-              images: ['/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg']
-            }
-          ]
-        });
-      }
-
-      const res = await fetch('/api/admin/products/bulk-import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ products: productsToImport })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.message);
-        setShowBulkModal(false);
-        setBulkCsvText('');
-        fetchProductsList();
-        fetchInventory();
-      } else {
-        alert(data.error);
-      }
-    } catch (err: any) {
-      alert('Error parsing CSV: ' + err.message);
-    }
-  };
+  const filteredInventory = inventoryMatrix.filter(item => {
+    if (inventoryFilter === 'low') return item.stock > 0 && item.stock < 15;
+    if (inventoryFilter === 'out') return item.stock === 0;
+    return true;
+  });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-neutral-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#09090b] text-neutral-100 flex flex-col md:flex-row">
       
       {/* Admin Sidebar Navigation */}
       <aside className="w-full md:w-64 bg-neutral-950 border-r border-neutral-800 p-5 flex flex-col justify-between shrink-0">
@@ -458,8 +754,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               referrerPolicy="no-referrer"
             />
             <div>
-              <span className="font-display text-sm font-black text-white tracking-wider">4 LAZY CONSOLE</span>
-              <span className="text-[10px] block text-[#E5A914] font-mono">SUPER ADMIN v4.2</span>
+              <span className="font-display text-sm font-black text-white tracking-wider">4 LAZY PORTAL</span>
+              <span className="text-[10px] block text-[#E5A914] font-mono">SUPER ADMIN CONSOLE</span>
             </div>
           </div>
 
@@ -470,7 +766,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 activeTab === 'overview' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" /> Overview Metrics
+              <LayoutDashboard className="w-4 h-4" /> Overview Dashboard
             </button>
             <button
               onClick={() => setActiveTab('orders')}
@@ -482,12 +778,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               <span className="text-[10px] font-mono font-bold bg-neutral-800 px-1.5 py-0.5 rounded text-white">{orders.length}</span>
             </button>
             <button
+              onClick={() => setActiveTab('returns')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                activeTab === 'returns' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+              }`}
+            >
+              <span className="flex items-center gap-2.5"><RotateCcw className="w-4 h-4" /> Returns &amp; Exchanges</span>
+              <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-[#E5A914] px-1.5 py-0.5 rounded">{returns.length}</span>
+            </button>
+            <button
               onClick={() => setActiveTab('products')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
                 activeTab === 'products' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <Package className="w-4 h-4" /> Products Catalog
+              <span className="flex items-center gap-2.5"><Package className="w-4 h-4" /> Products Catalog</span>
+              <span className="text-[10px] font-mono font-bold text-neutral-400">{products.length}</span>
             </button>
             <button
               onClick={() => setActiveTab('inventory')}
@@ -506,15 +812,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 activeTab === 'customers' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <Users className="w-4 h-4" /> Customers Roster
+              <Users className="w-4 h-4" /> Customer Data
             </button>
             <button
-              onClick={() => setActiveTab('coupons')}
+              onClick={() => setActiveTab('tally')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                activeTab === 'coupons' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                activeTab === 'tally' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <Tag className="w-4 h-4" /> Coupons & Privileges
+              <FileSpreadsheet className="w-4 h-4" /> Tally &amp; GST Reports
             </button>
             <button
               onClick={() => setActiveTab('content')}
@@ -522,7 +828,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 activeTab === 'content' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <FileText className="w-4 h-4" /> Website CMS
+              <FileText className="w-4 h-4" /> Website CMS &amp; Images
+            </button>
+            <button
+              onClick={() => setActiveTab('coupons')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
+                activeTab === 'coupons' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+              }`}
+            >
+              <Tag className="w-4 h-4" /> Coupons &amp; Privileges
             </button>
             <button
               onClick={() => setActiveTab('emails')}
@@ -557,102 +871,154 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       {/* Main Admin Content Container */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto">
         
-        {/* OVERVIEW TAB */}
+        {/* OVERVIEW DASHBOARD */}
         {activeTab === 'overview' && metrics && (
           <div className="space-y-8">
             <div className="flex justify-between items-center pb-4 border-b border-neutral-800">
               <div>
                 <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Executive Dashboard</h1>
-                <p className="text-xs text-neutral-400">Live operational overview for 4 LAZY fashion brand.</p>
+                <p className="text-xs text-neutral-400">Live operational oversight, order queues, and revenue metrics.</p>
               </div>
-              <div className="text-right font-mono text-xs text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1.5 rounded">
-                Server & DB: HEALTHY
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab('orders')}
+                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-1.5 rounded text-xs uppercase tracking-wider"
+                >
+                  Manage Orders ({orders.length})
+                </button>
+                <button
+                  onClick={openAddProductModal}
+                  className="bg-[#E5A914] text-black font-extrabold px-3.5 py-1.5 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Product
+                </button>
               </div>
             </div>
 
-            {/* Metric KPI Cards */}
+            {/* KPI Metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-5 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Total Revenue (Verified)</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Gross Sales Turnover</span>
                 <p className="font-mono text-2xl font-black text-[#E5A914] tabular-nums">
                   ₹{metrics.totalRevenue.toLocaleString()}
                 </p>
-                <p className="text-[11px] text-emerald-400">+18% this month</p>
+                <p className="text-[11px] text-emerald-400">{metrics.completedOrders} orders fulfilled</p>
               </div>
 
               <div className="p-5 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Total Placed Orders</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Active Order Queue</span>
                 <p className="font-mono text-2xl font-black text-white tabular-nums">
                   {metrics.totalOrders}
                 </p>
-                <p className="text-[11px] text-neutral-400">{metrics.pendingOrders} in fulfillment queue</p>
+                <p className="text-[11px] text-amber-400">{metrics.pendingOrders} pending dispatch</p>
               </div>
 
               <div className="p-5 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Active Customers</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Customer Roster</span>
                 <p className="font-mono text-2xl font-black text-white tabular-nums">
                   {metrics.totalCustomers}
                 </p>
-                <p className="text-[11px] text-neutral-400">Verified buyers</p>
+                <p className="text-[11px] text-neutral-400">Verified buyer accounts</p>
               </div>
 
               <div className="p-5 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Catalog SKUs</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Total Stock Valuation</span>
                 <p className="font-mono text-2xl font-black text-white tabular-nums">
-                  {inventoryMatrix.length}
+                  ₹{totalValuation.toLocaleString()}
                 </p>
-                <p className="text-[11px] text-amber-400 font-medium">{metrics.lowStockCount} stock warnings</p>
+                <p className="text-[11px] text-neutral-400">{totalStockCount} units in warehouse</p>
               </div>
             </div>
 
-            {/* Low Stock Alerts Strip */}
-            {lowStockItems.length > 0 && (
-              <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-[#E5A914] text-xs font-bold uppercase tracking-wider mb-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  Variant Inventory Warnings (Stock &lt; 15 units)
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
-                  {lowStockItems.slice(0, 6).map((item, idx) => (
-                    <div key={idx} className="bg-black/60 p-2.5 rounded border border-neutral-800 flex justify-between items-center">
-                      <div className="truncate">
-                        <p className="font-semibold text-white truncate">{item.productTitle}</p>
-                        <p className="text-[10px] text-neutral-400 font-mono">{item.sku} · {item.colorName} ({item.size})</p>
-                      </div>
-                      <span className="font-mono text-xs font-bold text-amber-400 ml-2">{item.stock} left</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Quick Actions Shortcuts */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <button
+                onClick={() => setActiveTab('products')}
+                className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
+              >
+                <Package className="w-4 h-4 text-[#E5A914] mb-1.5" />
+                <p className="text-xs font-bold text-white uppercase">Products &amp; Excel</p>
+                <p className="text-[10px] text-neutral-400">Add, edit, bulk upload</p>
+              </button>
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
+              >
+                <Boxes className="w-4 h-4 text-[#E5A914] mb-1.5" />
+                <p className="text-xs font-bold text-white uppercase">Stock Inventory</p>
+                <p className="text-[10px] text-neutral-400">Variant stock &amp; audit</p>
+              </button>
+              <button
+                onClick={() => setActiveTab('returns')}
+                className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
+              >
+                <RotateCcw className="w-4 h-4 text-[#E5A914] mb-1.5" />
+                <p className="text-xs font-bold text-white uppercase">Returns &amp; Exchanges</p>
+                <p className="text-[10px] text-neutral-400">{returns.length} active return cases</p>
+              </button>
+              <button
+                onClick={() => setActiveTab('tally')}
+                className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-[#E5A914] mb-1.5" />
+                <p className="text-xs font-bold text-white uppercase">Tally XML &amp; GST</p>
+                <p className="text-[10px] text-neutral-400">Export vouchers &amp; CSV</p>
+              </button>
+            </div>
 
-            {/* Recent Orders Table */}
+            {/* Recent Orders Overview */}
             <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 space-y-4">
-              <h2 className="font-display text-sm font-bold uppercase tracking-wider text-white">Recent Customer Orders</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="font-display text-sm font-bold uppercase tracking-wider text-white">Recent Orders Overview</h2>
+                <button onClick={() => setActiveTab('orders')} className="text-xs text-[#E5A914] hover:underline font-bold">
+                  View All Orders &rarr;
+                </button>
+              </div>
+
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-xs border-collapse font-mono">
                   <thead>
-                    <tr className="border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
-                      <th className="pb-2">Order #</th>
-                      <th className="pb-2">Customer</th>
-                      <th className="pb-2">Date</th>
-                      <th className="pb-2">Amount</th>
-                      <th className="pb-2">Payment</th>
-                      <th className="pb-2">Status</th>
+                    <tr className="border-b border-neutral-800 text-neutral-400 uppercase tracking-wider font-sans">
+                      <th className="pb-2.5">Order Number</th>
+                      <th className="pb-2.5">Customer</th>
+                      <th className="pb-2.5">Amount</th>
+                      <th className="pb-2.5">Status</th>
+                      <th className="pb-2.5 text-right">Quick Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-800/80 font-mono">
+                  <tbody className="divide-y divide-neutral-800/80">
                     {recentOrders.map(order => (
                       <tr key={order.id} className="hover:bg-neutral-800/30">
                         <td className="py-2.5 font-bold text-[#E5A914]">{order.orderNumber}</td>
-                        <td className="py-2.5 font-sans text-white">{order.customer.name}</td>
-                        <td className="py-2.5 text-neutral-400">{new Date(order.createdAt).toLocaleDateString()}</td>
-                        <td className="py-2.5 text-white">₹{order.total.toLocaleString()}</td>
-                        <td className="py-2.5 text-emerald-400 font-sans uppercase text-[11px]">{order.payment.provider} ({order.payment.status})</td>
+                        <td className="py-2.5 font-sans text-white">{order.customer.name} ({order.shippingAddress.city})</td>
+                        <td className="py-2.5 text-white font-bold">₹{order.total.toLocaleString()}</td>
                         <td className="py-2.5 font-sans">
-                          <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-neutral-800 text-white">
+                          <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-neutral-800 text-neutral-200">
                             {order.status}
                           </span>
+                        </td>
+                        <td className="py-2.5 text-right font-sans">
+                          <button
+                            onClick={() => setViewInvoiceOrder(order)}
+                            className="text-neutral-400 hover:text-white text-xs underline mr-3"
+                          >
+                            Invoice
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedOrderForTracking(order);
+                              setTrackingForm({
+                                courierCompany: order.tracking?.courierCompany || 'Blue Dart Express',
+                                trackingNumber: order.tracking?.trackingNumber || '',
+                                trackingUrl: order.tracking?.trackingUrl || '',
+                                estimatedDeliveryDate: order.tracking?.estimatedDeliveryDate || '',
+                                statusNotes: order.tracking?.statusNotes || ''
+                              });
+                            }}
+                            className="text-[#E5A914] hover:underline font-bold text-xs"
+                          >
+                            Logistics
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -663,13 +1029,215 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
         )}
 
+        {/* PRODUCTS MANAGEMENT TAB (Add, Edit, Delete, Excel/CSV Upload) */}
+        {activeTab === 'products' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Product Catalog Management</h1>
+                <p className="text-xs text-neutral-400">Add new designs, edit existing variants, delete pieces, or upload in bulk via Excel/CSV.</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={downloadSampleTemplate}
+                  className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 font-semibold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" /> Sample Template
+                </button>
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#E5A914]" /> Excel / CSV Upload
+                </button>
+                <button
+                  onClick={openAddProductModal}
+                  className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 hover:bg-[#d49b10]"
+                >
+                  <Plus className="w-4 h-4" /> Add Product
+                </button>
+              </div>
+            </div>
+
+            {/* Product List Table */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                    <th className="p-3.5">Piece</th>
+                    <th className="p-3.5">Category</th>
+                    <th className="p-3.5">Pricing</th>
+                    <th className="p-3.5">Colors &amp; Stock</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {products.map(p => (
+                    <tr key={p.id} className="hover:bg-neutral-800/20">
+                      <td className="p-3.5 flex items-center gap-3">
+                        <img
+                          src={p.colorGroups[0]?.images[0] || p.variants[0]?.images[0]}
+                          alt={p.title}
+                          className="w-12 h-14 object-cover rounded bg-neutral-950 border border-neutral-800 shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div>
+                          <p className="font-bold text-white">{p.title}</p>
+                          <p className="text-[11px] text-neutral-400 font-mono">{p.slug}</p>
+                        </div>
+                      </td>
+                      <td className="p-3.5 text-neutral-300 font-semibold">{p.category}</td>
+                      <td className="p-3.5 font-mono">
+                        <span className="font-bold text-white">₹{(p.discountPrice || p.basePrice).toLocaleString()}</span>
+                        {p.discountPrice && <span className="text-neutral-500 line-through ml-2">₹{p.basePrice.toLocaleString()}</span>}
+                      </td>
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-1 mb-1">
+                          {p.colorGroups.map(cg => (
+                            <span key={cg.colorName} className="w-3 h-3 rounded-full border border-neutral-700" style={{ backgroundColor: cg.colorHex }} title={cg.colorName} />
+                          ))}
+                        </div>
+                        <span className="text-[11px] font-mono text-neutral-400">
+                          {p.variants.reduce((sum, v) => sum + v.stock, 0)} units total
+                        </span>
+                      </td>
+                      <td className="p-3.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${p.isPublished ? 'bg-emerald-500/20 text-emerald-400' : 'bg-neutral-800 text-neutral-500'}`}>
+                          {p.isPublished ? 'Live' : 'Draft'}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-right space-x-2">
+                        <button
+                          onClick={() => openEditProductModal(p)}
+                          className="text-[#E5A914] hover:underline font-bold text-xs"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(p.id)}
+                          className="text-red-400 hover:underline font-semibold text-xs ml-2"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* INVENTORY MANAGEMENT TAB */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Variant Stock Matrix</h1>
+                <p className="text-xs text-neutral-400">Direct SKU-level inventory adjustment, low-stock warnings, and valuation.</p>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 p-1 rounded-lg text-xs font-semibold uppercase">
+                <button
+                  onClick={() => setInventoryFilter('all')}
+                  className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'all' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  All SKUs ({inventoryMatrix.length})
+                </button>
+                <button
+                  onClick={() => setInventoryFilter('low')}
+                  className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'low' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  Low Stock (&lt;15)
+                </button>
+                <button
+                  onClick={() => setInventoryFilter('out')}
+                  className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'out' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  Out of Stock
+                </button>
+              </div>
+            </div>
+
+            {/* Inventory Valuation Strip */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Total Stock Value</span>
+                <p className="font-mono text-xl font-bold text-[#E5A914] mt-0.5">₹{totalValuation.toLocaleString()}</p>
+              </div>
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Total Physical Units</span>
+                <p className="font-mono text-xl font-bold text-white mt-0.5">{totalStockCount} pieces</p>
+              </div>
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Active SKU Codes</span>
+                <p className="font-mono text-xl font-bold text-white mt-0.5">{inventoryMatrix.length} distinct sizes</p>
+              </div>
+            </div>
+
+            {/* Inventory Table */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse font-mono">
+                <thead>
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider font-sans">
+                    <th className="p-3.5">SKU Code</th>
+                    <th className="p-3.5">Product Title</th>
+                    <th className="p-3.5">Colorway</th>
+                    <th className="p-3.5">Size</th>
+                    <th className="p-3.5">Available Stock</th>
+                    <th className="p-3.5 text-right font-sans">Stock Adjustment</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {filteredInventory.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-neutral-800/20">
+                      <td className="p-3.5 font-bold text-[#E5A914]">{item.sku}</td>
+                      <td className="p-3.5 font-sans font-semibold text-white">{item.productTitle}</td>
+                      <td className="p-3.5 font-sans flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full border border-neutral-700" style={{ backgroundColor: item.colorHex }} />
+                        <span>{item.colorName}</span>
+                      </td>
+                      <td className="p-3.5 font-bold text-white">{item.size}</td>
+                      <td className="p-3.5">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                          item.stock === 0
+                            ? 'bg-red-500/20 text-red-400'
+                            : item.stock < 15
+                            ? 'bg-amber-500/20 text-amber-400'
+                            : 'bg-emerald-500/20 text-emerald-400'
+                        }`}>
+                          {item.stock} Units
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-right font-sans">
+                        <button
+                          onClick={() => {
+                            setAdjustModalItem(item);
+                            setAdjustQty(10);
+                          }}
+                          className="bg-neutral-800 hover:bg-[#E5A914] hover:text-black text-white px-3 py-1 rounded text-xs font-bold uppercase transition-colors"
+                        >
+                          Adjust Stock (+/-)
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ORDERS MANAGEMENT TAB */}
         {activeTab === 'orders' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
               <div>
-                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Order Fulfillment</h1>
-                <p className="text-xs text-neutral-400">Manage statuses, assign courier AWB tracking, and process returns.</p>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Customer Orders</h1>
+                <p className="text-xs text-neutral-400">Order verification, packing status flow, and courier tracking updates.</p>
               </div>
 
               <div className="flex items-center gap-3">
@@ -679,8 +1247,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     type="text"
                     value={orderSearch}
                     onChange={e => setOrderSearch(e.target.value)}
-                    placeholder="Search by Order # or Name..."
-                    className="bg-transparent text-white focus:outline-none text-xs w-44"
+                    placeholder="Search by Order # or Customer..."
+                    className="bg-transparent text-white focus:outline-none text-xs w-48"
                   />
                 </div>
               </div>
@@ -691,12 +1259,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
-                    <th className="p-3.5">Order</th>
-                    <th className="p-3.5">Customer & Destination</th>
-                    <th className="p-3.5">Items Summary</th>
-                    <th className="p-3.5">Amount</th>
-                    <th className="p-3.5">Status Flow</th>
-                    <th className="p-3.5 text-right">Logistics & Actions</th>
+                    <th className="p-3.5">Order Ref</th>
+                    <th className="p-3.5">Buyer &amp; Address</th>
+                    <th className="p-3.5">Pieces</th>
+                    <th className="p-3.5">Total (₹)</th>
+                    <th className="p-3.5">Fulfillment Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800 font-mono">
@@ -711,7 +1279,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                         <td className="p-3.5 align-top font-sans">
                           <p className="font-bold text-white">{order.customer.name}</p>
                           <p className="text-neutral-400 text-[11px]">{order.customer.email}</p>
-                          <p className="text-neutral-500 text-[11px]">{order.shippingAddress.city}, {order.shippingAddress.state}</p>
+                          <p className="text-neutral-500 text-[11px]">{order.shippingAddress.city}, {order.shippingAddress.state} ({order.shippingAddress.pinCode})</p>
                         </td>
                         <td className="p-3.5 align-top font-sans">
                           <div className="space-y-1">
@@ -760,14 +1328,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                             <Truck className="w-3 h-3" />
                             {order.tracking?.trackingNumber ? 'Edit AWB' : 'Assign Courier'}
                           </button>
-                          {order.payment.status === 'completed' && (
-                            <button
-                              onClick={() => handleProcessRefund(order.id)}
-                              className="block ml-auto text-[10px] text-red-400 hover:underline uppercase"
-                            >
-                              Process Refund
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setViewInvoiceOrder(order)}
+                            className="block ml-auto text-xs text-neutral-400 hover:text-white underline"
+                          >
+                            Print Invoice
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -777,146 +1343,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
         )}
 
-        {/* PRODUCTS MANAGEMENT TAB */}
-        {activeTab === 'products' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
-              <div>
-                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Product Catalog</h1>
-                <p className="text-xs text-neutral-400">Create, edit variants, manage multi-color photo galleries, or bulk import.</p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowBulkModal(true)}
-                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  <Upload className="w-3.5 h-3.5 text-[#E5A914]" /> Bulk CSV Import
-                </button>
-                <button
-                  onClick={() => {
-                    const csvContent = "data:text/csv;charset=utf-8,title,category,price,saleprice,color,size,sku,stock\n" +
-                      products.map(p => `${p.title},${p.category},${p.basePrice},${p.discountPrice || ''},Washed Black,L,4L-EXP,25`).join('\n');
-                    const encodedUri = encodeURI(csvContent);
-                    const link = document.createElement("a");
-                    link.setAttribute("href", encodedUri);
-                    link.setAttribute("download", "4lazy_products_export.csv");
-                    document.body.appendChild(link);
-                    link.click();
-                  }}
-                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" /> Export CSV
-                </button>
-              </div>
-            </div>
-
-            {/* Products Table */}
-            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
-                    <th className="p-3.5">Piece</th>
-                    <th className="p-3.5">Category</th>
-                    <th className="p-3.5">Base / Sale Price</th>
-                    <th className="p-3.5">Colors & Variants</th>
-                    <th className="p-3.5">Rating & Reviews</th>
-                    <th className="p-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800">
-                  {products.map(p => (
-                    <tr key={p.id} className="hover:bg-neutral-800/20">
-                      <td className="p-3.5 flex items-center gap-3">
-                        <img
-                          src={p.colorGroups[0]?.images[0] || p.variants[0]?.images[0]}
-                          alt={p.title}
-                          className="w-12 h-14 object-cover rounded bg-neutral-950 border border-neutral-800 shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div>
-                          <p className="font-bold text-white">{p.title}</p>
-                          <p className="text-[11px] text-neutral-500 font-mono">{p.slug}</p>
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-neutral-300 font-semibold">{p.category}</td>
-                      <td className="p-3.5 font-mono">
-                        <span className="font-bold text-white">₹{(p.discountPrice || p.basePrice).toLocaleString()}</span>
-                        {p.discountPrice && <span className="text-neutral-500 line-through ml-2">₹{p.basePrice.toLocaleString()}</span>}
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-1 mb-1">
-                          {p.colorGroups.map(cg => (
-                            <span key={cg.colorName} className="w-3 h-3 rounded-full border border-neutral-700" style={{ backgroundColor: cg.colorHex }} title={cg.colorName} />
-                          ))}
-                        </div>
-                        <span className="text-[11px] font-mono text-neutral-400">{p.variants.length} total SKUs</span>
-                      </td>
-                      <td className="p-3.5 font-mono text-white">
-                        ★ {p.rating} ({p.reviewsCount} reviews)
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <button
-                          onClick={() => onNavigate('product-detail', { slug: p.slug })}
-                          className="text-[#E5A914] hover:underline font-bold mr-3"
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* INVENTORY MATRIX TAB */}
-        {activeTab === 'inventory' && (
+        {/* RETURNS & EXCHANGES MANAGEMENT TAB */}
+        {activeTab === 'returns' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center pb-4 border-b border-neutral-800">
               <div>
-                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Variant Inventory Matrix</h1>
-                <p className="text-xs text-neutral-400">Variant-level stock control, automated transaction audit logs, and instant adjustments.</p>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Returns &amp; Sizing Exchanges</h1>
+                <p className="text-xs text-neutral-400">Process customer exchange requests, schedule reverse pickups, and issue refunds.</p>
               </div>
             </div>
 
             <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse font-mono">
+              <table className="w-full text-left text-xs border-collapse font-sans">
                 <thead>
-                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider font-sans">
-                    <th className="p-3.5">SKU Code</th>
-                    <th className="p-3.5">Product Title</th>
-                    <th className="p-3.5">Color & Swatch</th>
-                    <th className="p-3.5">Size</th>
-                    <th className="p-3.5">Current Stock</th>
-                    <th className="p-3.5 text-right">Stock Adjust</th>
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                    <th className="p-3.5">Case ID</th>
+                    <th className="p-3.5">Order Ref &amp; Buyer</th>
+                    <th className="p-3.5">Exchange Reason</th>
+                    <th className="p-3.5">Returned Piece</th>
+                    <th className="p-3.5">Return Status</th>
+                    <th className="p-3.5 text-right">Process Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800">
-                  {inventoryMatrix.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-neutral-800/20">
-                      <td className="p-3.5 font-bold text-[#E5A914]">{item.sku}</td>
-                      <td className="p-3.5 font-sans font-semibold text-white">{item.productTitle}</td>
-                      <td className="p-3.5 font-sans flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full border border-neutral-700" style={{ backgroundColor: item.colorHex }} />
-                        <span>{item.colorName}</span>
-                      </td>
-                      <td className="p-3.5 font-bold text-white">{item.size}</td>
+                  {returns.map(ret => (
+                    <tr key={ret.id} className="hover:bg-neutral-800/20">
+                      <td className="p-3.5 font-mono font-bold text-[#E5A914]">{ret.id}</td>
                       <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${item.stock < 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                          {item.stock} Units
+                        <p className="font-bold text-white font-mono">{ret.orderNumber}</p>
+                        <p className="text-neutral-400 text-[11px]">{ret.customerName} ({ret.customerEmail})</p>
+                      </td>
+                      <td className="p-3.5">
+                        <span className="font-bold text-white block">{ret.reason}</span>
+                        <p className="text-[11px] text-neutral-400 max-w-xs">{ret.details}</p>
+                      </td>
+                      <td className="p-3.5">
+                        {ret.items.map((it, idx) => (
+                          <p key={idx} className="text-[11px] text-neutral-300">
+                            {it.productTitle} - <strong>{it.colorName} ({it.size})</strong>
+                          </p>
+                        ))}
+                      </td>
+                      <td className="p-3.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                          ret.status === 'Refund Completed'
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : ret.status === 'Approved'
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-amber-500/20 text-amber-400'
+                        }`}>
+                          {ret.status}
                         </span>
                       </td>
-                      <td className="p-3.5 text-right font-sans">
+                      <td className="p-3.5 text-right">
                         <button
                           onClick={() => {
-                            setAdjustModalItem(item);
-                            setAdjustQty(10);
+                            setSelectedReturn(ret);
+                            setReturnStatusForm({
+                              status: ret.status,
+                              pickupAwb: ret.pickupAwb || '',
+                              notes: ret.notes || ''
+                            });
                           }}
-                          className="bg-neutral-800 hover:bg-neutral-700 text-white px-3 py-1 rounded text-xs font-bold uppercase"
+                          className="bg-[#E5A914] text-black font-extrabold px-3 py-1.5 rounded text-xs uppercase tracking-wider hover:bg-[#d49b10]"
                         >
-                          Adjust (+/-)
+                          Manage Case
                         </button>
                       </td>
                     </tr>
@@ -924,37 +1415,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </tbody>
               </table>
             </div>
-
-            {/* Audit Log Table */}
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-5 space-y-3">
-              <h2 className="font-display text-sm font-bold uppercase tracking-wider text-white">Stock Audit Trail</h2>
-              <div className="space-y-2 font-mono text-xs">
-                {inventoryTx.slice(0, 10).map(tx => (
-                  <div key={tx.id} className="p-2.5 bg-neutral-950 rounded border border-neutral-800 flex justify-between items-center">
-                    <div>
-                      <span className="text-white font-bold">{tx.productTitle}</span>
-                      <span className="text-neutral-500 ml-2">({tx.variantSku})</span>
-                      <p className="text-[11px] text-neutral-400 font-sans mt-0.5">{tx.reason}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className={`font-bold ${tx.change > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {tx.change > 0 ? `+${tx.change}` : tx.change} units
-                      </span>
-                      <p className="text-[10px] text-neutral-500">{new Date(tx.timestamp).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* CUSTOMERS ROSTER TAB */}
+        {/* CUSTOMER DATA TAB */}
         {activeTab === 'customers' && (
           <div className="space-y-6">
-            <div className="pb-4 border-b border-neutral-800">
-              <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Customer Accounts & Lifetime Spend</h1>
-              <p className="text-xs text-neutral-400">Profiles, addresses, verification status, and historical spending.</p>
+            <div className="flex justify-between items-center pb-4 border-b border-neutral-800">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Customer Data &amp; Spend Profiles</h1>
+                <p className="text-xs text-neutral-400">Registered buyers, order history, lifetime spending, and verified status.</p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const csv = "data:text/csv;charset=utf-8,Name,Email,Phone,Orders,TotalSpend,JoinedDate\n" +
+                    customers.map(c => `"${c.name}","${c.email}","${c.phone}",${c.ordersCount},${c.totalSpent},"${c.joinedAt}"`).join('\n');
+                  const encodedUri = encodeURI(csv);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", "4lazy_customers_export.csv");
+                  document.body.appendChild(link);
+                  link.click();
+                }}
+                className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" /> Export Customers (.csv)
+              </button>
             </div>
 
             <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
@@ -962,11 +1449,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
                     <th className="p-3.5">Customer Name</th>
-                    <th className="p-3.5">Email & Phone</th>
-                    <th className="p-3.5">Email Verified</th>
-                    <th className="p-3.5">Orders Count</th>
-                    <th className="p-3.5">Total Spend</th>
-                    <th className="p-3.5">Registered</th>
+                    <th className="p-3.5">Contact Details</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5">Order Count</th>
+                    <th className="p-3.5">Lifetime Spend</th>
+                    <th className="p-3.5 text-right">Order History</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800 font-mono">
@@ -979,12 +1466,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                       </td>
                       <td className="p-3.5 font-sans">
                         <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${c.isEmailVerified ? 'bg-emerald-500/20 text-emerald-400' : 'bg-neutral-800 text-neutral-400'}`}>
-                          {c.isEmailVerified ? 'Verified' : 'Pending'}
+                          {c.isEmailVerified ? 'Verified' : 'Pending OTP'}
                         </span>
                       </td>
                       <td className="p-3.5 text-white font-bold">{c.ordersCount} Orders</td>
                       <td className="p-3.5 text-[#E5A914] font-bold">₹{c.totalSpent.toLocaleString()}</td>
-                      <td className="p-3.5 text-neutral-500">{new Date(c.joinedAt).toLocaleDateString()}</td>
+                      <td className="p-3.5 text-right font-sans">
+                        <button
+                          onClick={() => {
+                            const userOrders = orders.filter(o => o.customer.email.toLowerCase() === c.email.toLowerCase());
+                            setSelectedCustomerOrders(userOrders);
+                          }}
+                          className="text-[#E5A914] hover:underline font-bold text-xs"
+                        >
+                          View Orders ({c.ordersCount})
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -993,120 +1490,228 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
         )}
 
-        {/* COUPONS TAB */}
-        {activeTab === 'coupons' && (
+        {/* TALLY & GST FINANCIAL REPORTS TAB */}
+        {activeTab === 'tally' && tallySummary && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center pb-4 border-b border-neutral-800">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
               <div>
-                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Privilege Coupons</h1>
-                <p className="text-xs text-neutral-400">Manage promotional codes, percentage discounts, and minimum order values.</p>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Tally ERP / TallyPrime &amp; GST Accounting</h1>
+                <p className="text-xs text-neutral-400">Generate standard Tally XML Sales Vouchers and GST tax audit registers.</p>
               </div>
-              <button
-                onClick={() => setShowCouponModal(true)}
-                className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Create Coupon
-              </button>
+
+              <div className="flex gap-2">
+                <a
+                  href="/api/admin/tally/export-xml"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-3.5 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Tally XML Vouchers
+                </a>
+                <a
+                  href="/api/admin/tally/export-csv"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" /> GST Sales Register (.csv)
+                </a>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {coupons.map(cpn => (
-                <div key={cpn.id} className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-mono text-lg font-black text-[#E5A914]">{cpn.code}</span>
-                    <button onClick={() => handleDeleteCoupon(cpn.id)} className="text-neutral-500 hover:text-red-400">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="space-y-1 text-xs text-neutral-300">
-                    <p>Discount: <strong>{cpn.type === 'percent' ? `${cpn.value}% Off` : `₹${cpn.value} Off`}</strong></p>
-                    <p>Min Order: <strong>₹{cpn.minOrderValue.toLocaleString()}</strong></p>
-                    <p>Usage: <strong>{cpn.usedCount} / {cpn.usageLimit}</strong></p>
-                  </div>
-                </div>
-              ))}
+            {/* Accounting Breakdown Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Gross Product Turnover</span>
+                <p className="font-mono text-xl font-bold text-white">₹{tallySummary.grossProductSales.toLocaleString()}</p>
+                <p className="text-[11px] text-neutral-500">Before discounts</p>
+              </div>
+
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Net Taxable Value</span>
+                <p className="font-mono text-xl font-bold text-[#E5A914]">₹{tallySummary.netTaxableValue.toLocaleString()}</p>
+                <p className="text-[11px] text-emerald-400">After -₹{tallySummary.totalDiscounts} coupons</p>
+              </div>
+
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Output GST (CGST + SGST)</span>
+                <p className="font-mono text-xl font-bold text-white">₹{tallySummary.totalTaxCollected.toLocaleString()}</p>
+                <p className="text-[11px] text-neutral-400">CGST: ₹{tallySummary.cgstAmount} · SGST: ₹{tallySummary.sgstAmount}</p>
+              </div>
+
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Net Invoiced Inflow</span>
+                <p className="font-mono text-xl font-bold text-emerald-400">₹{tallySummary.netRevenue.toLocaleString()}</p>
+                <p className="text-[11px] text-neutral-400">Net of ₹{tallySummary.totalRefunds} refunds</p>
+              </div>
+            </div>
+
+            {/* Tally XML Import Instructions Box */}
+            <div className="p-5 bg-neutral-950 border border-neutral-800 rounded-xl space-y-3 text-xs">
+              <h3 className="font-bold text-white uppercase flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-[#E5A914]" />
+                How to Import into Tally ERP 9 / TallyPrime:
+              </h3>
+              <ol className="list-decimal list-inside space-y-1.5 text-neutral-300">
+                <li>Click <strong>&quot;Export Tally XML Vouchers&quot;</strong> above to download <code className="text-[#E5A914]">4LAZY_Tally_Sales_Vouchers.xml</code>.</li>
+                <li>Open TallyPrime &gt; Select your Company (e.g. <strong>4 LAZY APPAREL INC</strong>).</li>
+                <li>Navigate to <strong>Import &gt; Transactions &gt; XML Format</strong>.</li>
+                <li>Select the exported file. Tally will automatically post Dr to Bank/Razorpay Ledger and Cr to Streetwear Sales + Output CGST/SGST Ledgers!</li>
+              </ol>
             </div>
           </div>
         )}
 
-        {/* WEBSITE CMS & CONTENT TAB */}
+        {/* WEBSITE CMS & IMAGES / HERO / CATEGORY EDIT TAB */}
         {activeTab === 'content' && storeSettings && (
-          <div className="space-y-6 max-w-3xl">
+          <div className="space-y-8 max-w-4xl">
             <div className="pb-4 border-b border-neutral-800">
-              <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Website Content CMS</h1>
-              <p className="text-xs text-neutral-400">Update homepage announcements, hero banner text, and campaign stories without code edits.</p>
+              <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Website CMS &amp; Imagery Editor</h1>
+              <p className="text-xs text-neutral-400">Edit hero images, headlines, announcement strips, and category photos live on the storefront.</p>
             </div>
 
             {settingsSuccess && (
               <div className="p-3 bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs rounded">
-                Changes published live to storefront.
+                Changes saved and published live to storefront!
               </div>
             )}
 
-            <form onSubmit={handleSaveSettings} className="space-y-4">
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Main Heading</label>
-                <input
-                  type="text"
-                  value={storeSettings.heroHeading}
-                  onChange={e => setStoreSettings({ ...storeSettings, heroHeading: e.target.value })}
-                  className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-bold"
-                />
+            {/* SECTION 1: HERO SECTION & IMAGERY */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-6 space-y-4">
+              <h2 className="font-display text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-[#E5A914]" /> Hero Banner &amp; Main Headline
+              </h2>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Image Asset Path or URL</label>
+                  <input
+                    type="text"
+                    value={storeSettings.heroImageUrl}
+                    onChange={e => setStoreSettings({ ...storeSettings, heroImageUrl: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
+                  />
+                  {/* Preset photo quick select */}
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/src/assets/images/hero_streetwear_campaign_1794056018871.jpg' })}
+                      className="text-[10px] text-[#E5A914] bg-neutral-950 border border-neutral-800 px-2 py-1 rounded"
+                    >
+                      Use Campaign Shot
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/src/assets/images/campaign_editorial_lookbook_1794056022183.jpg' })}
+                      className="text-[10px] text-neutral-300 bg-neutral-950 border border-neutral-800 px-2 py-1 rounded"
+                    >
+                      Use Lookbook Shot
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Display Headline</label>
+                  <input
+                    type="text"
+                    value={storeSettings.heroHeading}
+                    onChange={e => setStoreSettings({ ...storeSettings, heroHeading: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm text-white font-bold rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Subhead Prose</label>
+                  <textarea
+                    rows={2}
+                    value={storeSettings.heroSubhead}
+                    onChange={e => setStoreSettings({ ...storeSettings, heroSubhead: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Primary Button Text</label>
+                  <input
+                    type="text"
+                    value={storeSettings.heroButtonText}
+                    onChange={e => setStoreSettings({ ...storeSettings, heroButtonText: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: CATEGORY IMAGES & NAMES EDITOR */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="font-display text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#E5A914]" /> Category Images &amp; Silhouettes
+                </h2>
+                <button
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setCategoryForm({ name: '', description: '', image: '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg' });
+                    setShowCategoryModal(true);
+                  }}
+                  className="bg-[#E5A914] text-black font-extrabold px-3 py-1.5 rounded text-xs uppercase tracking-wider flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Category
+                </button>
               </div>
 
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Subhead Prose</label>
-                <textarea
-                  rows={3}
-                  value={storeSettings.heroSubhead}
-                  onChange={e => setStoreSettings({ ...storeSettings, heroSubhead: e.target.value })}
-                  className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {categories.map(cat => (
+                  <div key={cat.id} className="bg-neutral-950 border border-neutral-800 rounded-lg overflow-hidden group">
+                    <div className="h-32 bg-neutral-900 relative">
+                      <img src={cat.image || '/src/assets/images/product_oversized_heavy_tee_1794056020516.jpg'} alt={cat.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-3 flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-white text-xs">{cat.name}</h4>
+                        <p className="text-[10px] text-neutral-400 line-clamp-1">{cat.description}</p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => {
+                            setEditingCategory(cat);
+                            setCategoryForm({ name: cat.name, description: cat.description, image: cat.image || '' });
+                            setShowCategoryModal(true);
+                          }}
+                          className="text-[#E5A914] hover:underline text-xs font-bold"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="text-neutral-500 hover:text-red-400 text-xs ml-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Button Callout</label>
-                <input
-                  type="text"
-                  value={storeSettings.heroButtonText}
-                  onChange={e => setStoreSettings({ ...storeSettings, heroButtonText: e.target.value })}
-                  className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Campaign Story Description</label>
-                <textarea
-                  rows={3}
-                  value={storeSettings.campaignDescription}
-                  onChange={e => setStoreSettings({ ...storeSettings, campaignDescription: e.target.value })}
-                  className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-widest hover:bg-[#d49b10]"
-              >
-                Publish Live Updates
-              </button>
-            </form>
+            {/* Save CMS Changes Button */}
+            <button
+              onClick={handleSaveSettings}
+              className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-black px-8 py-3.5 rounded text-xs uppercase tracking-widest transition-colors shadow-xl"
+            >
+              Publish Live CMS &amp; Imagery Changes
+            </button>
           </div>
         )}
 
-        {/* STORE SETTINGS TAB */}
+        {/* SETTINGS TAB */}
         {activeTab === 'settings' && storeSettings && (
           <div className="space-y-6 max-w-3xl">
             <div className="pb-4 border-b border-neutral-800">
               <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Global Store Configuration</h1>
-              <p className="text-xs text-neutral-400">Payment gateway credentials, shipping thresholds, and tax policies.</p>
+              <p className="text-xs text-neutral-400">Payment credentials, free shipping limits, tax rates, and support details.</p>
             </div>
-
-            {settingsSuccess && (
-              <div className="p-3 bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs rounded">
-                Settings saved successfully.
-              </div>
-            )}
 
             <form onSubmit={handleSaveSettings} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -1116,37 +1721,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     type="text"
                     value={storeSettings.brandName}
                     onChange={e => setStoreSettings({ ...storeSettings, brandName: e.target.value })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Currency Code</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Store Currency</label>
                   <input
                     type="text"
                     value={storeSettings.currency}
                     onChange={e => setStoreSettings({ ...storeSettings, currency: e.target.value })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Free Shipping Min (₹)</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Free Delivery Min (₹)</label>
                   <input
                     type="number"
                     value={storeSettings.freeShippingThreshold}
                     onChange={e => setStoreSettings({ ...storeSettings, freeShippingThreshold: Number(e.target.value) })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Standard Shipping Fee (₹)</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Standard Delivery (₹)</label>
                   <input
                     type="number"
                     value={storeSettings.standardShippingFee}
                     onChange={e => setStoreSettings({ ...storeSettings, standardShippingFee: Number(e.target.value) })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
                   />
                 </div>
                 <div>
@@ -1155,20 +1760,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     type="number"
                     value={storeSettings.expressShippingFee}
                     onChange={e => setStoreSettings({ ...storeSettings, expressShippingFee: Number(e.target.value) })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
                   />
                 </div>
               </div>
 
               <div className="pt-4 border-t border-neutral-800 space-y-3">
-                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">Payment Gateway Integration</h3>
+                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">Payment Gateway Configuration</h3>
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Razorpay Key ID</label>
                   <input
                     type="text"
                     value={storeSettings.razorpayKeyId}
                     onChange={e => setStoreSettings({ ...storeSettings, razorpayKeyId: e.target.value })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
                   />
                 </div>
                 <div>
@@ -1177,7 +1782,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     type="text"
                     value={storeSettings.stripePublicKey}
                     onChange={e => setStoreSettings({ ...storeSettings, stripePublicKey: e.target.value })}
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3.5 py-2 text-xs text-white rounded font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
                   />
                 </div>
               </div>
@@ -1186,29 +1791,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 type="submit"
                 className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-widest hover:bg-[#d49b10]"
               >
-                Save Settings
+                Save Store Settings
               </button>
             </form>
           </div>
         )}
 
-        {/* AUTOMATED EMAIL LOGS TAB */}
+        {/* EMAIL NOTIFICATIONS LOG TAB */}
         {activeTab === 'emails' && (
           <div className="space-y-6">
             <div className="pb-4 border-b border-neutral-800">
-              <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Automated Notification Logs</h1>
-              <p className="text-xs text-neutral-400">Inspect branded transactional emails dispatched to buyers and administrators.</p>
+              <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Transactional Notification Logs</h1>
+              <p className="text-xs text-neutral-400">Inspect branded emails sent to buyers (OTP verification, invoices, courier tracking).</p>
             </div>
 
             <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider font-sans">
                     <th className="p-3.5">Recipient</th>
-                    <th className="p-3.5">Subject Line</th>
-                    <th className="p-3.5">Template Type</th>
-                    <th className="p-3.5">Dispatched At</th>
-                    <th className="p-3.5 text-right">Inspect Email</th>
+                    <th className="p-3.5">Subject</th>
+                    <th className="p-3.5">Template</th>
+                    <th className="p-3.5">Dispatched</th>
+                    <th className="p-3.5 text-right font-sans">Inspect Preview</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800 font-mono">
@@ -1240,7 +1845,236 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
       </main>
 
-      {/* COURIER ASSIGN MODAL */}
+      {/* PRODUCT ADD / EDIT MODAL */}
+      {showProductModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-3xl w-full p-6 text-neutral-100 space-y-4 shadow-2xl my-8">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+              <h3 className="font-display text-base font-bold text-white uppercase">
+                {editingProduct ? `Edit Piece: ${editingProduct.title}` : 'Add New Streetwear Piece'}
+              </h3>
+              <button onClick={() => setShowProductModal(false)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Product Title</label>
+                  <input
+                    type="text"
+                    value={productForm.title}
+                    onChange={e => setProductForm({ ...productForm, title: e.target.value })}
+                    placeholder="e.g. 500 GSM Oversized Zip Hoodie"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-bold rounded"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Subtitle / Key Highlight</label>
+                  <input
+                    type="text"
+                    value={productForm.subtitle}
+                    onChange={e => setProductForm({ ...productForm, subtitle: e.target.value })}
+                    placeholder="e.g. 500 GSM French Terry · Minimalist Neckline"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Category</label>
+                  <select
+                    value={productForm.category}
+                    onChange={e => setProductForm({ ...productForm, category: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
+                  >
+                    {categories.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Base Price (₹)</label>
+                  <input
+                    type="number"
+                    value={productForm.basePrice}
+                    onChange={e => setProductForm({ ...productForm, basePrice: Number(e.target.value) })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Sale Discounted Price (₹)</label>
+                  <input
+                    type="number"
+                    value={productForm.discountPrice}
+                    onChange={e => setProductForm({ ...productForm, discountPrice: Number(e.target.value) })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                  />
+                </div>
+              </div>
+
+              {/* Color & Photo Config */}
+              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-3">
+                <span className="font-bold text-white uppercase text-[11px] block">Primary Colorway &amp; Imagery</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Color Name</label>
+                    <input
+                      type="text"
+                      value={productForm.colorName}
+                      onChange={e => setProductForm({ ...productForm, colorName: e.target.value })}
+                      placeholder="Washed Black"
+                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Hex Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={productForm.colorHex}
+                        onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
+                        className="h-8 w-10 bg-transparent cursor-pointer rounded"
+                      />
+                      <input
+                        type="text"
+                        value={productForm.colorHex}
+                        onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
+                        className="w-full bg-neutral-900 border border-neutral-800 px-2 py-1 text-xs text-white font-mono rounded"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Image URL</label>
+                    <input
+                      type="text"
+                      value={productForm.imageUrl}
+                      onChange={e => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Variant Stock Allocations */}
+              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
+                <span className="font-bold text-white uppercase text-[11px] block">Size Stock Quantities</span>
+                <div className="grid grid-cols-5 gap-2 font-mono">
+                  <div>
+                    <label className="block text-center text-neutral-400 mb-1">Size S</label>
+                    <input type="number" value={productForm.stockS} onChange={e => setProductForm({ ...productForm, stockS: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-center text-neutral-400 mb-1">Size M</label>
+                    <input type="number" value={productForm.stockM} onChange={e => setProductForm({ ...productForm, stockM: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-center text-neutral-400 mb-1">Size L</label>
+                    <input type="number" value={productForm.stockL} onChange={e => setProductForm({ ...productForm, stockL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-center text-neutral-400 mb-1">Size XL</label>
+                    <input type="number" value={productForm.stockXL} onChange={e => setProductForm({ ...productForm, stockXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-center text-neutral-400 mb-1">Size XXL</label>
+                    <input type="number" value={productForm.stockXXL} onChange={e => setProductForm({ ...productForm, stockXXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Full Description</label>
+                <textarea
+                  rows={3}
+                  value={productForm.description}
+                  onChange={e => setProductForm({ ...productForm, description: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3">
+                <button type="button" onClick={() => setShowProductModal(false)} className="text-xs text-neutral-400 px-4">Cancel</button>
+                <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-wider hover:bg-[#d49b10]">
+                  {editingProduct ? 'Save Changes' : 'Create & Publish Piece'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EXCEL / CSV BULK IMPORT MODAL */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-2xl w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+              <h3 className="font-display text-sm font-bold text-white uppercase flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-[#E5A914]" /> Bulk Excel / CSV Product Upload
+              </h3>
+              <button onClick={() => setShowBulkModal(false)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center bg-neutral-950 p-3 rounded border border-neutral-800">
+                <div>
+                  <span className="font-bold text-white block">Upload CSV / Excel Spreadsheet</span>
+                  <span className="text-[11px] text-neutral-400">Select any valid .csv or text data file from your computer</span>
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv, .txt, .xlsx"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-1.5 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Choose File
+                </button>
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Or Paste CSV Text Directly:</label>
+                <textarea
+                  rows={8}
+                  value={bulkCsvText}
+                  onChange={e => setBulkCsvText(e.target.value)}
+                  placeholder={"title,category,price,saleprice,color,size,sku,stock,description\nDrop Tee,Oversized T-Shirts,1999,1699,Washed Black,L,4L-IMP-01,30,Heavy combed cotton tee"}
+                  className="w-full bg-neutral-950 border border-neutral-800 p-3 font-mono text-xs text-white rounded focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <button
+                  type="button"
+                  onClick={downloadSampleTemplate}
+                  className="text-[#E5A914] hover:underline text-xs flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download Sample CSV
+                </button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setShowBulkModal(false)} className="text-xs text-neutral-400 px-3">Cancel</button>
+                  <button
+                    onClick={handleBulkImport}
+                    className="bg-[#E5A914] text-black font-extrabold px-5 py-2 rounded text-xs uppercase tracking-wider hover:bg-[#d49b10]"
+                  >
+                    Validate &amp; Import Products
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COURIER LOGISTICS AWB MODAL */}
       {selectedOrderForTracking && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-lg w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
@@ -1253,12 +2087,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
             <form onSubmit={handleAssignTracking} className="space-y-3">
               <div>
-                <label className="block text-[11px] uppercase text-neutral-400 mb-1">Courier Company</label>
+                <label className="block text-[11px] uppercase text-neutral-400 mb-1">Courier Logistics Company</label>
                 <input
                   type="text"
                   value={trackingForm.courierCompany}
                   onChange={e => setTrackingForm({ ...trackingForm, courierCompany: e.target.value })}
-                  placeholder="Blue Dart Express"
+                  placeholder="Blue Dart Express / Delhivery"
                   className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
                   required
                 />
@@ -1282,7 +2116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   type="text"
                   value={trackingForm.estimatedDeliveryDate}
                   onChange={e => setTrackingForm({ ...trackingForm, estimatedDeliveryDate: e.target.value })}
-                  placeholder="e.g. Mar 10, 2026"
+                  placeholder="e.g. Mar 12, 2026"
                   className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
                 />
               </div>
@@ -1290,10 +2124,245 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               <div className="flex justify-end gap-2 pt-3">
                 <button type="button" onClick={() => setSelectedOrderForTracking(null)} className="text-xs text-neutral-400 px-3">Cancel</button>
                 <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider">
-                  Notify Customer & Dispatch
+                  Notify Buyer &amp; Dispatch
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* RETURN CASE MANAGEMENT MODAL */}
+      {selectedReturn && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-lg w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+              <h3 className="font-display text-base font-bold text-white uppercase">
+                Return Case: {selectedReturn.id} (#{selectedReturn.orderNumber})
+              </h3>
+              <button onClick={() => setSelectedReturn(null)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleUpdateReturnStatus} className="space-y-3 text-xs">
+              <div className="p-3 bg-neutral-950 rounded border border-neutral-800">
+                <p className="font-bold text-white">{selectedReturn.customerName} ({selectedReturn.customerEmail})</p>
+                <p className="text-neutral-400 mt-1">Reason: <strong className="text-white">{selectedReturn.reason}</strong></p>
+                <p className="text-neutral-400">{selectedReturn.details}</p>
+                <p className="text-[#E5A914] font-mono font-bold mt-1">Refund Value: ₹{selectedReturn.refundAmount.toLocaleString()}</p>
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Update Case Status</label>
+                <select
+                  value={returnStatusForm.status}
+                  onChange={e => setReturnStatusForm({ ...returnStatusForm, status: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
+                >
+                  <option value="Requested">Requested</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Pickup Scheduled">Pickup Scheduled</option>
+                  <option value="Received &amp; Inspected">Received &amp; Inspected</option>
+                  <option value="Refund Completed">Refund Completed (Restocks Stock)</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Reverse Logistics Courier AWB (Optional)</label>
+                <input
+                  type="text"
+                  value={returnStatusForm.pickupAwb}
+                  onChange={e => setReturnStatusForm({ ...returnStatusForm, pickupAwb: e.target.value })}
+                  placeholder="BLUE-RET-9921448"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                />
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Internal Notes</label>
+                <textarea
+                  rows={2}
+                  value={returnStatusForm.notes}
+                  onChange={e => setReturnStatusForm({ ...returnStatusForm, notes: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setSelectedReturn(null)} className="text-xs text-neutral-400 px-3">Cancel</button>
+                <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider">
+                  Save Return Status
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY ADD / EDIT MODAL */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-md w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+              <h3 className="font-display text-base font-bold text-white uppercase">
+                {editingCategory ? `Edit Category: ${editingCategory.name}` : 'Add New Category'}
+              </h3>
+              <button onClick={() => setShowCategoryModal(false)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleSaveCategory} className="space-y-3 text-xs">
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Category Title</label>
+                <input
+                  type="text"
+                  value={categoryForm.name}
+                  onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                  placeholder="e.g. Co-ord Sets"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Category Image URL or Asset Path</label>
+                <input
+                  type="text"
+                  value={categoryForm.image}
+                  onChange={e => setCategoryForm({ ...categoryForm, image: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={categoryForm.description}
+                  onChange={e => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                  placeholder="Architectural drop description"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowCategoryModal(false)} className="text-xs text-neutral-400 px-3">Cancel</button>
+                <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider">
+                  Save Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PRINTABLE GST INVOICE MODAL */}
+      {viewInvoiceOrder && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white text-neutral-950 max-w-2xl w-full p-8 rounded-xl shadow-2xl space-y-6 my-8 font-sans">
+            <div className="flex justify-between items-start border-b border-neutral-300 pb-5">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">4 LAZY</h2>
+                <p className="text-xs text-neutral-500 uppercase tracking-widest mt-0.5">LESS EFFORT. MORE STYLE.</p>
+                <p className="text-xs text-neutral-600 mt-2">GSTIN: 27AABCL4921E1Z8</p>
+                <p className="text-xs text-neutral-600">Linking Road, Bandra West, Mumbai 400050</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold text-neutral-500 uppercase block">TAX INVOICE</span>
+                <p className="text-base font-bold font-mono">{viewInvoiceOrder.orderNumber}</p>
+                <p className="text-xs text-neutral-600 mt-1">Date: {new Date(viewInvoiceOrder.createdAt).toLocaleDateString()}</p>
+                <span className="inline-block mt-2 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded uppercase">
+                  PAID ({viewInvoiceOrder.payment.provider.toUpperCase()})
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs border-b border-neutral-300 pb-4">
+              <div>
+                <span className="font-bold uppercase text-neutral-500 block mb-1">Billed &amp; Shipped To:</span>
+                <p className="font-bold">{viewInvoiceOrder.shippingAddress.fullName}</p>
+                <p>{viewInvoiceOrder.shippingAddress.street}</p>
+                <p>{viewInvoiceOrder.shippingAddress.city}, {viewInvoiceOrder.shippingAddress.state} - {viewInvoiceOrder.shippingAddress.pinCode}</p>
+                <p>Phone: {viewInvoiceOrder.shippingAddress.phone}</p>
+              </div>
+              <div className="text-right">
+                <span className="font-bold uppercase text-neutral-500 block mb-1">Logistics Reference:</span>
+                <p>Courier: <strong>{viewInvoiceOrder.tracking?.courierCompany || 'Blue Dart Express'}</strong></p>
+                <p className="font-mono">AWB: {viewInvoiceOrder.tracking?.trackingNumber || 'Pending Generation'}</p>
+              </div>
+            </div>
+
+            {/* Invoice Line Items */}
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b-2 border-neutral-300 text-neutral-500 uppercase tracking-wider">
+                  <th className="py-2">Item Description</th>
+                  <th className="py-2">Variant / SKU</th>
+                  <th className="py-2 text-center">Qty</th>
+                  <th className="py-2 text-right">Rate</th>
+                  <th className="py-2 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-200">
+                {viewInvoiceOrder.items.map((it, idx) => (
+                  <tr key={idx}>
+                    <td className="py-2.5 font-bold">{it.productTitle}</td>
+                    <td className="py-2.5 text-neutral-600 font-mono text-[11px]">{it.sku} ({it.colorName}/{it.size})</td>
+                    <td className="py-2.5 text-center font-mono">{it.quantity}</td>
+                    <td className="py-2.5 text-right font-mono">₹{it.price.toLocaleString()}</td>
+                    <td className="py-2.5 text-right font-mono font-bold">₹{(it.price * it.quantity).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Calculations Breakdown */}
+            <div className="pt-4 border-t border-neutral-300 space-y-1.5 text-xs text-neutral-600 ml-auto max-w-xs">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span className="font-mono font-bold text-neutral-900">₹{viewInvoiceOrder.subtotal.toLocaleString()}</span>
+              </div>
+              {viewInvoiceOrder.discount > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Privilege Coupon Discount:</span>
+                  <span className="font-mono font-bold">-₹{viewInvoiceOrder.discount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Delivery Charges:</span>
+                <span className="font-mono text-neutral-900">{viewInvoiceOrder.shippingFee === 0 ? 'FREE' : `₹${viewInvoiceOrder.shippingFee}`}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>CGST (2.5%):</span>
+                <span className="font-mono text-neutral-900">₹{Math.round(viewInvoiceOrder.tax / 2).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SGST (2.5%):</span>
+                <span className="font-mono text-neutral-900">₹{Math.round(viewInvoiceOrder.tax / 2).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-base font-black text-neutral-950 pt-2 border-t-2 border-neutral-900">
+                <span>Invoice Total:</span>
+                <span className="font-mono">₹{viewInvoiceOrder.total.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-neutral-300 flex justify-between items-center text-xs">
+              <span className="text-neutral-500 text-[11px]">Computer generated tax invoice. No signature required.</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Print / PDF
+                </button>
+                <button
+                  onClick={() => setViewInvoiceOrder(null)}
+                  className="bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-bold px-4 py-2 rounded text-xs uppercase tracking-wider"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1348,117 +2417,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         </div>
       )}
 
-      {/* BULK CSV IMPORT MODAL */}
-      {showBulkModal && (
+      {/* CUSTOMER ORDERS DRAWER */}
+      {selectedCustomerOrders && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-2xl w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-xl w-full p-6 text-neutral-100 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
               <h3 className="font-display text-sm font-bold text-white uppercase">
-                Bulk CSV Product Import
+                Customer Order History ({selectedCustomerOrders.length} Orders)
               </h3>
-              <button onClick={() => setShowBulkModal(false)}><X className="w-4 h-4" /></button>
+              <button onClick={() => setSelectedCustomerOrders(null)}><X className="w-4 h-4" /></button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <p className="text-neutral-400">
-                Paste CSV data with columns: <code className="text-[#E5A914]">title, category, price, saleprice, color, size, sku, stock</code>
-              </p>
-
-              <textarea
-                rows={8}
-                value={bulkCsvText}
-                onChange={e => setBulkCsvText(e.target.value)}
-                placeholder={"title,category,price,saleprice,color,size,sku,stock\nBrutalist Boxy Tee,Oversized T-Shirts,1899,1599,Washed Black,L,4L-BBT-WB-L,30\nHeavy Terry Jogger,Joggers & Sweatpants,2999,2499,Heather Grey,M,4L-JOG-HG-M,20"}
-                className="w-full bg-neutral-950 border border-neutral-800 p-3 font-mono text-xs text-white rounded focus:outline-none"
-              />
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowBulkModal(false)} className="text-xs text-neutral-400 px-3">Cancel</button>
-                <button onClick={handleBulkImport} className="bg-[#E5A914] text-black font-extrabold px-5 py-2 rounded text-xs uppercase tracking-wider">
-                  Validate & Import Products
-                </button>
-              </div>
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {selectedCustomerOrders.length === 0 ? (
+                <p className="text-xs text-neutral-400">No orders placed by this customer yet.</p>
+              ) : (
+                selectedCustomerOrders.map(ord => (
+                  <div key={ord.id} className="p-3 bg-neutral-950 rounded border border-neutral-800 space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono font-bold text-[#E5A914]">{ord.orderNumber}</span>
+                      <span className="font-mono font-bold text-white">₹{ord.total.toLocaleString()}</span>
+                    </div>
+                    <p className="text-neutral-400">Date: {new Date(ord.createdAt).toLocaleDateString()} · Status: <strong className="text-white">{ord.status}</strong></p>
+                    <div className="space-y-1 pt-1 border-t border-neutral-800">
+                      {ord.items.map((it, idx) => (
+                        <p key={idx} className="text-neutral-300 text-[11px]">{it.quantity}x {it.productTitle} ({it.colorName}/{it.size})</p>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* COUPON CREATE MODAL */}
-      {showCouponModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-md w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
-              <h3 className="font-display text-sm font-bold text-white uppercase">
-                Create Privilege Coupon
-              </h3>
-              <button onClick={() => setShowCouponModal(false)}><X className="w-4 h-4" /></button>
-            </div>
-
-            <form onSubmit={handleCreateCoupon} className="space-y-3 text-xs">
-              <div>
-                <label className="block uppercase text-neutral-400 mb-1">Coupon Code</label>
-                <input
-                  type="text"
-                  value={newCoupon.code}
-                  onChange={e => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
-                  placeholder="e.g. VIP25"
-                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white uppercase font-mono rounded"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Discount Type</label>
-                  <select
-                    value={newCoupon.type}
-                    onChange={e => setNewCoupon({ ...newCoupon, type: e.target.value as any })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
-                  >
-                    <option value="percent">Percentage (%)</option>
-                    <option value="fixed">Fixed Rupees (₹)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Discount Value</label>
-                  <input
-                    type="number"
-                    value={newCoupon.value}
-                    onChange={e => setNewCoupon({ ...newCoupon, value: Number(e.target.value) })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Min Order Value (₹)</label>
-                  <input
-                    type="number"
-                    value={newCoupon.minOrderValue}
-                    onChange={e => setNewCoupon({ ...newCoupon, minOrderValue: Number(e.target.value) })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Max Discount Cap (₹)</label>
-                  <input
-                    type="number"
-                    value={newCoupon.maxDiscount}
-                    onChange={e => setNewCoupon({ ...newCoupon, maxDiscount: Number(e.target.value) })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowCouponModal(false)} className="text-xs text-neutral-400 px-3">Cancel</button>
-                <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider">
-                  Save Coupon
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

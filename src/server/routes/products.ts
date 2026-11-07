@@ -70,6 +70,12 @@ productsRouter.get('/categories', (req, res) => {
   return res.json({ categories: db.categories });
 });
 
+// Public: Get store settings (Hero images, headlines, banner text, free shipping threshold)
+productsRouter.get('/settings', (req, res) => {
+  const db = getDB();
+  return res.json({ settings: db.settings });
+});
+
 // Public: Get single product by slug
 productsRouter.get('/products/:slug', (req, res) => {
   const db = getDB();

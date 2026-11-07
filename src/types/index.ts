@@ -72,7 +72,42 @@ export interface Category {
   slug: string;
   name: string;
   description: string;
+  image?: string;
   itemCount?: number;
+}
+
+export type ReturnStatus =
+  | 'Requested'
+  | 'Approved'
+  | 'Pickup Scheduled'
+  | 'Received & Inspected'
+  | 'Refund Completed'
+  | 'Rejected';
+
+export interface ReturnRequest {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  reason: string;
+  details: string;
+  items: {
+    productId: string;
+    productTitle: string;
+    variantSku: string;
+    size: string;
+    colorName: string;
+    quantity: number;
+    price: number;
+  }[];
+  refundAmount: number;
+  status: ReturnStatus;
+  pickupAwb?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CartItem {

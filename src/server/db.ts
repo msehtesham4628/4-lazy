@@ -6,6 +6,7 @@ import {
   Category,
   User,
   Order,
+  ReturnRequest,
   Coupon,
   Review,
   InventoryTransaction,
@@ -24,6 +25,7 @@ interface DatabaseSchema {
   products: Product[];
   categories: Category[];
   orders: Order[];
+  returnRequests: ReturnRequest[];
   coupons: Coupon[];
   reviews: Review[];
   inventoryTransactions: InventoryTransaction[];
@@ -58,12 +60,12 @@ export function getInitialSeedData(): DatabaseSchema {
   const logoImg = '/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png';
 
   const categories: Category[] = [
-    { id: 'cat_oversized_tees', slug: 'oversized-t-shirts', name: 'Oversized T-Shirts', description: '280 GSM combed luxury cotton with exaggerated drop-shoulder drape.', itemCount: 14 },
-    { id: 'cat_hoodies', slug: 'hoodies-sweatshirts', name: 'Hoodies & Sweatshirts', description: '500 GSM French Terry heavy boxy hoodies engineered for structure.', itemCount: 9 },
-    { id: 'cat_trousers', slug: 'trousers-cargo', name: 'Trousers & Cargo', description: 'Tailored utilitarian cargos and relaxed wide-leg trousers.', itemCount: 8 },
-    { id: 'cat_jackets', slug: 'jackets-outerwear', name: 'Jackets & Outerwear', description: 'Brutalist minimalist zip jackets, chore coats, and overshirts.', itemCount: 6 },
-    { id: 'cat_joggers', slug: 'joggers-sweatpants', name: 'Joggers & Sweatpants', description: 'Heavyweight cuffed sweatpants with custom ribbed hems.', itemCount: 5 },
-    { id: 'cat_accessories', slug: 'accessories', name: 'Accessories', description: 'Tactical crossbody pouches, beanies, and solid brass accessories.', itemCount: 4 }
+    { id: 'cat_oversized_tees', slug: 'oversized-t-shirts', name: 'Oversized T-Shirts', description: '280 GSM combed luxury cotton with exaggerated drop-shoulder drape.', image: teeImg, itemCount: 14 },
+    { id: 'cat_hoodies', slug: 'hoodies-sweatshirts', name: 'Hoodies & Sweatshirts', description: '500 GSM French Terry heavy boxy hoodies engineered for structure.', image: hoodieImg, itemCount: 9 },
+    { id: 'cat_trousers', slug: 'trousers-cargo', name: 'Trousers & Cargo', description: 'Tailored utilitarian cargos and relaxed wide-leg trousers.', image: cargoImg, itemCount: 8 },
+    { id: 'cat_jackets', slug: 'jackets-outerwear', name: 'Jackets & Outerwear', description: 'Brutalist minimalist zip jackets, chore coats, and overshirts.', image: lookbookImg, itemCount: 6 },
+    { id: 'cat_joggers', slug: 'joggers-sweatpants', name: 'Joggers & Sweatpants', description: 'Heavyweight cuffed sweatpants with custom ribbed hems.', image: hoodieImg, itemCount: 5 },
+    { id: 'cat_accessories', slug: 'accessories', name: 'Accessories', description: 'Tactical crossbody pouches, beanies, and solid brass accessories.', image: logoImg, itemCount: 4 }
   ];
 
   const products: Product[] = [
@@ -462,6 +464,35 @@ export function getInitialSeedData(): DatabaseSchema {
     products,
     categories,
     orders,
+    returnRequests: [
+      {
+        id: 'ret_1001',
+        orderId: 'ord_1001',
+        orderNumber: '4L-2026-1001',
+        customerName: 'Aryan Verma',
+        customerEmail: 'aryan@example.com',
+        customerPhone: '+919811223344',
+        reason: 'Size Exchange',
+        details: 'Wanted to exchange Heavyweight Box Tee from Size L to Size XL for a more exaggerated drop-shoulder drape.',
+        items: [
+          {
+            productId: 'prod_heavy_tee_01',
+            productTitle: 'Heavyweight Oversized Box Tee',
+            variantSku: '4L-TEE-WB-L',
+            size: 'L',
+            colorName: 'Washed Black',
+            quantity: 1,
+            price: 1699
+          }
+        ],
+        refundAmount: 1699,
+        status: 'Pickup Scheduled',
+        pickupAwb: 'BLUE-RET-9921448',
+        notes: 'Reverse pickup scheduled via Blue Dart reverse logistics.',
+        createdAt: '2026-03-03T11:00:00Z',
+        updatedAt: '2026-03-03T14:00:00Z'
+      }
+    ],
     coupons,
     reviews,
     inventoryTransactions,
@@ -481,6 +512,9 @@ export function getDB(): DatabaseSchema {
     try {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       db = JSON.parse(raw);
+      if (db) {
+        db.returnRequests = db.returnRequests || [];
+      }
       return db!;
     } catch (err) {
       console.warn('Failed to parse existing db.json, re-initializing with seed data', err);

@@ -16,6 +16,7 @@ import { AccountPage } from './pages/AccountPage.tsx';
 import { AuthPages } from './pages/AuthPages.tsx';
 import { PolicyPages } from './pages/PolicyPages.tsx';
 import { AdminDashboard } from './pages/admin/AdminDashboard.tsx';
+import { AdminSignInPage } from './pages/admin/AdminSignInPage.tsx';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<string>('home');
@@ -38,6 +39,8 @@ export default function App() {
       setCurrentPage('track-order');
     } else if (path === '/admin') {
       setCurrentPage('admin');
+    } else if (path === '/admin/login' || path === '/admin-login') {
+      setCurrentPage('admin-login');
     } else if (path === '/login') {
       setCurrentPage('login');
     } else if (path === '/register') {
@@ -95,6 +98,8 @@ export default function App() {
         return <PolicyPages page={currentPage as any} onNavigate={handleNavigate} />;
       case 'admin':
         return <AdminDashboard onNavigate={handleNavigate} />;
+      case 'admin-login':
+        return <AdminSignInPage onNavigate={handleNavigate} />;
       default:
         return <HomePage onNavigate={handleNavigate} />;
     }

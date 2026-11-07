@@ -114,6 +114,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage }) => {
               <Search className="w-5 h-5" />
             </button>
 
+            {/* Direct Admin Portal Button in Menu Bar */}
+            <button
+              onClick={() => onNavigate(isAdmin ? 'admin' : 'admin-login')}
+              aria-label="Admin Portal"
+              className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#E5A914] bg-[#E5A914]/10 hover:bg-[#E5A914]/20 border border-[#E5A914]/40 px-3 py-1.5 rounded-md transition-all whitespace-nowrap shrink-0"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{isAdmin ? 'Admin Console' : 'Admin Sign In'}</span>
+            </button>
+
             {/* Wishlist */}
             <button
               onClick={() => onNavigate('wishlist')}
@@ -321,14 +331,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage }) => {
                 Track My Order
               </button>
 
-              {isAdmin && (
-                <button
-                  onClick={() => { onNavigate('admin'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 text-[#E5A914] font-bold"
-                >
-                  Admin Console
-                </button>
-              )}
+              <button
+                onClick={() => { onNavigate(isAdmin ? 'admin' : 'admin-login'); setMobileMenuOpen(false); }}
+                className="text-left py-2 text-[#E5A914] font-bold flex items-center gap-2"
+              >
+                <Shield className="w-4 h-4" />
+                <span>{isAdmin ? 'Admin Console' : 'Admin Sign In'}</span>
+              </button>
             </div>
           </div>
         )}
