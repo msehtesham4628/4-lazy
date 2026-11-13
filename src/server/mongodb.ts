@@ -269,6 +269,18 @@ const StoreSettingsSchema = new Schema(
     heroSubhead: { type: String },
     heroButtonText: { type: String, default: 'SHOP COLLECTION' },
     heroImageUrl: { type: String },
+    heroImages: [{ type: String }],
+    heroSlides: [
+      {
+        id: { type: String },
+        imageUrl: { type: String },
+        eyebrow: { type: String },
+        heading: { type: String },
+        subhead: { type: String },
+        linkType: { type: String, enum: ['category', 'product', 'none'], default: 'category' },
+        linkTarget: { type: String }
+      }
+    ],
     campaignTitle: { type: String },
     campaignDescription: { type: String },
     campaignImageUrl: { type: String },

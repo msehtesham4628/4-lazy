@@ -774,7 +774,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                         )}
                       <div className="min-w-0">
                         <span className="text-[#E5A914] font-mono block truncate">
-                          {item.customPrint.placement.replace('-', ' ')} · {item.customPrint.printTechnique}
+                          {item.customPrint.printTechnique === 'Custom Image Print'
+                            ? 'Custom Print Image Attached'
+                            : `${item.customPrint.placement.replace('-', ' ')} · ${item.customPrint.printTechnique}`}
                         </span>
                         {item.customPrint.customText && (
                           <span className="text-neutral-300 italic truncate block">

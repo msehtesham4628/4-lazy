@@ -269,14 +269,42 @@ export interface AdminActivityLog {
   timestamp: string;
 }
 
+export interface StockNotificationRequest {
+  id: string;
+  productId: string;
+  productTitle: string;
+  productSlug: string;
+  variantId?: string;
+  sku?: string;
+  colorName: string;
+  size: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  userId?: string;
+  status: 'Pending' | 'Notified';
+  notifiedAt?: string;
+  createdAt: string;
+}
+
 export interface EmailLog {
   id: string;
   to: string;
   subject: string;
-  type: 'welcome' | 'email_otp' | 'order_confirmation' | 'shipping_update' | 'password_reset';
+  type: 'welcome' | 'email_otp' | 'order_confirmation' | 'shipping_update' | 'password_reset' | 'back_in_stock';
   sentAt: string;
   status: 'sent' | 'delivered';
   previewHtml: string;
+}
+
+export interface HeroSlide {
+  id: string;
+  imageUrl: string;
+  eyebrow?: string;
+  heading: string;
+  subhead: string;
+  linkType: 'category' | 'product' | 'none';
+  linkTarget: string;
 }
 
 export interface StoreSettings {
@@ -295,6 +323,8 @@ export interface StoreSettings {
   heroSubhead: string;
   heroButtonText: string;
   heroImageUrl: string;
+  heroImages?: string[];
+  heroSlides?: HeroSlide[];
   campaignTitle: string;
   campaignDescription: string;
   campaignImageUrl: string;

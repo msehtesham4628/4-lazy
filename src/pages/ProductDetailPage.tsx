@@ -7,6 +7,7 @@ import {
   Truck,
   ShieldCheck,
   Star,
+  ChevronLeft,
   ChevronRight,
   RotateCcw,
   Plus,
@@ -14,40 +15,16 @@ import {
   Check,
   Upload,
   Trash2,
-  Type,
-  Palette
+  Bell
 } from 'lucide-react';
 import type { Product, ProductVariant, Review, CustomPrintDetails } from '../types/index.ts';
 import { fallbackProducts } from '../data/fallbackCatalog.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 import { SizeGuideModal } from '../components/SizeGuideModal.tsx';
 import { ProductCard } from '../components/ProductCard.tsx';
 import { compressUploadImage } from '../utils/imageUtils.ts';
-
-const CUSTOM_INK_COLORS = [
-  { name: 'Pure White', hex: '#FFFFFF' },
-  { name: 'Luxury Gold', hex: '#E5A914' },
-  { name: 'Pitch Black', hex: '#141416' },
-  { name: 'Crimson Red', hex: '#D92638' },
-  { name: 'Raw Silver', hex: '#A1A1AA' }
-];
-
-const CUSTOM_PLACEMENTS: { id: CustomPrintDetails['placement']; label: string; extra: number }[] = [
-  { id: 'center-chest', label: 'Center Chest', extra: 0 },
-  { id: 'left-chest', label: 'Left Chest', extra: 0 },
-  { id: 'full-back', label: 'Full Back', extra: 200 },
-  { id: 'sleeve', label: 'Sleeve', extra: 100 }
-];
-
-const CUSTOM_TECHNIQUES: { id: string; label: string; extra: number }[] = [
-  { id: 'HD DTG Print', label: 'HD DTG Print', extra: 0 },
-  { id: 'High-Density Screen Print', label: 'Screen Print', extra: 100 },
-  { id: '3D Silicone Puff Ink', label: '3D Puff Ink', extra: 250 },
-  { id: 'Metallic Gold Foil', label: 'Gold Foil', extra: 300 }
-];
-
-const CUSTOM_FONT_STYLES = ['Bold Sans', 'Technical Mono', 'Editorial Serif', 'Condensed'] as const;
 
 interface ProductDetailPageProps {
   slug: string;
@@ -58,6 +35,7 @@ interface ProductDetailPageProps {
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, categoryHint, onNavigate }) => {
   const { addToCart, setIsCartOpen } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { user, token } = useAuth();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -76,25 +54,35 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
-  // Inline Customization Controls for Customise T-Shirt products
-  const [placement, setPlacement] = useState<CustomPrintDetails['placement']>('center-chest');
-  const [printTechnique, setPrintTechnique] = useState<string>('HD DTG Print');
-  const [customText, setCustomText] = useState('');
-  const [fontStyle, setFontStyle] = useState<string>('Bold Sans');
-  const [textColor, setTextColor] = useState(CUSTOM_INK_COLORS[0]);
+  // Upload Image for Customise T-Shirt products (sample print previews are shown in the 4 product slides)
   const [uploadedGraphicUrl, setUploadedGraphicUrl] = useState<string | null>(null);
   const [uploadingGraphic, setUploadingGraphic] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const customGraphicInputRef = useRef<HTMLInputElement>(null);
 
+  // Back-in-stock "Notify Me" states for zero-stock variants/products
+  const [showNotifyForm, setShowNotifyForm] = useState(false);
+  const [notifyName, setNotifyName] = useState(user?.name || '');
+  const [notifyEmail, setNotifyEmail] = useState(user?.email || '');
+  const [notifyPhone, setNotifyPhone] = useState(user?.phone || '');
+  const [submittingNotify, setSubmittingNotify] = useState(false);
+  const [notifySuccess, setNotifySuccess] = useState<string | null>(null);
+  const [notifyError, setNotifyError] = useState<string | null>(null);
+
   useEffect(() => {
-    setPlacement('center-chest');
-    setPrintTechnique('HD DTG Print');
-    setCustomText('');
-    setFontStyle('Bold Sans');
-    setTextColor(CUSTOM_INK_COLORS[0]);
+    if (user) {
+      setNotifyName(prev => prev || user.name || '');
+      setNotifyEmail(prev => prev || user.email || '');
+      setNotifyPhone(prev => prev || user.phone || '');
+    }
+  }, [user]);
+
+  useEffect(() => {
     setUploadedGraphicUrl(null);
     setUploadError(null);
+    setShowNotifyForm(false);
+    setNotifySuccess(null);
+    setNotifyError(null);
   }, [slug]);
 
   useEffect(() => {
@@ -172,10 +160,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
   }
 
   const activeColorGroup = product.colorGroups[selectedColorIndex] || product.colorGroups[0];
-  const galleryImages =
+  const rawGalleryImages =
     activeColorGroup?.images && activeColorGroup.images.length > 0
       ? activeColorGroup.images
       : product.variants[0]?.images || [];
+  const galleryImages = rawGalleryImages.slice(0, 4);
 
   const activeVariant = product.variants.find(
     v => v.colorName.toLowerCase() === activeColorGroup?.colorName.toLowerCase() && v.size === selectedSize
@@ -188,12 +177,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
     product.category.toLowerCase().includes('customiz') ||
     Boolean(product.tags?.some(t => t.toLowerCase().includes('customis') || t.toLowerCase().includes('customiz')));
 
-  const placementExtra = isCustomizable ? (CUSTOM_PLACEMENTS.find(p => p.id === placement)?.extra || 0) : 0;
-  const techniqueExtra = isCustomizable ? (CUSTOM_TECHNIQUES.find(t => t.id === printTechnique)?.extra || 0) : 0;
-  const customizationSurcharge = placementExtra + techniqueExtra;
-
   const baseSalePrice = product.discountPrice || product.basePrice;
-  const price = baseSalePrice + customizationSurcharge;
+  const price = baseSalePrice;
   const hasDiscount = product.discountPrice && product.discountPrice < product.basePrice;
   const isWishlisted = isInWishlist(product.id);
 
@@ -222,6 +207,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
   const handleColorChange = (index: number) => {
     setSelectedColorIndex(index);
     setActiveImageIndex(0);
+    setShowNotifyForm(false);
+    setNotifySuccess(null);
+    setNotifyError(null);
     const newColor = product.colorGroups[index];
     const newColorVariants = product.variants.filter(
       v => v.colorName.toLowerCase() === newColor.colorName.toLowerCase()
@@ -233,19 +221,65 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
     }
   };
 
+  const handleNotifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product) return;
+
+    const cleanName = notifyName.trim();
+    const cleanEmail = notifyEmail.trim();
+    const cleanPhone = notifyPhone.trim();
+
+    if (!cleanName || (!cleanEmail && !cleanPhone)) {
+      setNotifyError('Please enter your name along with an email address or phone number.');
+      return;
+    }
+
+    setSubmittingNotify(true);
+    setNotifyError(null);
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`/api/products/${product.id}/notify-me`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          variantId: activeVariant?.id,
+          sku: activeVariant?.sku,
+          colorName: activeColorGroup?.colorName || 'Default',
+          size: selectedSize,
+          customerName: cleanName,
+          customerEmail: cleanEmail,
+          customerPhone: cleanPhone
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotifySuccess(
+          data.message || `You will be notified when ${product.title} (${selectedSize}) is back in stock.`
+        );
+        setShowNotifyForm(false);
+      } else {
+        setNotifyError(data.error || 'Could not register stock alert.');
+      }
+    } catch {
+      setNotifyError('Network error while saving your notification request.');
+    } finally {
+      setSubmittingNotify(false);
+    }
+  };
+
   const handleAddToCart = () => {
     if (!activeVariant || !isCurrentVariantAvailable) return;
 
-    const customPrint: CustomPrintDetails | undefined = isCustomizable
-      ? {
-          uploadedGraphicUrl: uploadedGraphicUrl || undefined,
-          customText: customText.trim() || undefined,
-          fontStyle: customText.trim() ? fontStyle : undefined,
-          textColor: customText.trim() ? textColor.name : undefined,
-          placement,
-          printTechnique
-        }
-      : undefined;
+    const customPrint: CustomPrintDetails | undefined =
+      isCustomizable && uploadedGraphicUrl
+        ? {
+            uploadedGraphicUrl,
+            placement: 'center-chest',
+            printTechnique: 'Custom Image Print'
+          }
+        : undefined;
 
     addToCart({
       productId: product.id,
@@ -256,7 +290,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
       size: activeVariant.size,
       sku: activeVariant.sku,
       price,
-      originalPrice: product.basePrice + customizationSurcharge,
+      originalPrice: product.basePrice,
       image: galleryImages[0] || '',
       quantity,
       maxStock: activeVariant.stock,
@@ -326,11 +360,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
       {/* Main PDP Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start">
         <div className="lg:col-span-7 space-y-3 sm:space-y-4">
-          <div className="relative aspect-[3/4] sm:aspect-[4/5] bg-neutral-950 rounded-lg overflow-hidden border border-neutral-800 flex items-center justify-center">
+          <div className="relative aspect-[3/4] sm:aspect-[4/5] bg-neutral-950 rounded-lg overflow-hidden border border-neutral-800 flex items-center justify-center group">
             <img
               src={galleryImages[activeImageIndex] || galleryImages[0]}
-              alt={`${product.title} - ${activeColorGroup?.colorName}`}
-              className="w-full h-full object-cover object-center"
+              alt={`${product.title} - Slide ${activeImageIndex + 1}`}
+              className="w-full h-full object-cover object-center transition-all duration-300"
               referrerPolicy="no-referrer"
             />
             {product.isFeatured && (
@@ -339,65 +373,51 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
               </span>
             )}
 
-            {/* Live 2D Custom Print Overlay Preview for Customise T-Shirt */}
-            {isCustomizable && (uploadedGraphicUrl || customText.trim()) && (
-              <div
-                className={`pointer-events-none absolute flex flex-col items-center justify-center text-center transition-all duration-300 ${
-                  placement === 'left-chest'
-                    ? 'top-[28%] right-[27%] w-[20%]'
-                    : placement === 'sleeve'
-                    ? 'top-[40%] left-[13%] w-[18%]'
-                    : placement === 'full-back'
-                    ? 'top-[28%] left-1/2 -translate-x-1/2 w-[44%]'
-                    : 'top-[29%] left-1/2 -translate-x-1/2 w-[36%]'
-                }`}
-              >
-                <div className="bg-black/25 backdrop-blur-[1px] border border-dashed border-[#E5A914]/60 rounded-lg p-2 flex flex-col items-center gap-1.5 w-full">
-                  {uploadedGraphicUrl && (
-                    <img
-                      src={uploadedGraphicUrl}
-                      alt="Custom artwork preview"
-                      className="max-h-28 w-auto object-contain drop-shadow-md"
-                    />
-                  )}
-                  {customText.trim() && (
-                    <span
-                      style={{ color: textColor.hex }}
-                      className={`leading-tight break-words w-full drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ${
-                        fontStyle === 'Technical Mono'
-                          ? 'font-mono tracking-wider text-xs sm:text-sm font-bold'
-                          : fontStyle === 'Editorial Serif'
-                          ? 'font-serif italic text-sm sm:text-base font-bold'
-                          : fontStyle === 'Condensed'
-                          ? 'font-display tracking-tighter uppercase text-sm sm:text-base font-black'
-                          : 'font-sans uppercase tracking-wide text-xs sm:text-sm font-extrabold'
-                      }`}
-                    >
-                      {customText}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {isCustomizable && (
-              <span className="absolute bottom-3 left-3 bg-black/80 border border-neutral-700 text-neutral-200 text-[10px] font-mono px-2.5 py-1 rounded uppercase tracking-wider">
-                Preview: {CUSTOM_PLACEMENTS.find(p => p.id === placement)?.label} · {printTechnique}
-              </span>
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                  aria-label="Previous product photo"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/70 hover:bg-[#E5A914] text-white hover:text-black border border-neutral-700 flex items-center justify-center transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveImageIndex(prev => (prev + 1) % galleryImages.length)}
+                  aria-label="Next product photo"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/70 hover:bg-[#E5A914] text-white hover:text-black border border-neutral-700 flex items-center justify-center transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <span className="absolute bottom-3 right-3 bg-black/80 border border-neutral-700 text-neutral-200 text-[10px] font-mono px-2.5 py-1 rounded uppercase tracking-wider tabular-nums">
+                  Slide {activeImageIndex + 1} / {galleryImages.length}
+                </span>
+              </>
             )}
           </div>
 
           {galleryImages.length > 1 && (
-            <div className="flex gap-2.5 overflow-x-auto pb-1">
+            <div className="grid grid-cols-4 gap-2.5">
               {galleryImages.map((img, idx) => (
                 <button
+                  type="button"
                   key={idx}
                   onClick={() => setActiveImageIndex(idx)}
-                  className={`relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 transition-all shrink-0 ${
-                    activeImageIndex === idx ? 'border-[#E5A914]' : 'border-neutral-800 opacity-60 hover:opacity-100'
+                  className={`relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${
+                    activeImageIndex === idx ? 'border-[#E5A914] ring-1 ring-[#E5A914]' : 'border-neutral-800 opacity-65 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt="Thumbnail" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={img}
+                    alt={`${product.title} view ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute bottom-1 left-1 bg-black/75 text-neutral-200 text-[9px] font-mono px-1.5 py-0.5 rounded">
+                    0{idx + 1}
+                  </span>
                 </button>
               ))}
             </div>
@@ -422,17 +442,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
               </span>
               {hasDiscount && (
                 <span className="text-sm text-neutral-400 line-through tabular-nums">
-                  ₹{(product.basePrice + customizationSurcharge).toLocaleString()}
+                  ₹{product.basePrice.toLocaleString()}
                 </span>
               )}
               {hasDiscount && (
                 <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded tabular-nums">
                   SAVE ₹{(product.basePrice - baseSalePrice).toLocaleString()}
-                </span>
-              )}
-              {customizationSurcharge > 0 && (
-                <span className="text-[11px] text-[#E5A914] font-semibold tabular-nums">
-                  (Includes +₹{customizationSurcharge} custom print)
                 </span>
               )}
             </div>
@@ -489,13 +504,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
                 return (
                   <button
                     key={sz}
-                    disabled={isOutOfStock}
-                    onClick={() => setSelectedSize(sz)}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSize(sz);
+                      setShowNotifyForm(false);
+                      setNotifySuccess(null);
+                      setNotifyError(null);
+                    }}
+                    title={isOutOfStock ? `${sz} is out of stock — select to join Notify Me waitlist` : `Select size ${sz}`}
                     className={`py-3 text-xs font-mono font-bold rounded-lg border transition-all ${
                       isSelected
-                        ? 'border-[#E5A914] bg-[#E5A914] text-neutral-950 shadow-md'
+                        ? isOutOfStock
+                          ? 'border-[#E5A914] bg-neutral-900 text-[#E5A914] line-through shadow-md'
+                          : 'border-[#E5A914] bg-[#E5A914] text-neutral-950 shadow-md'
                         : isOutOfStock
-                        ? 'border-neutral-800 bg-neutral-950 text-neutral-600 line-through cursor-not-allowed'
+                        ? 'border-neutral-800 bg-neutral-950 text-neutral-500 line-through hover:border-neutral-700 hover:text-neutral-300'
                         : 'border-neutral-800 bg-neutral-950 text-neutral-200 hover:border-neutral-700 hover:bg-neutral-900'
                     }`}
                   >
@@ -517,259 +540,257 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
                   </span>
                 )
               ) : (
-                <span className="text-red-400 font-medium">
-                  Sold out for this size/color combination.
+                <span className="text-amber-400 font-medium flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 shrink-0" />
+                  Out of stock in {selectedSize} ({activeColorGroup?.colorName}) — Tap &ldquo;Notify Me&rdquo; for restock alert.
                 </span>
               )}
             </div>
           </div>
 
-          {/* Inline Product Customization Panel for Customise T-Shirt */}
+          {/* Upload Image Panel Only for Customise T-Shirt (Sample print outcome is shown in the 4 product slides) */}
           {isCustomizable && (
-            <div className="p-4 bg-neutral-900/70 border border-[#E5A914]/35 rounded-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-neutral-800 pb-2.5">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#E5A914] block">
-                    Customize Your T-Shirt
-                  </span>
-                  <p className="text-[11px] text-neutral-400">
-                    Upload your graphic or add custom typography before ordering.
-                  </p>
-                </div>
-                {(uploadedGraphicUrl || customText.trim() || customizationSurcharge > 0) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlacement('center-chest');
-                      setPrintTechnique('HD DTG Print');
-                      setCustomText('');
-                      setUploadedGraphicUrl(null);
-                      setUploadError(null);
-                    }}
-                    className="text-[11px] text-neutral-400 hover:text-white underline shrink-0"
-                  >
-                    Reset
-                  </button>
-                )}
+            <div className="p-4 bg-neutral-900/70 border border-[#E5A914]/35 rounded-xl space-y-3">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#E5A914] block">
+                  Upload Your Print Image
+                </span>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  Check the 4 sample product photos to see how the print comes, then upload your image here.
+                </p>
               </div>
 
-              {/* Upload Custom Artwork */}
-              <div className="space-y-2">
-                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold flex items-center gap-1.5">
-                  <Upload className="w-3.5 h-3.5 text-[#E5A914]" />
-                  Upload Artwork / Logo (Optional)
-                </label>
-                <input
-                  ref={customGraphicInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  onChange={handleCustomGraphicUpload}
-                  className="hidden"
-                />
+              <input
+                ref={customGraphicInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={handleCustomGraphicUpload}
+                className="hidden"
+              />
 
-                {uploadedGraphicUrl ? (
-                  <div className="flex items-center justify-between gap-3 p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={uploadedGraphicUrl}
-                        alt="Uploaded artwork"
-                        className="w-11 h-11 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-emerald-400 truncate">Artwork Ready for Print</p>
-                        <button
-                          type="button"
-                          onClick={() => customGraphicInputRef.current?.click()}
-                          className="text-[11px] text-neutral-400 hover:text-white underline"
-                        >
-                          Replace file
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setUploadedGraphicUrl(null)}
-                      className="p-1.5 text-neutral-400 hover:text-red-400 rounded hover:bg-neutral-900 shrink-0"
-                      title="Remove graphic"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => customGraphicInputRef.current?.click()}
-                    disabled={uploadingGraphic}
-                    className="w-full py-3 px-4 border border-dashed border-neutral-700 hover:border-[#E5A914] bg-neutral-950 rounded-lg text-xs text-neutral-300 hover:text-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                  >
-                    <Upload className="w-4 h-4 text-[#E5A914]" />
-                    <span>{uploadingGraphic ? 'Compressing artwork...' : 'Choose PNG / JPG / SVG Graphic'}</span>
-                  </button>
-                )}
-                {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
-              </div>
-
-              {/* Print Placement */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold block">
-                  Print Placement
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {CUSTOM_PLACEMENTS.map(opt => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setPlacement(opt.id)}
-                      className={`px-3 py-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
-                        placement === opt.id
-                          ? 'border-[#E5A914] bg-neutral-950 text-white ring-1 ring-[#E5A914]'
-                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="font-semibold">{opt.label}</span>
-                      <span className="text-[10px] font-mono text-[#E5A914]">
-                        {opt.extra > 0 ? `+₹${opt.extra}` : 'Free'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Print Technique */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold block">
-                  Print Technique
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {CUSTOM_TECHNIQUES.map(tech => (
-                    <button
-                      key={tech.id}
-                      type="button"
-                      onClick={() => setPrintTechnique(tech.id)}
-                      className={`px-3 py-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
-                        printTechnique === tech.id
-                          ? 'border-[#E5A914] bg-neutral-950 text-white ring-1 ring-[#E5A914]'
-                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="font-semibold truncate pr-1">{tech.label}</span>
-                      <span className="text-[10px] font-mono text-[#E5A914] shrink-0">
-                        {tech.extra > 0 ? `+₹${tech.extra}` : 'Free'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom Text & Typography */}
-              <div className="space-y-2.5">
-                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold flex items-center gap-1.5">
-                  <Type className="w-3.5 h-3.5 text-[#E5A914]" />
-                  Custom Text / Slogan (Optional)
-                </label>
-                <input
-                  type="text"
-                  maxLength={32}
-                  value={customText}
-                  onChange={e => setCustomText(e.target.value)}
-                  placeholder="Enter custom print text (max 32 chars)..."
-                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914]"
-                />
-
-                {customText.trim() && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <span className="block text-[10px] uppercase text-neutral-400 mb-1">Font Style</span>
-                      <select
-                        value={fontStyle}
-                        onChange={e => setFontStyle(e.target.value)}
-                        className="w-full bg-neutral-950 border border-neutral-800 px-2.5 py-2 text-xs text-white rounded-lg cursor-pointer"
+              {uploadedGraphicUrl ? (
+                <div className="flex items-center justify-between gap-3 p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src={uploadedGraphicUrl}
+                      alt="Uploaded print image"
+                      className="w-12 h-12 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-emerald-400 truncate">Print Image Ready</p>
+                      <button
+                        type="button"
+                        onClick={() => customGraphicInputRef.current?.click()}
+                        className="text-[11px] text-neutral-400 hover:text-white underline"
                       >
-                        {CUSTOM_FONT_STYLES.map(f => (
-                          <option key={f} value={f}>{f}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase text-neutral-400 mb-1 flex items-center gap-1">
-                        <Palette className="w-3 h-3" /> Ink Color ({textColor.name})
-                      </span>
-                      <div className="flex items-center gap-2 pt-1">
-                        {CUSTOM_INK_COLORS.map(c => (
-                          <button
-                            key={c.name}
-                            type="button"
-                            onClick={() => setTextColor(c)}
-                            title={c.name}
-                            className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                              textColor.name === c.name ? 'border-[#E5A914] scale-110' : 'border-neutral-700'
-                            }`}
-                            style={{ backgroundColor: c.hex }}
-                          />
-                        ))}
-                      </div>
+                        Change image
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => setUploadedGraphicUrl(null)}
+                    className="p-1.5 text-neutral-400 hover:text-red-400 rounded hover:bg-neutral-900 shrink-0"
+                    title="Remove uploaded image"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => customGraphicInputRef.current?.click()}
+                  disabled={uploadingGraphic}
+                  className="w-full py-3.5 px-4 border border-dashed border-neutral-700 hover:border-[#E5A914] bg-neutral-950 rounded-lg text-xs text-neutral-200 hover:text-white font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  <Upload className="w-4 h-4 text-[#E5A914]" />
+                  <span>{uploadingGraphic ? 'Uploading image...' : 'Upload Image (PNG / JPG / WEBP)'}</span>
+                </button>
+              )}
+              {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <span className="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Quantity:</span>
-            <div className="flex items-center border border-neutral-700 rounded bg-neutral-950">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="px-3 py-1.5 text-neutral-400 hover:text-white"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-              <span className="px-3 text-xs font-mono text-white font-bold tabular-nums">{quantity}</span>
-              <button
-                onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
-                disabled={quantity >= currentStock}
-                className="px-3 py-1.5 text-neutral-400 hover:text-white disabled:opacity-40"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+          {isCurrentVariantAvailable && (
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <span className="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Quantity:</span>
+              <div className="flex items-center border border-neutral-700 rounded bg-neutral-950">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-3 py-1.5 text-neutral-400 hover:text-white"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="px-3 text-xs font-mono text-white font-bold tabular-nums">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
+                  disabled={quantity >= currentStock}
+                  className="px-3 py-1.5 text-neutral-400 hover:text-white disabled:opacity-40"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+              {activeVariant && (
+                <span className="text-[11px] font-mono text-neutral-400">SKU: {activeVariant.sku}</span>
+              )}
             </div>
-            {activeVariant && (
-              <span className="text-[11px] font-mono text-neutral-400">SKU: {activeVariant.sku}</span>
-            )}
-          </div>
+          )}
 
           <div className="space-y-3 pt-1">
-            <div className="flex gap-3">
-              <button
-                onClick={handleAddToCart}
-                disabled={!isCurrentVariantAvailable}
-                className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-extrabold py-4 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-[0.99] shadow-lg"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                {isCurrentVariantAvailable ? `Add To Bag · ₹${(price * quantity).toLocaleString()}` : 'Out of Stock'}
-              </button>
+            {isCurrentVariantAvailable ? (
+              <>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleAddToCart}
+                    className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-4 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-[0.99] shadow-lg"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    {`Add To Bag · ₹${(price * quantity).toLocaleString()}`}
+                  </button>
 
-              <button
-                onClick={() => toggleWishlist(product.id)}
-                aria-label="Wishlist piece"
-                className={`p-4 rounded-lg border transition-colors ${
-                  isWishlisted
-                    ? 'border-[#E5A914] bg-[#E5A914]/10 text-[#E5A914]'
-                    : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
-                }`}
-              >
-                <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-[#E5A914]' : ''}`} />
-              </button>
-            </div>
+                  <button
+                    onClick={() => toggleWishlist(product.id)}
+                    aria-label="Wishlist piece"
+                    className={`p-4 rounded-lg border transition-colors ${
+                      isWishlisted
+                        ? 'border-[#E5A914] bg-[#E5A914]/10 text-[#E5A914]'
+                        : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-[#E5A914]' : ''}`} />
+                  </button>
+                </div>
 
-            {isCurrentVariantAvailable && (
-              <button
-                onClick={handleBuyNow}
-                className="w-full bg-white hover:bg-neutral-200 text-black font-black py-3.5 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
-              >
-                <Zap className="w-4 h-4 fill-current" />
-                Buy Now with Cashfree
-              </button>
+                <button
+                  onClick={handleBuyNow}
+                  className="w-full bg-white hover:bg-neutral-200 text-black font-black py-3.5 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Zap className="w-4 h-4 fill-current" />
+                  Buy Now with Cashfree
+                </button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNotifyForm(prev => !prev);
+                      setNotifyError(null);
+                    }}
+                    className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-4 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-[0.99] shadow-lg"
+                  >
+                    <Bell className="w-4 h-4" />
+                    Notify Me
+                  </button>
+
+                  <button
+                    onClick={() => toggleWishlist(product.id)}
+                    aria-label="Wishlist piece"
+                    className={`p-4 rounded-lg border transition-colors ${
+                      isWishlisted
+                        ? 'border-[#E5A914] bg-[#E5A914]/10 text-[#E5A914]'
+                        : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-[#E5A914]' : ''}`} />
+                  </button>
+                </div>
+
+                {notifySuccess && (
+                  <div className="p-3.5 bg-emerald-950/60 border border-emerald-500/40 rounded-lg text-xs text-emerald-300 flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">{notifySuccess}</p>
+                      <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                        Your request has been logged with our team for {activeColorGroup?.colorName} · Size {selectedSize}.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {showNotifyForm && (
+                  <form
+                    onSubmit={handleNotifySubmit}
+                    className="p-4 bg-neutral-900/80 border border-[#E5A914]/40 rounded-xl space-y-3 text-xs"
+                  >
+                    <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                      <div>
+                        <span className="font-bold text-white uppercase tracking-wider block">
+                          Restock Alert Request
+                        </span>
+                        <span className="text-[11px] text-neutral-400">
+                          {product.title} · {activeColorGroup?.colorName} · Size {selectedSize}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={notifyName}
+                          onChange={e => setNotifyName(e.target.value)}
+                          placeholder="Your name"
+                          className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914]"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">
+                            Email Address
+                          </label>
+                          <input
+                            type="email"
+                            value={notifyEmail}
+                            onChange={e => setNotifyEmail(e.target.value)}
+                            placeholder="you@example.com"
+                            className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914]"
+                            required={!notifyPhone.trim()}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">
+                            Phone Number
+                          </label>
+                          <input
+                            type="tel"
+                            value={notifyPhone}
+                            onChange={e => setNotifyPhone(e.target.value)}
+                            placeholder="+91 98765 43210"
+                            className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914]"
+                            required={!notifyEmail.trim()}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {notifyError && <p className="text-[11px] text-red-400">{notifyError}</p>}
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowNotifyForm(false)}
+                        className="px-3 py-2 text-neutral-400 hover:text-white text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={submittingNotify}
+                        className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-2 rounded-lg text-xs uppercase tracking-wider disabled:opacity-50"
+                      >
+                        {submittingNotify ? 'Submitting...' : 'Notify Me on Restock'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
             )}
           </div>
 

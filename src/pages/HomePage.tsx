@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Shield, RotateCcw, Truck, Flame } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard.tsx';
-import type { Product } from '../types/index.ts';
+import type { Product, HeroSlide, Category } from '../types/index.ts';
 import { fallbackProducts } from '../data/fallbackCatalog.ts';
 import { CATEGORY_ROUTE_META, resolveCategoryFromSlugOrName } from '../utils/routes.ts';
 
@@ -9,44 +9,129 @@ interface HomePageProps {
   onNavigate: (page: string, params?: any) => void;
 }
 
+const DEFAULT_HERO_SLIDES: HeroSlide[] = [
+  {
+    id: 'hero_slide_1',
+    imageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+    eyebrow: 'HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE',
+    heading: 'LESS EFFORT.\nMORE STYLE.',
+    subhead:
+      '280–320 GSM heavyweight combed cotton Round Neck T-shirts engineered for an everyday crisp collar.',
+    linkType: 'category',
+    linkTarget: 'Round Neck T-Shirt'
+  },
+  {
+    id: 'hero_slide_2',
+    imageUrl: '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
+    eyebrow: 'DROP SHOULDER ARCHITECTURE',
+    heading: 'DOWN SHOULDER\nSILHOUETTES.',
+    subhead:
+      'Boxy dropped-shoulder drapes with clean garment-washed pigments built for effortless layering.',
+    linkType: 'category',
+    linkTarget: 'Down Shoulder T-Shirt'
+  },
+  {
+    id: 'hero_slide_3',
+    imageUrl: '/assets/images/tshirt_polo_neck_1794456301588.jpg',
+    eyebrow: 'INTERLOCK KNIT COLLARS',
+    heading: 'PRECISION\nKNIT POLOS.',
+    subhead:
+      'Structured 290 GSM interlock knit Polo Neck T-shirts that hold architectural form all day.',
+    linkType: 'category',
+    linkTarget: 'Polo Neck T-Shirt'
+  },
+  {
+    id: 'hero_slide_4',
+    imageUrl: '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+    eyebrow: 'SMALL-BATCH COLLECTOR DROP',
+    heading: 'LIMITED\nARCHIVE PIECES.',
+    subhead:
+      'Numbered acid-wash and limited graphic editions crafted in micro production runs.',
+    linkType: 'category',
+    linkTarget: 'Limited Design'
+  },
+  {
+    id: 'hero_slide_5',
+    imageUrl: '/assets/images/tshirt_custom_print_1794456303137.jpg',
+    eyebrow: 'CUSTOM PRINT STUDIO',
+    heading: 'YOUR ARTWORK.\nOUR HEAVY BLANK.',
+    subhead:
+      'Preview how the print settles across 4 sample angles and upload your own graphic directly.',
+    linkType: 'category',
+    linkTarget: 'Customise T-Shirt'
+  }
+];
+
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [products, setProducts] = useState<Product[]>(fallbackProducts);
-  const [settings, setSettings] = useState<any>({
-    heroImageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
-    heroHeading: 'LESS EFFORT.\nMORE STYLE.',
-    heroSubhead:
-      'Engineered for the relaxed vanguard. 280–320 GSM custom-loomed heavyweight combed cotton T-shirts, architectural collars, and bespoke graphic editions.',
-    heroButtonText: 'Shop Trending'
-  });
+  const [apiCategories, setApiCategories] = useState<Category[]>([]);
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/products').then(res => res.json()).catch(() => ({ products: [] })),
-      fetch('/api/settings').then(res => res.json()).catch(() => ({ settings: null }))
+      fetch('/api/settings').then(res => res.json()).catch(() => ({ settings: null })),
+      fetch('/api/categories').then(res => res.json()).catch(() => ({ categories: [] }))
     ])
-      .then(([prodData, setData]) => {
+      .then(([prodData, setData, catData]) => {
         if (prodData.products && prodData.products.length > 0) {
           setProducts(prodData.products);
         } else {
           setProducts(fallbackProducts);
         }
+        if (catData.categories && catData.categories.length > 0) {
+          setApiCategories(catData.categories);
+        }
         if (setData.settings) {
-          setSettings({
-            heroImageUrl:
-              setData.settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
-            heroHeading: setData.settings.heroHeading || 'LESS EFFORT.\nMORE STYLE.',
-            heroSubhead:
-              setData.settings.heroSubhead ||
-              'Engineered for the relaxed vanguard. 280–320 GSM custom-loomed heavyweight combed cotton T-shirts, architectural collars, and bespoke graphic editions.',
-            heroButtonText: 'Shop Trending'
-          });
+          const s = setData.settings;
+          if (Array.isArray(s.heroSlides) && s.heroSlides.length > 0) {
+            const validSlides = s.heroSlides.filter((sl: HeroSlide) => sl && sl.imageUrl);
+            if (validSlides.length > 0) {
+              setHeroSlides(validSlides);
+              return;
+            }
+          }
+          if (Array.isArray(s.heroImages) && s.heroImages.length > 0) {
+            setHeroSlides(
+              s.heroImages.filter(Boolean).map((imgUrl: string, idx: number) => ({
+                ...(DEFAULT_HERO_SLIDES[idx] || DEFAULT_HERO_SLIDES[0]),
+                id: `hero_slide_${idx + 1}`,
+                imageUrl: imgUrl
+              }))
+            );
+          }
         }
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const heroImg = settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg';
+  useEffect(() => {
+    if (heroSlides.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveHeroSlide(prev => (prev + 1) % heroSlides.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [heroSlides.length]);
+
+  useEffect(() => {
+    if (activeHeroSlide >= heroSlides.length) {
+      setActiveHeroSlide(0);
+    }
+  }, [heroSlides.length, activeHeroSlide]);
+
+  const currentSlide = heroSlides[activeHeroSlide] || DEFAULT_HERO_SLIDES[0];
+
+  const handleHeroSlideClick = () => {
+    if (!currentSlide || currentSlide.linkType === 'none' || !currentSlide.linkTarget) return;
+    if (currentSlide.linkType === 'product') {
+      onNavigate('product', { slug: currentSlide.linkTarget });
+    } else if (currentSlide.linkType === 'category') {
+      onNavigate('shop', { category: currentSlide.linkTarget });
+    }
+  };
+
   const lookbookImg = '/assets/images/campaign_editorial_lookbook_1794056022183.jpg';
 
   const trendingProducts = [...products]
@@ -60,42 +145,50 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
     return matched.slice(0, 4);
   };
 
+  const isCurrentSlideClickable = Boolean(
+    currentSlide && currentSlide.linkType !== 'none' && currentSlide.linkTarget
+  );
+
   return (
     <div className="space-y-14 sm:space-y-20 pb-16 sm:pb-20">
-      {/* 1. Hero Section */}
-      <section className="relative min-h-[68vh] sm:min-h-[82vh] flex items-center justify-center overflow-hidden bg-neutral-950">
+      {/* 1. Hero Section — Auto-Sliding Images, Per-Slide Matter & Category/Product Links, Zero Buttons */}
+      <section
+        onClick={handleHeroSlideClick}
+        className={`relative min-h-[68vh] sm:min-h-[82vh] flex items-center justify-center overflow-hidden bg-neutral-950 ${
+          isCurrentSlideClickable ? 'cursor-pointer' : ''
+        }`}
+      >
         <div className="absolute inset-0">
-          <img
-            src={heroImg}
-            alt="4LAAZY T-Shirt Campaign"
-            className="w-full h-full object-cover object-center"
-            referrerPolicy="no-referrer"
-          />
+          {heroSlides.map((slide, idx) => (
+            <img
+              key={slide.id || `${slide.imageUrl}_${idx}`}
+              src={slide.imageUrl}
+              alt={slide.heading || `4LAAZY Slide ${idx + 1}`}
+              className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 ease-in-out ${
+                idx === activeHeroSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+              referrerPolicy="no-referrer"
+            />
+          ))}
           <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/30" />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white py-14 sm:py-20">
-          <p className="mb-3 text-[10px] sm:text-[11px] font-bold tracking-[0.25em] uppercase text-[#E5A914]">
-            HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE
-          </p>
+          {currentSlide.eyebrow && (
+            <p className="mb-3 text-[10px] sm:text-[11px] font-bold tracking-[0.25em] uppercase text-[#E5A914]">
+              {currentSlide.eyebrow}
+            </p>
+          )}
 
           <h1 className="font-display text-3xl sm:text-6xl lg:text-7xl font-black tracking-tight uppercase leading-[0.96] max-w-4xl mx-auto text-balance whitespace-pre-line">
-            {settings.heroHeading || 'LESS EFFORT.\nMORE STYLE.'}
+            {currentSlide.heading || 'LESS EFFORT.\nMORE STYLE.'}
           </h1>
 
-          <p className="mt-4 sm:mt-6 text-xs sm:text-base lg:text-lg text-neutral-300 max-w-2xl mx-auto font-normal leading-relaxed text-balance">
-            {settings.heroSubhead}
-          </p>
-
-          <div className="mt-7 sm:mt-8 flex items-center justify-center">
-            <button
-              onClick={() => onNavigate('shop', { category: 'trending' })}
-              className="w-full sm:w-auto max-w-xs bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-8 py-3.5 rounded text-xs uppercase tracking-widest transition-all duration-200 active:scale-95 shadow-xl flex items-center justify-center gap-2"
-            >
-              <span>Shop Trending</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+          {currentSlide.subhead && (
+            <p className="mt-4 sm:mt-6 text-xs sm:text-base lg:text-lg text-neutral-300 max-w-2xl mx-auto font-normal leading-relaxed text-balance">
+              {currentSlide.subhead}
+            </p>
+          )}
         </div>
 
         <div className="absolute bottom-4 inset-x-0 hidden md:flex justify-center gap-8 text-[11px] uppercase tracking-wider text-neutral-400 font-semibold z-10">
@@ -149,6 +242,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       {CATEGORY_ROUTE_META.map((catMeta) => {
         const catProducts = getCategoryProducts(catMeta.name);
         if (catProducts.length === 0) return null;
+        const matchedCat = apiCategories.find(
+          c => c.slug === catMeta.slug || c.name.toLowerCase() === catMeta.name.toLowerCase()
+        );
+        const bannerImage = matchedCat?.image || catMeta.heroImage;
+        const bannerDescription = matchedCat?.description || catMeta.heroDescription;
 
         return (
           <section key={catMeta.slug} className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-6">
@@ -165,7 +263,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               className="group relative h-48 sm:h-64 lg:h-72 rounded-xl overflow-hidden border border-neutral-800 cursor-pointer bg-neutral-950"
             >
               <img
-                src={catMeta.heroImage}
+                src={bannerImage}
                 alt={catMeta.name}
                 className="w-full h-full object-cover object-center opacity-65 group-hover:scale-[1.03] transition-transform duration-700"
                 referrerPolicy="no-referrer"
@@ -174,7 +272,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
               <div className="relative z-10 h-full flex flex-col justify-end p-5 sm:p-8 lg:p-10 max-w-2xl space-y-3">
                 <p className="text-xs sm:text-sm text-neutral-200 line-clamp-2 max-w-xl leading-relaxed">
-                  {catMeta.heroDescription}
+                  {bannerDescription}
                 </p>
                 <div>
                   <span className="inline-flex items-center gap-2 text-[11px] sm:text-xs font-extrabold uppercase tracking-widest text-[#E5A914] group-hover:text-white transition-colors">

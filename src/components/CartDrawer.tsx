@@ -161,14 +161,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                       </div>
 
                       {item.customPrint && (
-                        <div className="mt-1.5 p-1.5 bg-neutral-950/80 border border-[#E5A914]/30 rounded text-[10px] space-y-0.5">
+                        <div className="mt-1.5 p-1.5 bg-neutral-950/80 border border-[#E5A914]/30 rounded text-[10px] space-y-1">
                           <div className="flex items-center justify-between text-[#E5A914] font-medium">
                             <span className="uppercase tracking-wider">Custom Print</span>
-                            <span className="text-neutral-400 capitalize">{item.customPrint.placement.replace('-', ' ')}</span>
+                            {item.customPrint.printTechnique !== 'Custom Image Print' && (
+                              <span className="text-neutral-400 capitalize">{item.customPrint.placement.replace('-', ' ')}</span>
+                            )}
                           </div>
-                          <p className="text-neutral-300">Technique: {item.customPrint.printTechnique}</p>
+                          {item.customPrint.printTechnique !== 'Custom Image Print' && (
+                            <p className="text-neutral-300">Technique: {item.customPrint.printTechnique}</p>
+                          )}
                           {item.customPrint.customText && (
-                            <p className="text-neutral-400 truncate italic">"{item.customPrint.customText}" ({item.customPrint.fontStyle})</p>
+                            <p className="text-neutral-400 truncate italic">&ldquo;{item.customPrint.customText}&rdquo; ({item.customPrint.fontStyle})</p>
                           )}
                           {item.customPrint.uploadedGraphicUrl && (
                             <div className="flex items-center gap-1.5 pt-0.5">
@@ -181,7 +185,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                                   className="w-6 h-6 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
                                 />
                               )}
-                              <span className="text-emerald-400 text-[9px]">Custom Graphic Uploaded</span>
+                              <span className="text-emerald-400 text-[9px]">Print Image Uploaded</span>
                             </div>
                           )}
                         </div>

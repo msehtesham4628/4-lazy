@@ -65,7 +65,29 @@ export const fallbackCategories: Category[] = [
   }
 ];
 
+const SLIDE_POOL = [
+  roundNeckImg,
+  teeImg,
+  poloImg,
+  customPrintImg,
+  acidWashImg,
+  lookbookImg,
+  heroImg
+];
+
+function fourSlides(primary: string, secondary: string): string[] {
+  const result = [primary, secondary];
+  for (const candidate of SLIDE_POOL) {
+    if (result.length >= 4) break;
+    if (!result.includes(candidate)) {
+      result.push(candidate);
+    }
+  }
+  return result.slice(0, 4);
+}
+
 function makeVariants(prefix: string, colorName: string, colorHex: string, images: string[], stockBase = 24) {
+  const slides = fourSlides(images[0] || teeImg, images[1] || lookbookImg);
   return (['S', 'M', 'L', 'XL'] as const).map((size, idx) => ({
     id: `var_${prefix}_${size.toLowerCase()}`,
     colorName,
@@ -73,11 +95,11 @@ function makeVariants(prefix: string, colorName: string, colorHex: string, image
     size,
     sku: `4L-${prefix.toUpperCase()}-${size}`,
     stock: Math.max(4, stockBase - idx * 3),
-    images
+    images: slides
   }));
 }
 
-export const fallbackProducts: Product[] = [
+const rawFallbackProducts: Product[] = [
   // 1. ROUND NECK T-SHIRT (4 products)
   {
     id: 'prod_round_01',
@@ -390,11 +412,11 @@ export const fallbackProducts: Product[] = [
   {
     id: 'prod_custom_01',
     slug: 'bespoke-custom-print-streetwear-tee',
-    title: 'Bespoke 3D Studio White Customise Tee',
-    subtitle: '3D Rotatable Blank · Upload Artwork & Text · 280 GSM Heavyweight',
-    description: 'Upload your artwork or custom typography in our live 3D studio and preview it front and back on crisp white 280 GSM cotton.',
+    title: 'Bespoke Custom Print Streetwear Tee',
+    subtitle: 'Upload Your Print Image · Sample Fit & Finish Shown · 280 GSM Heavyweight',
+    description: 'Browse our 4 sample product photos to see the final print quality and fit, then upload your image before adding to bag.',
     category: 'Customise T-Shirt',
-    tags: ['Trending', 'Customise', '3D Studio'],
+    tags: ['Trending', 'Customise'],
     basePrice: 2299,
     discountPrice: 1999,
     isFeatured: true,
@@ -416,8 +438,8 @@ export const fallbackProducts: Product[] = [
     id: 'prod_custom_02',
     slug: 'custom-3d-puff-print-oversized-blank',
     title: '3D Silicone Puff Customise T-Shirt',
-    subtitle: 'Raised 3D Ink Finish · Front & Back Placement · 300 GSM',
-    description: 'High-relief 3D silicone puff ink pressed onto a 300 GSM boxy down-shoulder blank using your own crest or back graphic.',
+    subtitle: 'Upload Print Image · Sample Print Reference · 300 GSM',
+    description: 'High-relief 3D silicone puff ink pressed onto a 300 GSM boxy down-shoulder blank using your uploaded graphic.',
     category: 'Customise T-Shirt',
     tags: ['Customise', '3D Puff'],
     basePrice: 2499,
@@ -441,8 +463,8 @@ export const fallbackProducts: Product[] = [
     id: 'prod_custom_03',
     slug: 'custom-back-canvas-statement-tee',
     title: 'Full Back Canvas Customise T-Shirt',
-    subtitle: '12" × 16" Monumental Back Print · HD DTG · 280 GSM',
-    description: 'Dedicated oversized back canvas customisation with chest pocket monogram for maximum streetwear impact.',
+    subtitle: 'Upload Artwork · Sample Back Print Shots · 280 GSM',
+    description: 'Oversized back canvas customisation printed to match the sample print photos shown across our 4 product slides.',
     category: 'Customise T-Shirt',
     tags: ['Customise', 'Back Print'],
     basePrice: 2399,
@@ -466,7 +488,7 @@ export const fallbackProducts: Product[] = [
     id: 'prod_custom_04',
     slug: 'custom-team-agency-pack-polo-or-tee',
     title: 'Metallic Gold Foil Customise T-Shirt',
-    subtitle: 'Reflective Foil Heat-Press · Custom Crest & Slogan',
+    subtitle: 'Upload Custom Graphic · Sample Foil Finish · 290 GSM',
     description: 'Studio vacuum metallic gold or chrome foil press on custom 290 GSM black or white heavyweight tees.',
     category: 'Customise T-Shirt',
     tags: ['Customise', 'Gold Foil'],
@@ -692,3 +714,11 @@ export const fallbackProducts: Product[] = [
     createdAt: '2026-03-06T16:00:00Z'
   }
 ];
+
+export const fallbackProducts: Product[] = rawFallbackProducts.map(product => ({
+  ...product,
+  colorGroups: product.colorGroups.map(cg => ({
+    ...cg,
+    images: fourSlides(cg.images[0] || teeImg, cg.images[1] || lookbookImg)
+  }))
+}));

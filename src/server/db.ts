@@ -14,7 +14,9 @@ import type {
   InventoryTransaction,
   AdminActivityLog,
   EmailLog,
-  StoreSettings
+  StoreSettings,
+  HeroSlide,
+  StockNotificationRequest
 } from '../types/index.ts';
 
 const DATA_DIR = path.resolve(process.cwd(), '.data');
@@ -36,6 +38,7 @@ export interface DatabaseSchema {
   settings: StoreSettings;
   carts: Record<string, any>; // userId or guestId -> cart
   wishlists: Record<string, string[]>; // userId -> productIds[]
+  stockNotifications: StockNotificationRequest[];
 }
 
 // In-memory cache synced with disk
@@ -298,6 +301,60 @@ export function getInitialSeedData(): DatabaseSchema {
     heroSubhead: 'Engineered for the contemporary vanguard. Architectural heavyweight silhouettes, custom 280-500 GSM loopback knits, and uncompromising minimal tailoring.',
     heroButtonText: 'SHOP DROP 04',
     heroImageUrl: heroImg,
+    heroImages: [
+      heroImg,
+      lookbookImg,
+      teeImg,
+      '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+      '/assets/images/tshirt_polo_neck_1794456301588.jpg'
+    ],
+    heroSlides: [
+      {
+        id: 'hero_slide_1',
+        imageUrl: heroImg,
+        eyebrow: 'HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE',
+        heading: 'LESS EFFORT.\nMORE STYLE.',
+        subhead: '280–320 GSM heavyweight combed cotton Round Neck T-shirts engineered for an everyday crisp collar.',
+        linkType: 'category',
+        linkTarget: 'Round Neck T-Shirt'
+      },
+      {
+        id: 'hero_slide_2',
+        imageUrl: lookbookImg,
+        eyebrow: 'DROP SHOULDER ARCHITECTURE',
+        heading: 'DOWN SHOULDER\nSILHOUETTES.',
+        subhead: 'Boxy dropped-shoulder drapes with clean garment-washed pigments built for effortless layering.',
+        linkType: 'category',
+        linkTarget: 'Down Shoulder T-Shirt'
+      },
+      {
+        id: 'hero_slide_3',
+        imageUrl: '/assets/images/tshirt_polo_neck_1794456301588.jpg',
+        eyebrow: 'INTERLOCK KNIT COLLARS',
+        heading: 'PRECISION\nKNIT POLOS.',
+        subhead: 'Structured 290 GSM interlock knit Polo Neck T-shirts that hold architectural form all day.',
+        linkType: 'category',
+        linkTarget: 'Polo Neck T-Shirt'
+      },
+      {
+        id: 'hero_slide_4',
+        imageUrl: '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+        eyebrow: 'SMALL-BATCH COLLECTOR DROP',
+        heading: 'LIMITED\nARCHIVE PIECES.',
+        subhead: 'Numbered acid-wash and limited graphic editions crafted in micro production runs.',
+        linkType: 'category',
+        linkTarget: 'Limited Design'
+      },
+      {
+        id: 'hero_slide_5',
+        imageUrl: '/assets/images/tshirt_custom_print_1794456303137.jpg',
+        eyebrow: 'CUSTOM PRINT STUDIO',
+        heading: 'YOUR ARTWORK.\nOUR HEAVY BLANK.',
+        subhead: 'Preview how the print settles across 4 sample angles and upload your own graphic directly.',
+        linkType: 'category',
+        linkTarget: 'Customise T-Shirt'
+      }
+    ],
     campaignTitle: 'THE BRUTALIST MONOLITH',
     campaignDescription: 'Stripped of excess ornamentation. Raw unbrushed French Terry, drop-shoulder geometry, and muted industrial pigments crafted for timeless daily wear.',
     campaignImageUrl: lookbookImg,
@@ -355,7 +412,8 @@ export function getInitialSeedData(): DatabaseSchema {
     emailLogs,
     settings,
     carts: {},
-    wishlists: {}
+    wishlists: {},
+    stockNotifications: []
   };
 }
 
@@ -407,10 +465,88 @@ export function getDB(): DatabaseSchema {
             db.settings.brandName = '4LAAZY';
             needsSave = true;
           }
+          if (!Array.isArray(db.settings.heroImages) || db.settings.heroImages.length < 4) {
+            db.settings.heroImages = [
+              db.settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+              '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
+              '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+              '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+              '/assets/images/tshirt_polo_neck_1794456301588.jpg'
+            ];
+            needsSave = true;
+          }
+          if (!Array.isArray(db.settings.heroSlides) || db.settings.heroSlides.length === 0) {
+            const seedSlides: HeroSlide[] = [
+              {
+                id: 'hero_slide_1',
+                imageUrl: db.settings.heroImages[0] || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+                eyebrow: 'HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE',
+                heading: db.settings.heroHeading || 'LESS EFFORT.\nMORE STYLE.',
+                subhead:
+                  db.settings.heroSubhead ||
+                  '280–320 GSM heavyweight combed cotton Round Neck T-shirts engineered for an everyday crisp collar.',
+                linkType: 'category',
+                linkTarget: 'Round Neck T-Shirt'
+              },
+              {
+                id: 'hero_slide_2',
+                imageUrl: db.settings.heroImages[1] || '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
+                eyebrow: 'DROP SHOULDER ARCHITECTURE',
+                heading: 'DOWN SHOULDER\nSILHOUETTES.',
+                subhead: 'Boxy dropped-shoulder drapes with clean garment-washed pigments built for effortless layering.',
+                linkType: 'category',
+                linkTarget: 'Down Shoulder T-Shirt'
+              },
+              {
+                id: 'hero_slide_3',
+                imageUrl: db.settings.heroImages[4] || '/assets/images/tshirt_polo_neck_1794456301588.jpg',
+                eyebrow: 'INTERLOCK KNIT COLLARS',
+                heading: 'PRECISION\nKNIT POLOS.',
+                subhead: 'Structured 290 GSM interlock knit Polo Neck T-shirts that hold architectural form all day.',
+                linkType: 'category',
+                linkTarget: 'Polo Neck T-Shirt'
+              },
+              {
+                id: 'hero_slide_4',
+                imageUrl: db.settings.heroImages[3] || '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+                eyebrow: 'SMALL-BATCH COLLECTOR DROP',
+                heading: 'LIMITED\nARCHIVE PIECES.',
+                subhead: 'Numbered acid-wash and limited graphic editions crafted in micro production runs.',
+                linkType: 'category',
+                linkTarget: 'Limited Design'
+              },
+              {
+                id: 'hero_slide_5',
+                imageUrl: '/assets/images/tshirt_custom_print_1794456303137.jpg',
+                eyebrow: 'CUSTOM PRINT STUDIO',
+                heading: 'YOUR ARTWORK.\nOUR HEAVY BLANK.',
+                subhead: 'Preview how the print settles across 4 sample angles and upload your own graphic directly.',
+                linkType: 'category',
+                linkTarget: 'Customise T-Shirt'
+              }
+            ];
+            db.settings.heroSlides = seedSlides;
+            needsSave = true;
+          }
         }
         db.returnRequests = db.returnRequests || [];
         db.carts = db.carts || {};
         db.wishlists = db.wishlists || {};
+        db.stockNotifications = db.stockNotifications || [];
+
+        // Upgrade seeded products that still have < 4 slides to 4 photo slides
+        for (const p of db.products) {
+          const seedMatch = (fullSeed.products as Product[]).find(sp => sp.id === p.id);
+          if (seedMatch && p.colorGroups[0] && p.colorGroups[0].images.length < 4 && seedMatch.colorGroups[0]?.images.length >= 4) {
+            p.colorGroups = seedMatch.colorGroups;
+            p.variants = p.variants.map(v => {
+              const sv = seedMatch.variants.find(mv => mv.id === v.id);
+              return sv && v.images.length < 4 ? { ...v, images: sv.images } : v;
+            });
+            needsSave = true;
+          }
+        }
+
         if (needsSave) {
           saveDB();
         }

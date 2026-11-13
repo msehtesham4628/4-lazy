@@ -2,7 +2,7 @@ import { Router, type Response } from 'express';
 import { getDB, saveDB } from '../db.ts';
 import { requireAdmin, optionalAuthenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { isMongoConnected, ProductModel } from '../mongodb.ts';
-import type { Product, Review } from '../../types/index.ts';
+import type { Product, Review, StockNotificationRequest } from '../../types/index.ts';
 
 export const productsRouter = Router();
 
@@ -141,6 +141,96 @@ productsRouter.post('/products/:id/reviews', optionalAuthenticate, (req: Authent
 
   saveDB();
   return res.status(201).json({ review: newReview, rating: product.rating, reviewsCount: product.reviewsCount });
+});
+
+// Customer: Request back-in-stock notification ("Notify Me")
+productsRouter.post('/products/:id/notify-me', optionalAuthenticate, (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const product = db.products.find(p => p.id === req.params.id || p.slug === req.params.id);
+  if (!product) {
+    return res.status(404).json({ error: 'Product not found.' });
+  }
+
+  const {
+    variantId,
+    sku,
+    colorName,
+    size,
+    customerName,
+    customerEmail,
+    customerPhone
+  } = req.body || {};
+
+  const resolvedName = (customerName || req.user?.name || '').trim();
+  const resolvedEmail = (customerEmail || req.user?.email || '').trim().toLowerCase();
+  const resolvedPhone = (customerPhone || req.user?.phone || '').trim();
+
+  if (!resolvedName || (!resolvedEmail && !resolvedPhone)) {
+    return res.status(400).json({ error: 'Please provide your name and email or phone number.' });
+  }
+
+  if (resolvedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  const targetColor = (colorName || product.colorGroups[0]?.colorName || 'Default').trim();
+  const targetSize = (size || 'L').trim();
+
+  db.stockNotifications = db.stockNotifications || [];
+
+  // Deduplicate pending requests for the same customer + product + variant size/color
+  const existing = db.stockNotifications.find(
+    n =>
+      n.productId === product.id &&
+      n.colorName.toLowerCase() === targetColor.toLowerCase() &&
+      n.size.toLowerCase() === targetSize.toLowerCase() &&
+      n.status === 'Pending' &&
+      ((resolvedEmail && n.customerEmail.toLowerCase() === resolvedEmail) ||
+        (!resolvedEmail && resolvedPhone && n.customerPhone === resolvedPhone))
+  );
+
+  if (existing) {
+    existing.customerName = resolvedName;
+    if (resolvedPhone) existing.customerPhone = resolvedPhone;
+    saveDB();
+    return res.json({
+      notification: existing,
+      alreadySubscribed: true,
+      message: `You are already on the waitlist for ${product.title} (${targetSize}, ${targetColor}).`
+    });
+  }
+
+  const newRequest: StockNotificationRequest = {
+    id: `ntf_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+    productId: product.id,
+    productTitle: product.title,
+    productSlug: product.slug,
+    variantId,
+    sku,
+    colorName: targetColor,
+    size: targetSize,
+    customerName: resolvedName,
+    customerEmail: resolvedEmail,
+    customerPhone: resolvedPhone,
+    userId: req.user?.id,
+    status: 'Pending',
+    createdAt: new Date().toISOString()
+  };
+
+  db.stockNotifications.unshift(newRequest);
+  db.adminLogs.unshift({
+    id: `log_${Date.now()}`,
+    adminEmail: 'storefront@4lazyfashion.com',
+    action: 'STOCK_NOTIFY_REQUEST',
+    details: `${resolvedName} (${resolvedEmail || resolvedPhone}) requested restock alert for ${product.title} [${targetColor} / ${targetSize}].`,
+    timestamp: new Date().toISOString()
+  });
+
+  saveDB();
+  return res.status(201).json({
+    notification: newRequest,
+    message: `Restock alert saved! We will notify you as soon as ${targetSize} (${targetColor}) is back in stock.`
+  });
 });
 
 // Admin: Get ALL products (including unpublished drafts)

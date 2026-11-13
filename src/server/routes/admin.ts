@@ -74,7 +74,8 @@ adminRouter.get('/overview', (req: AuthenticatedRequest, res: Response) => {
       totalProducts,
       pendingOrders,
       completedOrders,
-      lowStockCount: lowStockItems.length
+      lowStockCount: lowStockItems.length,
+      stockNotificationsCount: (db.stockNotifications || []).filter(n => n.status === 'Pending').length
     },
     lowStockItems,
     recentOrders,
@@ -259,12 +260,9 @@ adminRouter.get('/inventory', (req: AuthenticatedRequest, res: Response) => {
   });
 });
 
-// Inventory: Stock manual adjustment
+// Inventory: Stock manual adjustment (+ / - delta or exact stock value)
 adminRouter.post('/inventory/adjust', (req: AuthenticatedRequest, res: Response) => {
-  const { productId, variantId, sku, change, reason } = req.body;
-  if (!change || isNaN(Number(change))) {
-    return res.status(400).json({ error: 'Valid stock adjustment quantity is required.' });
-  }
+  const { productId, variantId, sku, change, setExactStock, reason } = req.body;
 
   const db = getDB();
   const product = db.products.find(p => p.id === productId);
@@ -273,9 +271,23 @@ adminRouter.post('/inventory/adjust', (req: AuthenticatedRequest, res: Response)
   const variant = product.variants.find(v => v.id === variantId || v.sku === sku);
   if (!variant) return res.status(404).json({ error: 'Variant not found.' });
 
-  const numChange = Number(change);
-  const prevStock = variant.stock;
-  variant.stock = Math.max(0, variant.stock + numChange);
+  const prevStock = Number(variant.stock) || 0;
+  let nextStock = prevStock;
+  let numChange = 0;
+
+  if (setExactStock !== undefined && setExactStock !== null && setExactStock !== '' && !isNaN(Number(setExactStock))) {
+    nextStock = Math.max(0, Math.round(Number(setExactStock)));
+    numChange = nextStock - prevStock;
+  } else {
+    const parsed = Number(change);
+    if (change === undefined || change === null || change === '' || isNaN(parsed) || parsed === 0) {
+      return res.status(400).json({ error: 'Enter a non-zero quantity change (e.g. -5 or +10).' });
+    }
+    numChange = Math.round(parsed);
+    nextStock = Math.max(0, prevStock + numChange);
+  }
+
+  variant.stock = nextStock;
 
   const tx: InventoryTransaction = {
     id: `inv_tx_${Date.now()}`,
@@ -284,7 +296,7 @@ adminRouter.post('/inventory/adjust', (req: AuthenticatedRequest, res: Response)
     variantSku: variant.sku,
     colorName: variant.colorName,
     size: variant.size,
-    change: numChange,
+    change: nextStock - prevStock,
     previousStock: prevStock,
     newStock: variant.stock,
     reason: reason || 'Manual stock adjustment by admin',
@@ -296,7 +308,7 @@ adminRouter.post('/inventory/adjust', (req: AuthenticatedRequest, res: Response)
     id: `log_${Date.now()}`,
     adminEmail: req.user!.email,
     action: 'INVENTORY_ADJUSTED',
-    details: `${product.title} (${variant.sku}): ${prevStock} -> ${variant.stock} (${numChange > 0 ? '+' : ''}${numChange})`,
+    details: `${product.title} (${variant.sku}): ${prevStock} -> ${variant.stock} (${tx.change >= 0 ? '+' : ''}${tx.change})`,
     timestamp: new Date().toISOString()
   });
 
@@ -793,5 +805,67 @@ adminRouter.post('/mongodb/pull', async (req: AuthenticatedRequest, res: Respons
       error: result.error || 'Failed to pull data from MongoDB.'
     });
   }
+});
+
+// ----------------------------------------------------
+// STOCK NOTIFICATION ("NOTIFY ME") REQUESTS
+// ----------------------------------------------------
+
+// GET /api/admin/stock-notifications
+adminRouter.get('/stock-notifications', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  return res.json({
+    notifications: db.stockNotifications || []
+  });
+});
+
+// PUT /api/admin/stock-notifications/:id/notify
+adminRouter.put('/stock-notifications/:id/notify', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  db.stockNotifications = db.stockNotifications || [];
+  const item = db.stockNotifications.find(n => n.id === req.params.id);
+  if (!item) {
+    return res.status(404).json({ error: 'Notification request not found.' });
+  }
+
+  item.status = 'Notified';
+  item.notifiedAt = new Date().toISOString();
+
+  if (item.customerEmail) {
+    db.emailLogs.unshift({
+      id: `eml_${Date.now()}`,
+      to: item.customerEmail,
+      subject: `Back In Stock: ${item.productTitle} (${item.size} / ${item.colorName})`,
+      type: 'back_in_stock',
+      sentAt: new Date().toISOString(),
+      status: 'delivered',
+      previewHtml: `<h1>4LAAZY</h1><p>Hey ${item.customerName}, your requested piece <strong>${item.productTitle}</strong> in <strong>${item.colorName} (Size ${item.size})</strong> is back in stock at 4laazy.com.</p>`
+    });
+  }
+
+  db.adminLogs.unshift({
+    id: `log_${Date.now()}`,
+    adminEmail: req.user!.email,
+    action: 'STOCK_NOTIFY_SENT',
+    details: `Notified ${item.customerName} (${item.customerEmail || item.customerPhone}) for ${item.productTitle} [${item.colorName}/${item.size}].`,
+    timestamp: new Date().toISOString()
+  });
+
+  saveDB();
+  return res.json({ notification: item, message: `Marked as notified for ${item.customerName}.` });
+});
+
+// DELETE /api/admin/stock-notifications/:id
+adminRouter.delete('/stock-notifications/:id', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  db.stockNotifications = db.stockNotifications || [];
+  const idx = db.stockNotifications.findIndex(n => n.id === req.params.id);
+  if (idx === -1) {
+    return res.status(404).json({ error: 'Notification request not found.' });
+  }
+
+  db.stockNotifications.splice(idx, 1);
+  saveDB();
+  return res.json({ success: true, message: 'Notification request removed.' });
 });
 

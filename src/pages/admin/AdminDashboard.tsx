@@ -33,7 +33,11 @@ import {
   LogOut,
   Store,
   Database,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  ArrowUp,
+  ArrowDown,
+  Link2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { compressUploadImage } from '../../utils/imageUtils.ts';
@@ -43,11 +47,13 @@ import {
   Category,
   Coupon,
   StoreSettings,
+  HeroSlide,
   EmailLog,
   InventoryTransaction,
   ReturnRequest,
   ProductVariant,
-  ProductColorGroup
+  ProductColorGroup,
+  StockNotificationRequest
 } from '../../types/index.ts';
 
 interface AdminDashboardProps {
@@ -60,6 +66,7 @@ type AdminTab =
   | 'overview'
   | 'products'
   | 'inventory'
+  | 'notify-requests'
   | 'orders'
   | 'returns'
   | 'customers'
@@ -102,9 +109,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const [bulkCsvText, setBulkCsvText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const productImageInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingProductImage, setUploadingProductImage] = useState(false);
+  const activeUploadSlideRef = useRef<number>(0);
+  const [uploadingSlideIndex, setUploadingSlideIndex] = useState<number | null>(null);
 
-  // Product Form State (for Add / Edit)
+  const DEFAULT_PRODUCT_SLIDES: [string, string, string, string] = [
+    '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+    '/assets/images/tshirt_round_neck_1794456303307.jpg',
+    '/assets/images/tshirt_custom_print_1794456303137.jpg',
+    '/assets/images/campaign_editorial_lookbook_1794056022183.jpg'
+  ];
+
+  // Product Form State (for Add / Edit — supports 4 photo slides per product)
   const [productForm, setProductForm] = useState({
     title: '',
     subtitle: '',
@@ -120,7 +135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     care: 'Machine wash cold inside-out. Hang dry in shade.',
     colorName: 'Washed Black',
     colorHex: '#141416',
-    imageUrl: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+    imageUrls: [...DEFAULT_PRODUCT_SLIDES] as [string, string, string, string],
     stockS: 20,
     stockM: 35,
     stockL: 40,
@@ -154,10 +169,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   // Inventory
   const [inventoryMatrix, setInventoryMatrix] = useState<any[]>([]);
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [inventorySearch, setInventorySearch] = useState('');
   const [inventoryTx, setInventoryTx] = useState<InventoryTransaction[]>([]);
   const [adjustModalItem, setAdjustModalItem] = useState<any | null>(null);
-  const [adjustQty, setAdjustQty] = useState<number>(10);
-  const [adjustReason, setAdjustReason] = useState('Stock replenishment from manufacturing mill');
+  const [adjustQtyInput, setAdjustQtyInput] = useState<string>('10');
+  const [adjustMode, setAdjustMode] = useState<'delta' | 'exact'>('delta');
+  const [adjustReason, setAdjustReason] = useState('Stock replenishment / warehouse count update');
+  const [adjustSaving, setAdjustSaving] = useState(false);
+  const [quickAdjustingSku, setQuickAdjustingSku] = useState<string | null>(null);
 
   // Customers
   const [customers, setCustomers] = useState<any[]>([]);
@@ -208,10 +227,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   // Settings & CMS Content
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const heroSlideFileInputRef = useRef<HTMLInputElement>(null);
+  const activeHeroUploadIdxRef = useRef<number>(0);
+  const [uploadingHeroSlideIdx, setUploadingHeroSlideIdx] = useState<number | null>(null);
+  const categoryImageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingCategoryImage, setUploadingCategoryImage] = useState(false);
 
   // Emails
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [selectedEmailPreview, setSelectedEmailPreview] = useState<EmailLog | null>(null);
+
+  // Back-in-stock Notify Requests
+  const [stockNotifications, setStockNotifications] = useState<StockNotificationRequest[]>([]);
+  const [notifyFilter, setNotifyFilter] = useState<'all' | 'Pending' | 'Notified'>('all');
+  const [notifySearch, setNotifySearch] = useState('');
+  const [confirmDeleteNotifyId, setConfirmDeleteNotifyId] = useState<string | null>(null);
 
   // MongoDB Atlas State
   const [mongoStats, setMongoStats] = useState<any>(null);
@@ -443,13 +473,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     }
   };
 
+  const normalizeHeroSlides = (s: StoreSettings | null): HeroSlide[] => {
+    if (!s) return [];
+    if (Array.isArray(s.heroSlides) && s.heroSlides.length > 0) {
+      return s.heroSlides;
+    }
+    const imgs =
+      Array.isArray(s.heroImages) && s.heroImages.length > 0
+        ? s.heroImages
+        : [
+            s.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+            '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
+            '/assets/images/tshirt_polo_neck_1794456301588.jpg',
+            '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+            '/assets/images/tshirt_custom_print_1794456303137.jpg'
+          ];
+    return imgs.map((imgUrl, idx) => ({
+      id: `hero_slide_${idx + 1}`,
+      imageUrl: imgUrl,
+      eyebrow: 'HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE',
+      heading: s.heroHeading || 'LESS EFFORT.\nMORE STYLE.',
+      subhead: s.heroSubhead || 'Heavyweight 280–320 GSM combed cotton T-shirts.',
+      linkType: 'category',
+      linkTarget: 'Round Neck T-Shirt'
+    }));
+  };
+
   const fetchSettings = async () => {
     try {
       const res = await fetch('/api/admin/settings', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const d = await res.json();
-      setStoreSettings(d.settings);
+      if (d.settings) {
+        setStoreSettings({
+          ...d.settings,
+          heroSlides: normalizeHeroSlides(d.settings)
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -462,6 +523,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       });
       const d = await res.json();
       setEmails(d.emails || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchStockNotifications = async () => {
+    try {
+      const res = await fetch('/api/admin/stock-notifications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setStockNotifications(d.notifications || []);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -482,6 +557,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         fetchCoupons(),
         fetchSettings(),
         fetchEmails(),
+        fetchStockNotifications(),
         fetchMongoStatus()
       ]).finally(() => setLoading(false));
     }
@@ -523,7 +599,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       care: 'Machine wash cold. Hang dry in shade.',
       colorName: 'Washed Black',
       colorHex: '#141416',
-      imageUrl: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+      imageUrls: [...DEFAULT_PRODUCT_SLIDES],
       stockS: 20,
       stockM: 35,
       stockL: 40,
@@ -536,8 +612,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const openEditProductModal = (product: Product) => {
     setEditingProduct(product);
     const firstColor = product.colorGroups[0] || { colorName: 'Washed Black', colorHex: '#141416', images: [] };
+    const existingImgs =
+      firstColor.images && firstColor.images.length > 0
+        ? firstColor.images
+        : product.variants[0]?.images || [];
     const stockMap: Record<string, number> = {};
-    product.variants.forEach(v => {
+    const firstColorVariants = product.variants.filter(
+      v => v.colorName.toLowerCase() === firstColor.colorName.toLowerCase()
+    );
+    (firstColorVariants.length > 0 ? firstColorVariants : product.variants).forEach(v => {
       stockMap[v.size] = v.stock;
     });
 
@@ -556,14 +639,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       care: product.details.care,
       colorName: firstColor.colorName,
       colorHex: firstColor.colorHex,
-      imageUrl: firstColor.images[0] || product.variants[0]?.images[0] || '',
-      stockS: stockMap['S'] || 15,
-      stockM: stockMap['M'] || 25,
-      stockL: stockMap['L'] || 30,
-      stockXL: stockMap['XL'] || 15,
-      stockXXL: stockMap['XXL'] || 10
+      imageUrls: [
+        existingImgs[0] || DEFAULT_PRODUCT_SLIDES[0],
+        existingImgs[1] || '',
+        existingImgs[2] || '',
+        existingImgs[3] || ''
+      ],
+      stockS: stockMap['S'] ?? 0,
+      stockM: stockMap['M'] ?? 0,
+      stockL: stockMap['L'] ?? 0,
+      stockXL: stockMap['XL'] ?? 0,
+      stockXXL: stockMap['XXL'] ?? 0
     });
     setShowProductModal(true);
+  };
+
+  const triggerSlideUpload = (slideIdx: number) => {
+    activeUploadSlideRef.current = slideIdx;
+    productImageInputRef.current?.click();
   };
 
   const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -575,15 +668,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       return;
     }
 
-    setUploadingProductImage(true);
+    const slideIdx = activeUploadSlideRef.current;
+    setUploadingSlideIndex(slideIdx);
     try {
       const compressedDataUrl = await compressUploadImage(file, 960, 0.85);
-      setProductForm(prev => ({ ...prev, imageUrl: compressedDataUrl }));
-      showNotice('success', 'Product image uploaded and optimized.');
+      setProductForm(prev => {
+        const next: [string, string, string, string] = [...prev.imageUrls] as [string, string, string, string];
+        next[slideIdx] = compressedDataUrl;
+        return { ...prev, imageUrls: next };
+      });
+      showNotice('success', `Photo Slide ${slideIdx + 1} uploaded and optimized.`);
     } catch (err: any) {
       showNotice('error', 'Failed to process image: ' + (err?.message || 'Unknown error'));
     } finally {
-      setUploadingProductImage(false);
+      setUploadingSlideIndex(null);
       e.target.value = '';
     }
   };
@@ -595,13 +693,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       const cleanTitle = productForm.title.trim();
       const codePrefix = (cleanTitle.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '') || '4L').padEnd(2, 'L');
       const ts = Date.now();
-      const variants: ProductVariant[] = [
-        { id: `var_${ts}_s`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'S', sku: `4L-${codePrefix}-S-${ts % 1000}`, stock: Number(productForm.stockS), images: [productForm.imageUrl] },
-        { id: `var_${ts}_m`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'M', sku: `4L-${codePrefix}-M-${ts % 1000}`, stock: Number(productForm.stockM), images: [productForm.imageUrl] },
-        { id: `var_${ts}_l`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'L', sku: `4L-${codePrefix}-L-${ts % 1000}`, stock: Number(productForm.stockL), images: [productForm.imageUrl] },
-        { id: `var_${ts}_xl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XL', sku: `4L-${codePrefix}-XL-${ts % 1000}`, stock: Number(productForm.stockXL), images: [productForm.imageUrl] },
-        { id: `var_${ts}_xxl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XXL', sku: `4L-${codePrefix}-XXL-${ts % 1000}`, stock: Number(productForm.stockXXL), images: [productForm.imageUrl] }
+      const slideImages = productForm.imageUrls.map(u => u.trim()).filter(Boolean);
+      const finalImages = slideImages.length > 0 ? slideImages : [DEFAULT_PRODUCT_SLIDES[0]];
+
+      const sizeStocks: { size: ProductVariant['size']; stock: number }[] = [
+        { size: 'S', stock: Math.max(0, Math.round(Number(productForm.stockS) || 0)) },
+        { size: 'M', stock: Math.max(0, Math.round(Number(productForm.stockM) || 0)) },
+        { size: 'L', stock: Math.max(0, Math.round(Number(productForm.stockL) || 0)) },
+        { size: 'XL', stock: Math.max(0, Math.round(Number(productForm.stockXL) || 0)) },
+        { size: 'XXL', stock: Math.max(0, Math.round(Number(productForm.stockXXL) || 0)) }
       ];
+
+      const prevFirstColorName = editingProduct?.colorGroups?.[0]?.colorName || productForm.colorName;
+      const primaryVariants: ProductVariant[] = sizeStocks.map(({ size, stock }) => {
+        const existingVar = editingProduct?.variants.find(
+          v => v.colorName.toLowerCase() === prevFirstColorName.toLowerCase() && v.size === size
+        );
+        return {
+          id: existingVar?.id || `var_${ts}_${size.toLowerCase()}`,
+          colorName: productForm.colorName,
+          colorHex: productForm.colorHex,
+          size,
+          sku: existingVar?.sku || `4L-${codePrefix}-${size}-${ts % 1000}`,
+          stock,
+          images: finalImages
+        };
+      });
+
+      const remainingVariants = editingProduct
+        ? editingProduct.variants.filter(v => v.colorName.toLowerCase() !== prevFirstColorName.toLowerCase())
+        : [];
+      const extraColorGroups = editingProduct ? editingProduct.colorGroups.slice(1) : [];
 
       const payload = {
         title: cleanTitle,
@@ -613,9 +735,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         isFeatured: productForm.isFeatured,
         isPublished: productForm.isPublished,
         colorGroups: [
-          { colorName: productForm.colorName, colorHex: productForm.colorHex, images: [productForm.imageUrl] }
+          { colorName: productForm.colorName, colorHex: productForm.colorHex, images: finalImages },
+          ...extraColorGroups
         ],
-        variants,
+        variants: [...primaryVariants, ...remainingVariants],
         details: {
           fabric: productForm.fabric,
           gsm: Number(productForm.gsm),
@@ -829,11 +952,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     }
   };
 
-  // INVENTORY ADJUSTMENT
-  const handleInventoryAdjustSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adjustModalItem) return;
-
+  // INVENTORY ADJUSTMENT (Supports + / - delta & exact stock setting)
+  const handleQuickStockDelta = async (item: any, delta: number) => {
+    if (delta === 0) return;
+    if (delta < 0 && item.stock === 0) {
+      showNotice('error', `${item.sku} is already at 0 units.`);
+      return;
+    }
+    setQuickAdjustingSku(item.sku);
     try {
       const res = await fetch('/api/admin/inventory/adjust', {
         method: 'POST',
@@ -842,20 +968,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          productId: adjustModalItem.productId,
-          variantId: adjustModalItem.variantId,
-          sku: adjustModalItem.sku,
-          change: adjustQty,
-          reason: adjustReason
+          productId: item.productId,
+          variantId: item.variantId,
+          sku: item.sku,
+          change: delta,
+          reason: `Quick ${delta > 0 ? `+${delta}` : delta} adjustment from inventory table`
         })
       });
-      if (res.ok) {
-        setAdjustModalItem(null);
-        fetchInventory();
-        fetchOverview();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showNotice(
+          'success',
+          `${item.sku} (${item.colorName} / ${item.size}) stock updated to ${data.variant?.stock ?? Math.max(0, item.stock + delta)} units.`
+        );
+        await Promise.all([fetchInventory(), fetchProductsList(), fetchOverview()]);
+      } else {
+        showNotice('error', data.error || 'Failed to update stock.');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      showNotice('error', 'Failed to update stock: ' + (e?.message || 'Network error'));
+    } finally {
+      setQuickAdjustingSku(null);
+    }
+  };
+
+  const handleInventoryAdjustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustModalItem) return;
+
+    const trimmed = adjustQtyInput.trim();
+    const parsedNum = Number(trimmed);
+
+    if (!trimmed || isNaN(parsedNum)) {
+      showNotice('error', 'Please enter a valid number (for example -5, +10, or 0 in Exact mode).');
+      return;
+    }
+
+    if (adjustMode === 'delta' && Math.round(parsedNum) === 0) {
+      showNotice('error', 'Enter a non-zero adjustment like -5 or +10, or switch to "Set Exact Stock".');
+      return;
+    }
+
+    if (adjustMode === 'exact' && parsedNum < 0) {
+      showNotice('error', 'Exact stock quantity cannot be less than 0.');
+      return;
+    }
+
+    setAdjustSaving(true);
+    try {
+      const payload =
+        adjustMode === 'exact'
+          ? {
+              productId: adjustModalItem.productId,
+              variantId: adjustModalItem.variantId,
+              sku: adjustModalItem.sku,
+              setExactStock: Math.max(0, Math.round(parsedNum)),
+              reason: adjustReason
+            }
+          : {
+              productId: adjustModalItem.productId,
+              variantId: adjustModalItem.variantId,
+              sku: adjustModalItem.sku,
+              change: Math.round(parsedNum),
+              reason: adjustReason
+            };
+
+      const res = await fetch('/api/admin/inventory/adjust', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setAdjustModalItem(null);
+        showNotice(
+          'success',
+          `Updated ${adjustModalItem.sku} stock to ${data.variant?.stock ?? 0} units.`
+        );
+        await Promise.all([fetchInventory(), fetchProductsList(), fetchOverview()]);
+      } else {
+        showNotice('error', data.error || 'Failed to update stock.');
+      }
+    } catch (e: any) {
+      showNotice('error', 'Error updating stock: ' + (e?.message || 'Network error'));
+    } finally {
+      setAdjustSaving(false);
     }
   };
 
@@ -1026,9 +1226,129 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     }
   };
 
+  const getHeroSlidesList = (): HeroSlide[] => {
+    return normalizeHeroSlides(storeSettings);
+  };
+
+  const updateHeroSlidesList = (nextSlides: HeroSlide[]) => {
+    if (!storeSettings) return;
+    const cleanedUrls = nextSlides.map(s => s.imageUrl).filter(Boolean);
+    setStoreSettings({
+      ...storeSettings,
+      heroSlides: nextSlides,
+      heroImages: cleanedUrls,
+      heroImageUrl: nextSlides[0]?.imageUrl || storeSettings.heroImageUrl,
+      heroHeading: nextSlides[0]?.heading || storeSettings.heroHeading,
+      heroSubhead: nextSlides[0]?.subhead || storeSettings.heroSubhead
+    });
+  };
+
+  const handleUpdateHeroSlide = (index: number, patch: Partial<HeroSlide>) => {
+    const slides = [...getHeroSlidesList()];
+    if (!slides[index]) return;
+    slides[index] = { ...slides[index], ...patch };
+    updateHeroSlidesList(slides);
+  };
+
+  const handleAddHeroSlide = () => {
+    const slides = [...getHeroSlidesList()];
+    const defaultCat = categories[0]?.name || 'Round Neck T-Shirt';
+    slides.push({
+      id: `hero_slide_${Date.now()}`,
+      imageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+      eyebrow: 'NEW DROP FEATURE',
+      heading: 'ARCHITECTURAL\nHEAVYWEIGHT.',
+      subhead: 'Add custom copy for this slide and link it directly to any category or product.',
+      linkType: 'category',
+      linkTarget: defaultCat
+    });
+    updateHeroSlidesList(slides);
+    showNotice('success', `Added Slide ${slides.length}. Edit its image, matter, and link below, then publish changes.`);
+  };
+
+  const handleRemoveHeroSlide = (index: number) => {
+    const slides = [...getHeroSlidesList()];
+    if (slides.length <= 1) {
+      showNotice('error', 'At least 1 hero slide is required.');
+      return;
+    }
+    slides.splice(index, 1);
+    updateHeroSlidesList(slides);
+  };
+
+  const handleMoveHeroSlide = (index: number, dir: -1 | 1) => {
+    const slides = [...getHeroSlidesList()];
+    const target = index + dir;
+    if (target < 0 || target >= slides.length) return;
+    const temp = slides[index];
+    slides[index] = slides[target];
+    slides[target] = temp;
+    updateHeroSlidesList(slides);
+  };
+
+  const triggerHeroSlideUpload = (index: number) => {
+    activeHeroUploadIdxRef.current = index;
+    heroSlideFileInputRef.current?.click();
+  };
+
+  const handleHeroSlideImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotice('error', 'Please select a valid image file (PNG, JPG, WEBP, or SVG).');
+      e.target.value = '';
+      return;
+    }
+
+    const slideIdx = activeHeroUploadIdxRef.current;
+    setUploadingHeroSlideIdx(slideIdx);
+    try {
+      const compressed = await compressUploadImage(file, 1400, 0.85);
+      handleUpdateHeroSlide(slideIdx, { imageUrl: compressed });
+      showNotice('success', `Hero Slide ${slideIdx + 1} image uploaded.`);
+    } catch (err: any) {
+      showNotice('error', 'Failed to upload hero slide image: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setUploadingHeroSlideIdx(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleCategoryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotice('error', 'Please select a valid image file.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingCategoryImage(true);
+    try {
+      const compressed = await compressUploadImage(file, 1200, 0.85);
+      setCategoryForm(prev => ({ ...prev, image: compressed }));
+      showNotice('success', 'Category banner image uploaded.');
+    } catch (err: any) {
+      showNotice('error', 'Failed to upload category image: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setUploadingCategoryImage(false);
+      e.target.value = '';
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!storeSettings) return;
+
+    const slides = getHeroSlidesList();
+    const payload: StoreSettings = {
+      ...storeSettings,
+      heroSlides: slides,
+      heroImages: slides.map(s => s.imageUrl).filter(Boolean),
+      heroImageUrl: slides[0]?.imageUrl || storeSettings.heroImageUrl,
+      heroHeading: slides[0]?.heading || storeSettings.heroHeading,
+      heroSubhead: slides[0]?.subhead || storeSettings.heroSubhead
+    };
 
     try {
       const res = await fetch('/api/admin/settings', {
@@ -1037,11 +1357,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(storeSettings)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.settings) setStoreSettings(data.settings);
         setSettingsSuccess(true);
-        showNotice('success', 'Store settings saved and published.');
+        showNotice('success', 'Hero slides, category imagery, and store settings published live.');
         setTimeout(() => setSettingsSuccess(false), 3000);
       } else {
         showNotice('error', 'Failed to save store settings.');
@@ -1057,15 +1379,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const totalValuation = inventoryMatrix.reduce((sum, item) => sum + (item.stock * item.price), 0);
 
   const filteredInventory = inventoryMatrix.filter(item => {
+    const matchesSearch =
+      !inventorySearch.trim() ||
+      item.sku.toLowerCase().includes(inventorySearch.trim().toLowerCase()) ||
+      item.productTitle.toLowerCase().includes(inventorySearch.trim().toLowerCase()) ||
+      item.colorName.toLowerCase().includes(inventorySearch.trim().toLowerCase());
+    if (!matchesSearch) return false;
     if (inventoryFilter === 'low') return item.stock > 0 && item.stock < 15;
     if (inventoryFilter === 'out') return item.stock === 0;
     return true;
   });
 
+  const handleMarkStockNotified = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/stock-notifications/${id}/notify`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotice('success', data.message || 'Customer marked as notified.');
+        await Promise.all([fetchStockNotifications(), fetchOverview(), fetchEmails()]);
+      } else {
+        showNotice('error', data.error || 'Failed to mark as notified.');
+      }
+    } catch {
+      showNotice('error', 'Failed to update stock notification.');
+    }
+  };
+
+  const handleDeleteStockNotification = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/stock-notifications/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setConfirmDeleteNotifyId(null);
+        setStockNotifications(prev => prev.filter(n => n.id !== id));
+        showNotice('success', 'Notify request deleted.');
+        fetchOverview();
+      } else {
+        showNotice('error', 'Failed to delete request.');
+      }
+    } catch {
+      showNotice('error', 'Failed to delete request.');
+    }
+  };
+
+  const pendingNotifyCount = stockNotifications.filter(n => n.status === 'Pending').length;
+
   const navTabs: { id: AdminTab; label: string; icon: any; badge?: string | number; badgeColor?: string }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'products', label: 'Products', icon: Package, badge: products.length },
     { id: 'inventory', label: 'Inventory', icon: Boxes, badge: lowStockItems.length > 0 ? `${lowStockItems.length} Low` : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
+    { id: 'notify-requests', label: 'Notify Me', icon: Bell, badge: pendingNotifyCount > 0 ? pendingNotifyCount : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
     { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: orders.length },
     { id: 'returns', label: 'Returns', icon: RotateCcw, badge: returns.length > 0 ? returns.length : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
     { id: 'customers', label: 'Customers', icon: Users, badge: customers.length > 0 ? customers.length : undefined },
@@ -1408,6 +1776,88 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 </table>
               </div>
             </div>
+
+            {/* Out-of-Stock Notify Me Customer Waitlist Snapshot */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="font-display text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-[#E5A914]" />
+                    Restock Waitlist (&ldquo;Notify Me&rdquo;)
+                  </h2>
+                  <p className="text-[11px] text-neutral-400 mt-0.5">
+                    {pendingNotifyCount} pending customer request{pendingNotifyCount === 1 ? '' : 's'} for out-of-stock pieces
+                  </p>
+                </div>
+                <button
+                  onClick={() => selectTab('notify-requests')}
+                  className="text-xs text-[#E5A914] hover:underline font-bold"
+                >
+                  Open Waitlist &rarr;
+                </button>
+              </div>
+
+              {stockNotifications.length === 0 ? (
+                <p className="text-xs text-neutral-400 py-3">
+                  No out-of-stock notification requests yet. When customers click &ldquo;Notify Me&rdquo; on zero-stock items, their details appear here.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                        <th className="pb-2.5">Customer</th>
+                        <th className="pb-2.5">Contact</th>
+                        <th className="pb-2.5">Requested Piece</th>
+                        <th className="pb-2.5">Status</th>
+                        <th className="pb-2.5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-800/80">
+                      {stockNotifications.slice(0, 5).map(reqItem => (
+                        <tr key={reqItem.id} className="hover:bg-neutral-800/30">
+                          <td className="py-2.5 font-semibold text-white">{reqItem.customerName}</td>
+                          <td className="py-2.5 font-mono text-[11px] text-neutral-300">
+                            {reqItem.customerEmail && <span className="block">{reqItem.customerEmail}</span>}
+                            {reqItem.customerPhone && <span className="text-neutral-400">{reqItem.customerPhone}</span>}
+                          </td>
+                          <td className="py-2.5 text-neutral-300">
+                            <span className="font-semibold text-white block">{reqItem.productTitle}</span>
+                            <span className="text-[11px] text-neutral-400 font-mono">
+                              {reqItem.colorName} · Size {reqItem.size}
+                            </span>
+                          </td>
+                          <td className="py-2.5">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                reqItem.status === 'Notified'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : 'bg-amber-500/20 text-[#E5A914]'
+                              }`}
+                            >
+                              {reqItem.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right">
+                            {reqItem.status === 'Pending' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkStockNotified(reqItem.id)}
+                                className="text-[#E5A914] hover:underline font-bold text-xs"
+                              >
+                                Send Alert
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-neutral-500">Sent</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1582,32 +2032,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         {/* INVENTORY MANAGEMENT TAB */}
         {activeTab === 'inventory' && (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
+            <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 pb-4 border-b border-neutral-800">
               <div>
                 <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Variant Stock Matrix</h1>
-                <p className="text-xs text-neutral-400">Direct SKU-level inventory adjustment, low-stock warnings, and valuation.</p>
+                <p className="text-xs text-neutral-400">Direct SKU-level inventory adjustment (- / +), low-stock warnings, and valuation.</p>
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 p-1 rounded-lg text-xs font-semibold uppercase">
-                <button
-                  onClick={() => setInventoryFilter('all')}
-                  className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'all' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  All SKUs ({inventoryMatrix.length})
-                </button>
-                <button
-                  onClick={() => setInventoryFilter('low')}
-                  className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'low' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Low Stock (&lt;15)
-                </button>
-                <button
-                  onClick={() => setInventoryFilter('out')}
-                  className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'out' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Out of Stock
-                </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg text-xs">
+                  <Search className="w-3.5 h-3.5 text-neutral-400" />
+                  <input
+                    type="text"
+                    value={inventorySearch}
+                    onChange={e => setInventorySearch(e.target.value)}
+                    placeholder="Search SKU or product..."
+                    className="bg-transparent text-white focus:outline-none text-xs w-40"
+                  />
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 p-1 rounded-lg text-xs font-semibold uppercase">
+                  <button
+                    type="button"
+                    onClick={() => setInventoryFilter('all')}
+                    className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'all' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
+                  >
+                    All SKUs ({inventoryMatrix.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInventoryFilter('low')}
+                    className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'low' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
+                  >
+                    Low Stock (&lt;15)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInventoryFilter('out')}
+                    className={`px-3 py-1 rounded transition-colors ${inventoryFilter === 'out' ? 'bg-[#E5A914] text-black font-extrabold' : 'text-neutral-400 hover:text-white'}`}
+                  >
+                    Out of Stock
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1615,21 +2081,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
                 <span className="text-[10px] text-neutral-400 uppercase font-semibold">Total Stock Value</span>
-                <p className="font-mono text-xl font-bold text-[#E5A914] mt-0.5">₹{totalValuation.toLocaleString()}</p>
+                <p className="font-mono text-xl font-bold text-[#E5A914] mt-0.5 tabular-nums">₹{totalValuation.toLocaleString()}</p>
               </div>
               <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
                 <span className="text-[10px] text-neutral-400 uppercase font-semibold">Total Physical Units</span>
-                <p className="font-mono text-xl font-bold text-white mt-0.5">{totalStockCount} pieces</p>
+                <p className="font-mono text-xl font-bold text-white mt-0.5 tabular-nums">{totalStockCount} pieces</p>
               </div>
               <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
                 <span className="text-[10px] text-neutral-400 uppercase font-semibold">Active SKU Codes</span>
-                <p className="font-mono text-xl font-bold text-white mt-0.5">{inventoryMatrix.length} distinct sizes</p>
+                <p className="font-mono text-xl font-bold text-white mt-0.5 tabular-nums">{inventoryMatrix.length} distinct sizes</p>
               </div>
             </div>
 
             {/* Inventory Table */}
-            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse font-mono">
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[780px] text-left text-xs border-collapse font-mono">
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider font-sans">
                     <th className="p-3.5">SKU Code</th>
@@ -1637,43 +2103,285 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                     <th className="p-3.5">Colorway</th>
                     <th className="p-3.5">Size</th>
                     <th className="p-3.5">Available Stock</th>
-                    <th className="p-3.5 text-right font-sans">Stock Adjustment</th>
+                    <th className="p-3.5 text-right font-sans">Stock Adjustment (- / +)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800">
-                  {filteredInventory.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-neutral-800/20">
-                      <td className="p-3.5 font-bold text-[#E5A914]">{item.sku}</td>
-                      <td className="p-3.5 font-sans font-semibold text-white">{item.productTitle}</td>
-                      <td className="p-3.5 font-sans flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full border border-neutral-700" style={{ backgroundColor: item.colorHex }} />
-                        <span>{item.colorName}</span>
-                      </td>
-                      <td className="p-3.5 font-bold text-white">{item.size}</td>
-                      <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          item.stock === 0
-                            ? 'bg-red-500/20 text-red-400'
-                            : item.stock < 15
-                            ? 'bg-amber-500/20 text-amber-400'
-                            : 'bg-emerald-500/20 text-emerald-400'
-                        }`}>
-                          {item.stock} Units
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-right font-sans">
-                        <button
-                          onClick={() => {
-                            setAdjustModalItem(item);
-                            setAdjustQty(10);
-                          }}
-                          className="bg-neutral-800 hover:bg-[#E5A914] hover:text-black text-white px-3 py-1 rounded text-xs font-bold uppercase transition-colors"
-                        >
-                          Adjust Stock (+/-)
-                        </button>
+                  {filteredInventory.map((item, idx) => {
+                    const isBusy = quickAdjustingSku === item.sku;
+                    return (
+                      <tr key={item.variantId || `${item.sku}_${idx}`} className="hover:bg-neutral-800/20">
+                        <td className="p-3.5 font-bold text-[#E5A914]">{item.sku}</td>
+                        <td className="p-3.5 font-sans font-semibold text-white">{item.productTitle}</td>
+                        <td className="p-3.5 font-sans">
+                          <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full border border-neutral-700 shrink-0" style={{ backgroundColor: item.colorHex }} />
+                            <span>{item.colorName}</span>
+                          </div>
+                        </td>
+                        <td className="p-3.5 font-bold text-white">{item.size}</td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold tabular-nums ${
+                            item.stock === 0
+                              ? 'bg-red-500/20 text-red-400'
+                              : item.stock < 15
+                              ? 'bg-amber-500/20 text-amber-400'
+                              : 'bg-emerald-500/20 text-emerald-400'
+                          }`}>
+                            {item.stock} Units
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-right font-sans">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isBusy || item.stock === 0}
+                              onClick={() => handleQuickStockDelta(item, -5)}
+                              className="px-2 py-1 bg-neutral-950 hover:bg-red-500/20 border border-neutral-800 hover:border-red-500/40 text-red-400 rounded text-[11px] font-mono font-bold disabled:opacity-40 transition-colors"
+                              title="Deduct 5 units"
+                            >
+                              -5
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isBusy || item.stock === 0}
+                              onClick={() => handleQuickStockDelta(item, -1)}
+                              className="px-2 py-1 bg-neutral-950 hover:bg-red-500/20 border border-neutral-800 hover:border-red-500/40 text-red-400 rounded text-[11px] font-mono font-bold disabled:opacity-40 transition-colors"
+                              title="Deduct 1 unit"
+                            >
+                              -1
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleQuickStockDelta(item, 1)}
+                              className="px-2 py-1 bg-neutral-950 hover:bg-emerald-500/20 border border-neutral-800 hover:border-emerald-500/40 text-emerald-400 rounded text-[11px] font-mono font-bold disabled:opacity-40 transition-colors"
+                              title="Add 1 unit"
+                            >
+                              +1
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleQuickStockDelta(item, 5)}
+                              className="px-2 py-1 bg-neutral-950 hover:bg-emerald-500/20 border border-neutral-800 hover:border-emerald-500/40 text-emerald-400 rounded text-[11px] font-mono font-bold disabled:opacity-40 transition-colors"
+                              title="Add 5 units"
+                            >
+                              +5
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAdjustModalItem(item);
+                                setAdjustMode('delta');
+                                setAdjustQtyInput('10');
+                              }}
+                              className="bg-neutral-800 hover:bg-[#E5A914] hover:text-black text-white px-3 py-1 rounded text-xs font-bold uppercase transition-colors ml-1"
+                            >
+                              Custom
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* STOCK NOTIFICATIONS ("NOTIFY ME") TAB */}
+        {activeTab === 'notify-requests' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">
+                  Restock Alerts (&ldquo;Notify Me&rdquo;)
+                </h1>
+                <p className="text-xs text-neutral-400">
+                  Customers waiting on zero-stock products and sizes. Notify buyers directly once inventory is replenished.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 font-mono text-xs">
+                <button
+                  type="button"
+                  onClick={() => setNotifyFilter('all')}
+                  className={`px-3 py-1.5 rounded ${
+                    notifyFilter === 'all' ? 'bg-white text-black font-bold' : 'bg-neutral-900 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  All ({stockNotifications.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifyFilter('Pending')}
+                  className={`px-3 py-1.5 rounded ${
+                    notifyFilter === 'Pending' ? 'bg-[#E5A914] text-black font-bold' : 'bg-neutral-900 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Pending ({stockNotifications.filter(n => n.status === 'Pending').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifyFilter('Notified')}
+                  className={`px-3 py-1.5 rounded ${
+                    notifyFilter === 'Notified' ? 'bg-emerald-500 text-black font-bold' : 'bg-neutral-900 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Notified ({stockNotifications.filter(n => n.status === 'Notified').length})
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg text-xs max-w-md w-full">
+              <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+              <input
+                type="text"
+                value={notifySearch}
+                onChange={e => setNotifySearch(e.target.value)}
+                placeholder="Search by customer name, email, phone, or product..."
+                className="bg-transparent text-white focus:outline-none text-xs w-full"
+              />
+              {notifySearch && (
+                <button type="button" onClick={() => setNotifySearch('')} className="text-neutral-400 hover:text-white">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                    <th className="p-3.5">Customer Details</th>
+                    <th className="p-3.5">Product &amp; Variant</th>
+                    <th className="p-3.5">Current Stock</th>
+                    <th className="p-3.5">Requested Date</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {stockNotifications
+                    .filter(item => {
+                      if (notifyFilter !== 'all' && item.status !== notifyFilter) return false;
+                      if (!notifySearch.trim()) return true;
+                      const q = notifySearch.toLowerCase();
+                      return (
+                        item.customerName.toLowerCase().includes(q) ||
+                        item.customerEmail.toLowerCase().includes(q) ||
+                        item.customerPhone.toLowerCase().includes(q) ||
+                        item.productTitle.toLowerCase().includes(q) ||
+                        item.size.toLowerCase().includes(q) ||
+                        item.colorName.toLowerCase().includes(q)
+                      );
+                    })
+                    .map(item => {
+                      const prod = products.find(p => p.id === item.productId);
+                      const variant = prod?.variants.find(
+                        v =>
+                          (item.variantId && v.id === item.variantId) ||
+                          (v.colorName.toLowerCase() === item.colorName.toLowerCase() && v.size === item.size)
+                      );
+                      const liveStock = variant?.stock ?? 0;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-neutral-800/20">
+                          <td className="p-3.5">
+                            <p className="font-bold text-white">{item.customerName}</p>
+                            {item.customerEmail && (
+                              <p className="text-[11px] font-mono text-neutral-300">{item.customerEmail}</p>
+                            )}
+                            {item.customerPhone && (
+                              <p className="text-[11px] font-mono text-neutral-400">{item.customerPhone}</p>
+                            )}
+                          </td>
+                          <td className="p-3.5">
+                            <p className="font-semibold text-white">{item.productTitle}</p>
+                            <p className="text-[11px] text-neutral-400 font-mono">
+                              {item.colorName} · Size {item.size}
+                              {item.sku ? ` · ${item.sku}` : ''}
+                            </p>
+                          </td>
+                          <td className="p-3.5 font-mono tabular-nums">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                liveStock === 0
+                                  ? 'bg-red-500/20 text-red-400'
+                                  : 'bg-emerald-500/20 text-emerald-400'
+                              }`}
+                            >
+                              {liveStock} Units
+                            </span>
+                          </td>
+                          <td className="p-3.5 font-mono text-[11px] text-neutral-400 tabular-nums">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </td>
+                          <td className="p-3.5">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                item.status === 'Notified'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : 'bg-amber-500/20 text-[#E5A914]'
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                            {item.notifiedAt && (
+                              <span className="block text-[10px] text-neutral-500 font-mono mt-0.5">
+                                {new Date(item.notifiedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3.5 text-right whitespace-nowrap space-x-2">
+                            {item.status === 'Pending' && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkStockNotified(item.id)}
+                                className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-2.5 py-1 rounded text-[11px] uppercase tracking-wider"
+                              >
+                                Mark Notified
+                              </button>
+                            )}
+                            {confirmDeleteNotifyId === item.id ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteStockNotification(item.id)}
+                                  className="bg-red-600 hover:bg-red-500 text-white font-bold px-2.5 py-1 rounded text-[11px] uppercase"
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteNotifyId(null)}
+                                  className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-2 py-1 rounded text-[11px]"
+                                >
+                                  Cancel
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteNotifyId(item.id)}
+                                className="text-red-400 hover:underline font-semibold text-xs"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {stockNotifications.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-neutral-400">
+                        No restock alerts requested yet. Customers who click &ldquo;Notify Me&rdquo; on zero-stock products will be listed here with their contact info.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1749,15 +2457,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                                       )}
                                     <div className="text-[10px] text-[#E5A914] font-mono leading-snug">
                                       <span>
-                                        Custom: {it.customPrint.placement} · {it.customPrint.printTechnique}
+                                        {it.customPrint.printTechnique === 'Custom Image Print'
+                                          ? 'Custom Print Image Attached'
+                                          : `Custom: ${it.customPrint.placement} · ${it.customPrint.printTechnique}`}
                                       </span>
                                       {it.customPrint.customText && (
                                         <span className="block text-neutral-300">
                                           &ldquo;{it.customPrint.customText}&rdquo; ({it.customPrint.fontStyle || 'Bold Sans'}, {it.customPrint.textColor || 'Default Ink'})
                                         </span>
-                                      )}
-                                      {it.customPrint.uploadedGraphicUrl && (
-                                        <span className="block text-emerald-400">Custom Artwork Attached</span>
                                       )}
                                     </div>
                                   </div>
@@ -2052,69 +2759,249 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
               </div>
             )}
 
-            {/* SECTION 1: HERO SECTION & IMAGERY */}
-            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-6 space-y-4">
-              <h2 className="font-display text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-[#E5A914]" /> Hero Banner &amp; Main Headline
-              </h2>
-
-              <div className="space-y-3">
+            {/* SECTION 1: HERO AUTO-SLIDER — PER-SLIDE IMAGE, MATTER & CATEGORY/PRODUCT LINKS */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 sm:p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-4">
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Image Asset Path or URL</label>
+                  <h2 className="font-display text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-[#E5A914]" /> Hero Auto-Slider Slides ({getHeroSlidesList().length})
+                  </h2>
+                  <p className="text-[11px] text-neutral-400 mt-0.5">
+                    Add slides with custom images, editable copy (matter), and link each slide to a category or specific product.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <input
-                    type="text"
-                    value={storeSettings.heroImageUrl}
-                    onChange={e => setStoreSettings({ ...storeSettings, heroImageUrl: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
+                    ref={heroSlideFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleHeroSlideImageUpload}
+                    className="hidden"
                   />
-                  {/* Preset photo quick select */}
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/assets/images/hero_streetwear_campaign_1794056018871.jpg' })}
-                      className="text-[10px] text-[#E5A914] bg-neutral-950 border border-neutral-800 px-2 py-1 rounded"
-                    >
-                      Use Campaign Shot
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStoreSettings({ ...storeSettings, heroImageUrl: '/assets/images/campaign_editorial_lookbook_1794056022183.jpg' })}
-                      className="text-[10px] text-neutral-300 bg-neutral-950 border border-neutral-800 px-2 py-1 rounded"
-                    >
-                      Use Lookbook Shot
-                    </button>
+                  <button
+                    type="button"
+                    onClick={handleAddHeroSlide}
+                    className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-3.5 py-2 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Hero Slide
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-3.5 py-2 rounded-lg text-xs uppercase tracking-wider"
+                  >
+                    Publish Changes
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {getHeroSlidesList().map((slide, slideIdx, arr) => (
+                  <div
+                    key={slide.id || slideIdx}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 space-y-4"
+                  >
+                    {/* Slide Header Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800/80 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-[#E5A914]/15 text-[#E5A914] border border-[#E5A914]/30 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase">
+                          Slide 0{slideIdx + 1}
+                        </span>
+                        <span className="text-[11px] text-neutral-400 truncate max-w-[260px]">
+                          {slide.linkType === 'category' && slide.linkTarget
+                            ? `Links to Category: ${slide.linkTarget}`
+                            : slide.linkType === 'product' && slide.linkTarget
+                            ? `Links to Product: ${
+                                products.find(p => p.slug === slide.linkTarget)?.title || slide.linkTarget
+                              }`
+                            : 'No destination link'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={slideIdx === 0}
+                          onClick={() => handleMoveHeroSlide(slideIdx, -1)}
+                          className="p-1.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded text-neutral-300 disabled:opacity-35"
+                          title="Move slide up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={slideIdx === arr.length - 1}
+                          onClick={() => handleMoveHeroSlide(slideIdx, 1)}
+                          className="p-1.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded text-neutral-300 disabled:opacity-35"
+                          title="Move slide down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                        {arr.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveHeroSlide(slideIdx)}
+                            className="p-1.5 bg-neutral-900 hover:bg-red-500/20 border border-neutral-800 hover:border-red-500/40 rounded text-neutral-400 hover:text-red-400 ml-1"
+                            title="Remove slide"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                      {/* Image Preview & Upload */}
+                      <div className="md:col-span-4 space-y-2">
+                        <div className="aspect-[16/10] w-full rounded-lg overflow-hidden border border-neutral-800 bg-neutral-900 flex items-center justify-center">
+                          {slide.imageUrl ? (
+                            <img
+                              src={slide.imageUrl}
+                              alt={`Hero slide ${slideIdx + 1}`}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-neutral-600" />
+                          )}
+                        </div>
+
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => triggerHeroSlideUpload(slideIdx)}
+                            disabled={uploadingHeroSlideIdx !== null}
+                            className="inline-flex items-center justify-center gap-1.5 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-3 py-1.5 rounded text-[11px] uppercase tracking-wider shrink-0 disabled:opacity-50"
+                          >
+                            <Upload className="w-3 h-3" />
+                            {uploadingHeroSlideIdx === slideIdx ? 'Uploading...' : 'Upload'}
+                          </button>
+                          <input
+                            type="text"
+                            value={slide.imageUrl.startsWith('data:') ? '[Uploaded Device Image]' : slide.imageUrl}
+                            onChange={e => handleUpdateHeroSlide(slideIdx, { imageUrl: e.target.value })}
+                            readOnly={slide.imageUrl.startsWith('data:')}
+                            placeholder="/assets/images/..."
+                            className="flex-1 min-w-0 bg-neutral-900 border border-neutral-800 px-2.5 py-1.5 text-[11px] text-white font-mono rounded"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Slide Matter & Link Controls */}
+                      <div className="md:col-span-8 space-y-3 text-xs">
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                            Eyebrow / Tagline Matter
+                          </label>
+                          <input
+                            type="text"
+                            value={slide.eyebrow || ''}
+                            onChange={e => handleUpdateHeroSlide(slideIdx, { eyebrow: e.target.value })}
+                            placeholder="e.g. HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE"
+                            className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                              Slide Heading
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={slide.heading}
+                              onChange={e => handleUpdateHeroSlide(slideIdx, { heading: e.target.value })}
+                              placeholder="LESS EFFORT.\nMORE STYLE."
+                              className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-bold rounded"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                              Slide Description (Matter)
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={slide.subhead}
+                              onChange={e => handleUpdateHeroSlide(slideIdx, { subhead: e.target.value })}
+                              placeholder="Describe the featured category or product..."
+                              className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Category / Product Link Selector */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-neutral-800/70">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-[#E5A914] font-semibold mb-1 flex items-center gap-1">
+                              <Link2 className="w-3 h-3" /> Slide Link Type
+                            </label>
+                            <select
+                              value={slide.linkType}
+                              onChange={e => {
+                                const nextType = e.target.value as HeroSlide['linkType'];
+                                const nextTarget =
+                                  nextType === 'category'
+                                    ? categories[0]?.name || 'Round Neck T-Shirt'
+                                    : nextType === 'product'
+                                    ? products[0]?.slug || ''
+                                    : '';
+                                handleUpdateHeroSlide(slideIdx, { linkType: nextType, linkTarget: nextTarget });
+                              }}
+                              className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
+                            >
+                              <option value="category">Link to Category Page</option>
+                              <option value="product">Link to Specific Product</option>
+                              <option value="none">No Link</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                              {slide.linkType === 'product'
+                                ? 'Select Target Product'
+                                : slide.linkType === 'category'
+                                ? 'Select Target Category'
+                                : 'Destination'}
+                            </label>
+                            {slide.linkType === 'category' ? (
+                              <select
+                                value={slide.linkTarget}
+                                onChange={e => handleUpdateHeroSlide(slideIdx, { linkTarget: e.target.value })}
+                                className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
+                              >
+                                <option value="trending">Trending Drops</option>
+                                <option value="all">All T-Shirts</option>
+                                {categories.map(cat => (
+                                  <option key={cat.id} value={cat.name}>
+                                    {cat.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : slide.linkType === 'product' ? (
+                              <select
+                                value={slide.linkTarget}
+                                onChange={e => handleUpdateHeroSlide(slideIdx, { linkTarget: e.target.value })}
+                                className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
+                              >
+                                {products.map(p => (
+                                  <option key={p.id} value={p.slug}>
+                                    {p.title} ({p.category})
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="bg-neutral-900/50 border border-neutral-800 px-3 py-2 text-xs text-neutral-500 rounded">
+                                Slide is informational only
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Display Headline</label>
-                  <input
-                    type="text"
-                    value={storeSettings.heroHeading}
-                    onChange={e => setStoreSettings({ ...storeSettings, heroHeading: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm text-white font-bold rounded"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Subhead Prose</label>
-                  <textarea
-                    rows={2}
-                    value={storeSettings.heroSubhead}
-                    onChange={e => setStoreSettings({ ...storeSettings, heroSubhead: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Hero Primary Button Text</label>
-                  <input
-                    type="text"
-                    value={storeSettings.heroButtonText}
-                    onChange={e => setStoreSettings({ ...storeSettings, heroButtonText: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
-                  />
-                </div>
+                ))}
               </div>
             </div>
 
@@ -2757,10 +3644,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                   </div>
                 </div>
 
-                {/* Color & Photo Config */}
+                {/* Color & 4 Photo Slides Config */}
                 <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-white uppercase text-[11px]">Primary Colorway &amp; Imagery</span>
+                    <div>
+                      <span className="font-bold text-white uppercase text-[11px] block">
+                        Primary Colorway &amp; 4 Photo Slides
+                      </span>
+                      <span className="text-[10px] text-neutral-400">
+                        Upload or paste 4 product photos (e.g. front, detail, back &amp; sample print result).
+                      </span>
+                    </div>
                     <input
                       ref={productImageInputRef}
                       type="file"
@@ -2768,117 +3662,170 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                       onChange={handleProductImageUpload}
                       className="hidden"
                     />
-                    <button
-                      type="button"
-                      onClick={() => productImageInputRef.current?.click()}
-                      disabled={uploadingProductImage}
-                      className="inline-flex items-center gap-1.5 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-3 py-1.5 rounded text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      {uploadingProductImage ? 'Processing...' : 'Upload Image'}
-                    </button>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 items-start">
-                    <div className="w-20 h-24 rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden shrink-0 flex items-center justify-center">
-                      {productForm.imageUrl ? (
-                        <img
-                          src={productForm.imageUrl}
-                          alt="Product preview"
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <ImageIcon className="w-5 h-5 text-neutral-600" />
-                      )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block uppercase text-neutral-400 mb-1">Color Name</label>
+                      <input
+                        type="text"
+                        value={productForm.colorName}
+                        onChange={e => setProductForm({ ...productForm, colorName: e.target.value })}
+                        placeholder="Washed Black"
+                        className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                      />
                     </div>
-
-                    <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block uppercase text-neutral-400 mb-1">Color Name</label>
+                    <div>
+                      <label className="block uppercase text-neutral-400 mb-1">Hex Color</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={productForm.colorHex}
+                          onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
+                          className="h-8 w-10 bg-transparent cursor-pointer rounded"
+                        />
                         <input
                           type="text"
-                          value={productForm.colorName}
-                          onChange={e => setProductForm({ ...productForm, colorName: e.target.value })}
-                          placeholder="Washed Black"
-                          className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                          value={productForm.colorHex}
+                          onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
+                          className="w-full bg-neutral-900 border border-neutral-800 px-2 py-1 text-xs text-white font-mono rounded"
                         />
                       </div>
-                      <div>
-                        <label className="block uppercase text-neutral-400 mb-1">Hex Color</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={productForm.colorHex}
-                            onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
-                            className="h-8 w-10 bg-transparent cursor-pointer rounded"
-                          />
-                          <input
-                            type="text"
-                            value={productForm.colorHex}
-                            onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
-                            className="w-full bg-neutral-900 border border-neutral-800 px-2 py-1 text-xs text-white font-mono rounded"
-                          />
-                        </div>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block uppercase text-neutral-400 mb-1">
-                          Image URL or Uploaded Data Image
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={productForm.imageUrl.startsWith('data:') ? '[Uploaded Device Image]' : productForm.imageUrl}
-                            onChange={e => setProductForm({ ...productForm, imageUrl: e.target.value })}
-                            readOnly={productForm.imageUrl.startsWith('data:')}
-                            placeholder="/assets/images/... or https://..."
-                            className="flex-1 bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                          />
-                          {productForm.imageUrl.startsWith('data:') && (
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {[0, 1, 2, 3].map(slideIdx => {
+                      const slideVal = productForm.imageUrls[slideIdx] || '';
+                      return (
+                        <div key={slideIdx} className="p-2.5 bg-neutral-900/70 border border-neutral-800 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-300">
+                              Slide {slideIdx + 1} {slideIdx === 0 ? '(Main)' : ''}
+                            </span>
                             <button
                               type="button"
-                              onClick={() =>
-                                setProductForm(prev => ({
-                                  ...prev,
-                                  imageUrl: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg'
-                                }))
-                              }
-                              className="px-2.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded text-[11px] font-semibold shrink-0"
-                              title="Reset to default image URL"
+                              onClick={() => triggerSlideUpload(slideIdx)}
+                              disabled={uploadingSlideIndex !== null}
+                              className="inline-flex items-center gap-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-2.5 py-1 rounded text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
                             >
-                              Reset
+                              <Upload className="w-3 h-3" />
+                              {uploadingSlideIndex === slideIdx ? 'Uploading...' : 'Upload'}
                             </button>
-                          )}
+                          </div>
+
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-12 h-14 rounded border border-neutral-800 bg-neutral-950 overflow-hidden shrink-0 flex items-center justify-center">
+                              {slideVal ? (
+                                <img
+                                  src={slideVal}
+                                  alt={`Slide ${slideIdx + 1}`}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <ImageIcon className="w-4 h-4 text-neutral-600" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0 flex gap-1.5">
+                              <input
+                                type="text"
+                                value={slideVal.startsWith('data:') ? '[Uploaded Device Image]' : slideVal}
+                                onChange={e => {
+                                  const next: [string, string, string, string] = [...productForm.imageUrls] as [string, string, string, string];
+                                  next[slideIdx] = e.target.value;
+                                  setProductForm(prev => ({ ...prev, imageUrls: next }));
+                                }}
+                                readOnly={slideVal.startsWith('data:')}
+                                placeholder="/assets/images/... or URL"
+                                className="w-full bg-neutral-950 border border-neutral-800 px-2.5 py-1.5 text-[11px] text-white font-mono rounded"
+                              />
+                              {slideVal && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next: [string, string, string, string] = [...productForm.imageUrls] as [string, string, string, string];
+                                    next[slideIdx] = slideIdx === 0 ? DEFAULT_PRODUCT_SLIDES[0] : '';
+                                    setProductForm(prev => ({ ...prev, imageUrls: next }));
+                                  }}
+                                  className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded text-[10px] shrink-0"
+                                  title="Clear slide image"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Variant Stock Allocations */}
                 <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
-                  <span className="font-bold text-white uppercase text-[11px] block">Size Stock Quantities</span>
-                  <div className="grid grid-cols-5 gap-2 font-mono">
-                    <div>
-                      <label className="block text-center text-neutral-400 mb-1">Size S</label>
-                      <input type="number" value={productForm.stockS} onChange={e => setProductForm({ ...productForm, stockS: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-center text-neutral-400 mb-1">Size M</label>
-                      <input type="number" value={productForm.stockM} onChange={e => setProductForm({ ...productForm, stockM: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-center text-neutral-400 mb-1">Size L</label>
-                      <input type="number" value={productForm.stockL} onChange={e => setProductForm({ ...productForm, stockL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-center text-neutral-400 mb-1">Size XL</label>
-                      <input type="number" value={productForm.stockXL} onChange={e => setProductForm({ ...productForm, stockXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-center text-neutral-400 mb-1">Size XXL</label>
-                      <input type="number" value={productForm.stockXXL} onChange={e => setProductForm({ ...productForm, stockXXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                    </div>
+                  <span className="font-bold text-white uppercase text-[11px] block">Size Stock Quantities (- / +)</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 font-mono">
+                    {(
+                      [
+                        { label: 'S', key: 'stockS' },
+                        { label: 'M', key: 'stockM' },
+                        { label: 'L', key: 'stockL' },
+                        { label: 'XL', key: 'stockXL' },
+                        { label: 'XXL', key: 'stockXXL' }
+                      ] as const
+                    ).map(({ label, key }) => {
+                      const val = Number(productForm[key]) || 0;
+                      return (
+                        <div key={label} className="bg-neutral-900/70 border border-neutral-800 rounded-lg p-2 space-y-1.5">
+                          <label className="block text-center text-[11px] font-bold text-neutral-300">
+                            Size {label}
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  [key]: Math.max(0, (Number(prev[key]) || 0) - 1)
+                                }))
+                              }
+                              className="w-7 h-8 bg-neutral-950 hover:bg-red-500/20 border border-neutral-800 text-neutral-300 hover:text-red-300 rounded font-bold text-sm flex items-center justify-center shrink-0"
+                              title={`Decrease ${label} stock`}
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={val}
+                              onChange={e => {
+                                const parsed = parseInt(e.target.value, 10);
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  [key]: isNaN(parsed) ? 0 : Math.max(0, parsed)
+                                }));
+                              }}
+                              className="w-full min-w-0 bg-neutral-950 border border-neutral-800 py-1.5 text-center rounded text-white text-xs tabular-nums"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  [key]: (Number(prev[key]) || 0) + 1
+                                }))
+                              }
+                              className="w-7 h-8 bg-neutral-950 hover:bg-emerald-500/20 border border-neutral-800 text-neutral-300 hover:text-emerald-300 rounded font-bold text-sm flex items-center justify-center shrink-0"
+                              title={`Increase ${label} stock`}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -3130,7 +4077,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
               <h3 className="font-display text-base font-bold text-white uppercase">
                 {editingCategory ? `Edit Category: ${editingCategory.name}` : 'Add New Category'}
               </h3>
-              <button onClick={() => setShowCategoryModal(false)}><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setShowCategoryModal(false)}><X className="w-4 h-4" /></button>
             </div>
 
             <form onSubmit={handleSaveCategory} className="space-y-3 text-xs">
@@ -3146,21 +4093,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 />
               </div>
 
-              <div>
-                <label className="block uppercase text-neutral-400 mb-1">Category Image URL or Asset Path</label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block uppercase text-neutral-400">Category Banner Image</label>
+                  <input
+                    ref={categoryImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleCategoryImageUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => categoryImageInputRef.current?.click()}
+                    disabled={uploadingCategoryImage}
+                    className="inline-flex items-center gap-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-2.5 py-1 rounded text-[10px] uppercase tracking-wider disabled:opacity-50"
+                  >
+                    <Upload className="w-3 h-3" />
+                    {uploadingCategoryImage ? 'Uploading...' : 'Upload Image'}
+                  </button>
+                </div>
+
+                {categoryForm.image && (
+                  <div className="h-24 w-full rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950">
+                    <img
+                      src={categoryForm.image}
+                      alt="Category preview"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                )}
+
                 <input
                   type="text"
-                  value={categoryForm.image}
+                  value={categoryForm.image.startsWith('data:') ? '[Uploaded Device Image]' : categoryForm.image}
                   onChange={e => setCategoryForm({ ...categoryForm, image: e.target.value })}
+                  readOnly={categoryForm.image.startsWith('data:')}
+                  placeholder="/assets/images/... or URL"
                   className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
                   required
                 />
               </div>
 
               <div>
-                <label className="block uppercase text-neutral-400 mb-1">Description</label>
-                <input
-                  type="text"
+                <label className="block uppercase text-neutral-400 mb-1">Description / Matter</label>
+                <textarea
+                  rows={2}
                   value={categoryForm.description}
                   onChange={e => setCategoryForm({ ...categoryForm, description: e.target.value })}
                   placeholder="Architectural drop description"
@@ -3417,54 +4396,187 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       )}
 
       {/* STOCK ADJUST MODAL */}
-      {adjustModalItem && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-md w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
-              <h3 className="font-display text-sm font-bold text-white uppercase">
-                Adjust Stock: {adjustModalItem.sku}
-              </h3>
-              <button onClick={() => setAdjustModalItem(null)}><X className="w-4 h-4" /></button>
-            </div>
+      {adjustModalItem && (() => {
+        const parsedQty = Number(adjustQtyInput);
+        const hasValidNumber = adjustQtyInput.trim() !== '' && !isNaN(parsedQty);
+        const previewNextStock = hasValidNumber
+          ? adjustMode === 'exact'
+            ? Math.max(0, Math.round(parsedQty))
+            : Math.max(0, (Number(adjustModalItem.stock) || 0) + Math.round(parsedQty))
+          : adjustModalItem.stock;
 
-            <form onSubmit={handleInventoryAdjustSubmit} className="space-y-3 text-xs">
-              <p className="text-neutral-300">
-                Current Stock: <strong className="font-mono text-white">{adjustModalItem.stock}</strong> units ({adjustModalItem.colorName} / {adjustModalItem.size})
-              </p>
-
-              <div>
-                <label className="block uppercase text-neutral-400 mb-1">Quantity Change (+ to add, - to deduct)</label>
-                <input
-                  type="number"
-                  value={adjustQty}
-                  onChange={e => setAdjustQty(Number(e.target.value))}
-                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block uppercase text-neutral-400 mb-1">Audit Reason</label>
-                <input
-                  type="text"
-                  value={adjustReason}
-                  onChange={e => setAdjustReason(e.target.value)}
-                  placeholder="New batch received from manufacturing mill"
-                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setAdjustModalItem(null)} className="text-xs text-neutral-400 px-3">Cancel</button>
-                <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider">
-                  Update Stock
+        return (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-md w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+                <h3 className="font-display text-sm font-bold text-white uppercase">
+                  Adjust Stock: {adjustModalItem.sku}
+                </h3>
+                <button type="button" onClick={() => setAdjustModalItem(null)}>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleInventoryAdjustSubmit} className="space-y-4 text-xs">
+                <div className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-lg p-3">
+                  <div>
+                    <span className="text-[10px] uppercase text-neutral-400 block">Variant</span>
+                    <span className="font-semibold text-white">
+                      {adjustModalItem.colorName} / Size {adjustModalItem.size}
+                    </span>
+                  </div>
+                  <div className="text-right font-mono">
+                    <span className="text-[10px] uppercase text-neutral-400 block">Current &rarr; New</span>
+                    <span className="font-bold text-white tabular-nums">
+                      {adjustModalItem.stock} &rarr;{' '}
+                      <strong className="text-[#E5A914]">{previewNextStock} Units</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Adjustment Mode Selector */}
+                <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-1 rounded-lg border border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdjustMode('delta');
+                      setAdjustQtyInput('10');
+                    }}
+                    className={`py-1.5 rounded text-xs font-bold uppercase transition-colors ${
+                      adjustMode === 'delta' ? 'bg-[#E5A914] text-black' : 'text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    Add / Deduct (- / +)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdjustMode('exact');
+                      setAdjustQtyInput(String(adjustModalItem.stock));
+                    }}
+                    className={`py-1.5 rounded text-xs font-bold uppercase transition-colors ${
+                      adjustMode === 'exact' ? 'bg-[#E5A914] text-black' : 'text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    Set Exact Stock
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block uppercase text-neutral-400">
+                    {adjustMode === 'delta'
+                      ? 'Quantity Change (e.g. -5 to deduct, +10 to add)'
+                      : 'New Exact Stock Quantity (0 or more)'}
+                  </label>
+
+                  {/* Signed Input + Quick - / + Buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = isNaN(Number(adjustQtyInput)) ? 0 : Math.round(Number(adjustQtyInput));
+                        const next = adjustMode === 'exact' ? Math.max(0, cur - 1) : cur - 1;
+                        setAdjustQtyInput(String(next));
+                      }}
+                      className="px-3 py-2 bg-neutral-950 hover:bg-red-500/20 border border-neutral-800 text-red-400 rounded font-mono font-bold text-sm"
+                    >
+                      -1
+                    </button>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={adjustQtyInput}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        if (adjustMode === 'exact') {
+                          if (/^\d*$/.test(raw)) setAdjustQtyInput(raw);
+                        } else {
+                          if (/^[+-]?\d*$/.test(raw)) setAdjustQtyInput(raw);
+                        }
+                      }}
+                      placeholder={adjustMode === 'delta' ? '-5 or +10' : '0'}
+                      className="flex-1 bg-neutral-950 border border-neutral-800 px-3 py-2 text-center text-sm text-white font-mono font-bold rounded focus:outline-none focus:border-[#E5A914]"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = isNaN(Number(adjustQtyInput)) ? 0 : Math.round(Number(adjustQtyInput));
+                        const next = cur + 1;
+                        setAdjustQtyInput(String(next));
+                      }}
+                      className="px-3 py-2 bg-neutral-950 hover:bg-emerald-500/20 border border-neutral-800 text-emerald-400 rounded font-mono font-bold text-sm"
+                    >
+                      +1
+                    </button>
+                  </div>
+
+                  {adjustMode === 'delta' ? (
+                    <div className="grid grid-cols-6 gap-1.5 font-mono pt-1">
+                      {[-10, -5, -1, 1, 5, 10].map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setAdjustQtyInput(String(val))}
+                          className={`py-1.5 rounded border text-[11px] font-bold transition-colors ${
+                            val < 0
+                              ? 'bg-neutral-950 border-neutral-800 text-red-400 hover:border-red-500/50'
+                              : 'bg-neutral-950 border-neutral-800 text-emerald-400 hover:border-emerald-500/50'
+                          }`}
+                        >
+                          {val > 0 ? `+${val}` : val}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-5 gap-1.5 font-mono pt-1">
+                      {[0, 5, 10, 25, 50].map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setAdjustQtyInput(String(val))}
+                          className="py-1.5 rounded border bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-[#E5A914] hover:text-[#E5A914] text-[11px] font-bold transition-colors"
+                        >
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Audit Reason</label>
+                  <input
+                    type="text"
+                    value={adjustReason}
+                    onChange={e => setAdjustReason(e.target.value)}
+                    placeholder="New batch received / manual stock count"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustModalItem(null)}
+                    className="text-xs text-neutral-400 hover:text-white px-3 py-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={adjustSaving}
+                    className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider disabled:opacity-50"
+                  >
+                    {adjustSaving ? 'Updating...' : 'Update Stock'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* CUSTOMER ORDERS DRAWER */}
       {selectedCustomerOrders && (
