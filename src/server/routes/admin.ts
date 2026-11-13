@@ -1,5 +1,5 @@
 import { Router, type Response } from 'express';
-import { getDB, saveDB, setDB, trackMongoOp } from '../db.ts';
+import { getDB, saveDB, setDB, trackMongoOp, persistProduct } from '../db.ts';
 import { requireAdmin, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendShippingUpdateEmail } from '../emailService.ts';
 import type { OrderStatus, InventoryTransaction } from '../../types/index.ts';
@@ -312,7 +312,7 @@ adminRouter.post('/inventory/adjust', (req: AuthenticatedRequest, res: Response)
     timestamp: new Date().toISOString()
   });
 
-  saveDB();
+  persistProduct(product);
   return res.json({ success: true, variant, transaction: tx });
 });
 

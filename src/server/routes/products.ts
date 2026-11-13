@@ -1,5 +1,5 @@
 import { Router, type Response } from 'express';
-import { getDB, saveDB, trackMongoOp } from '../db.ts';
+import { getDB, saveDB, trackMongoOp, persistProduct } from '../db.ts';
 import { requireAdmin, optionalAuthenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { isMongoConnected, ProductModel } from '../mongodb.ts';
 import type { Product, Review, StockNotificationRequest } from '../../types/index.ts';
@@ -288,7 +288,7 @@ productsRouter.post('/admin/products', requireAdmin, (req: AuthenticatedRequest,
     timestamp: new Date().toISOString()
   });
 
-  saveDB();
+  persistProduct(newProduct);
   return res.status(201).json({ product: newProduct });
 });
 
@@ -298,8 +298,17 @@ productsRouter.put('/admin/products/:id', requireAdmin, (req: AuthenticatedReque
   const product = db.products.find(p => p.id === req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found.' });
 
-  const data = req.body;
-  Object.assign(product, data);
+  const { _id, __v, discountPrice, basePrice, ...rest } = req.body || {};
+  Object.assign(product, rest);
+
+  if (basePrice !== undefined) {
+    product.basePrice = Number(basePrice);
+  }
+  if (discountPrice === null || discountPrice === '' || (discountPrice !== undefined && Number(discountPrice) <= 0)) {
+    delete product.discountPrice;
+  } else if (discountPrice !== undefined) {
+    product.discountPrice = Number(discountPrice);
+  }
 
   db.adminLogs.unshift({
     id: `log_${Date.now()}`,
@@ -309,7 +318,7 @@ productsRouter.put('/admin/products/:id', requireAdmin, (req: AuthenticatedReque
     timestamp: new Date().toISOString()
   });
 
-  saveDB();
+  persistProduct(product);
   return res.json({ product });
 });
 

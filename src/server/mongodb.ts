@@ -650,6 +650,34 @@ export async function syncLocalToMongo(dbData: any): Promise<{ success: boolean;
 }
 
 /**
+ * Persist a single product directly to MongoDB via Mongoose (fast & avoids re-sending other products)
+ */
+export async function persistSingleProductToMongo(product: Product): Promise<void> {
+  if (!isMongoConnected()) {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) return;
+    const res = await connectMongoDB(uri);
+    if (!res.connected) return;
+  }
+
+  const cleanProd: any = { ...product };
+  delete cleanProd._id;
+  delete cleanProd.__v;
+
+  const updateQuery: any = { $set: cleanProd };
+  if (cleanProd.discountPrice === undefined || cleanProd.discountPrice === null || Number(cleanProd.discountPrice) <= 0) {
+    delete cleanProd.discountPrice;
+    updateQuery.$unset = { discountPrice: 1 };
+  }
+
+  await ProductModel.findOneAndUpdate(
+    { id: product.id },
+    updateQuery,
+    { upsert: true, returnDocument: 'after' }
+  );
+}
+
+/**
  * Pull data from MongoDB Atlas into local memory/cache
  */
 export async function syncMongoToLocal(): Promise<{

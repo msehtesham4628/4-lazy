@@ -624,6 +624,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       stockMap[v.size] = v.stock;
     });
 
+    const normalizedHex = /^#[0-9A-Fa-f]{6}$/.test(firstColor.colorHex || '') ? firstColor.colorHex : '#141416';
+
     setProductForm({
       title: product.title,
       subtitle: product.subtitle || '',
@@ -633,12 +635,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       description: product.description,
       isFeatured: product.isFeatured,
       isPublished: product.isPublished,
-      fabric: product.details.fabric,
-      gsm: product.details.gsm || 280,
-      fit: product.details.fit,
-      care: product.details.care,
+      fabric: product.details?.fabric || '100% Combed Cotton',
+      gsm: product.details?.gsm || 280,
+      fit: product.details?.fit || 'Boxy Drop Shoulder Oversized Fit',
+      care: product.details?.care || 'Cold machine wash inside-out',
       colorName: firstColor.colorName,
-      colorHex: firstColor.colorHex,
+      colorHex: normalizedHex,
       imageUrls: [
         existingImgs[0] || DEFAULT_PRODUCT_SLIDES[0],
         existingImgs[1] || '',
@@ -671,7 +673,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     const slideIdx = activeUploadSlideRef.current;
     setUploadingSlideIndex(slideIdx);
     try {
-      const compressedDataUrl = await compressUploadImage(file, 960, 0.85);
+      const compressedDataUrl = await compressUploadImage(file, 800, 0.78);
       setProductForm(prev => {
         const next: [string, string, string, string] = [...prev.imageUrls] as [string, string, string, string];
         next[slideIdx] = compressedDataUrl;
@@ -730,7 +732,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         subtitle: productForm.subtitle,
         category: productForm.category,
         basePrice: Number(productForm.basePrice),
-        discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
+        discountPrice: productForm.discountPrice > 0 ? Number(productForm.discountPrice) : null,
         description: productForm.description,
         isFeatured: productForm.isFeatured,
         isPublished: productForm.isPublished,
@@ -759,13 +761,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         body: JSON.stringify(payload)
       });
 
-      const d = await res.json();
+      const rawText = await res.text();
+      let d: any = {};
+      try {
+        d = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        d = { error: rawText || `HTTP ${res.status}` };
+      }
+
       if (res.ok) {
+        if (d.product) {
+          setProducts(prev =>
+            editingProduct
+              ? prev.map(p => (p.id === d.product.id ? d.product : p))
+              : [d.product, ...prev]
+          );
+        }
         setShowProductModal(false);
         showNotice('success', editingProduct ? `Updated "${cleanTitle}" successfully.` : `Added "${cleanTitle}" to catalog.`);
         await Promise.all([fetchProductsList(), fetchInventory(), fetchOverview()]);
       } else {
-        showNotice('error', d.error || 'Failed to save product.');
+        showNotice('error', d.error || `Failed to save product (HTTP ${res.status}).`);
       }
     } catch (e: any) {
       showNotice('error', 'Error saving product: ' + (e.message || 'Unknown error'));

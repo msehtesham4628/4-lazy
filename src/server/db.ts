@@ -1,8 +1,10 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import bcrypt from 'bcryptjs';
-import { syncLocalToMongo, isMongoConnected } from './mongodb.ts';
+import {
+  syncLocalToMongo,
+  isMongoConnected,
+  connectMongoDB,
+  persistSingleProductToMongo
+} from './mongodb.ts';
 import { getFullSeedData } from './seedData.ts';
 import type {
   Product,
@@ -19,21 +21,6 @@ import type {
   HeroSlide,
   StockNotificationRequest
 } from '../types/index.ts';
-
-const BUNDLED_DATA_DIR = path.resolve(process.cwd(), '.data');
-const BUNDLED_DB_FILE = path.resolve(BUNDLED_DATA_DIR, 'db.json');
-const TMP_DATA_DIR = path.join(os.tmpdir(), '4laazy-data');
-const IS_SERVERLESS_RO = Boolean(
-  process.env.VERCEL ||
-  process.env.NOW_REGION ||
-  process.env.AWS_LAMBDA_FUNCTION_NAME ||
-  process.env.NETLIFY
-);
-
-let activeDataDir = IS_SERVERLESS_RO ? TMP_DATA_DIR : BUNDLED_DATA_DIR;
-function getDbFilePath() {
-  return path.resolve(activeDataDir, 'db.json');
-}
 
 export interface DatabaseSchema {
   users: User[];
@@ -54,7 +41,7 @@ export interface DatabaseSchema {
   stockNotifications: StockNotificationRequest[];
 }
 
-// In-memory cache synced with disk
+// In-memory request/container store backed exclusively by MongoDB Atlas
 let db: DatabaseSchema | null = null;
 let pendingMongoSync: Promise<any> | null = null;
 
@@ -74,23 +61,6 @@ export function trackMongoOp(op: Promise<any>) {
       }
     });
   pendingMongoSync = chained;
-}
-
-function ensureDataDir() {
-  try {
-    if (!fs.existsSync(activeDataDir)) {
-      fs.mkdirSync(activeDataDir, { recursive: true });
-    }
-  } catch (err: any) {
-    if (err?.code === 'EROFS' || err?.code === 'EACCES' || err?.code === 'EPERM') {
-      activeDataDir = TMP_DATA_DIR;
-      if (!fs.existsSync(activeDataDir)) {
-        fs.mkdirSync(activeDataDir, { recursive: true });
-      }
-    } else {
-      throw err;
-    }
-  }
 }
 
 export function getInitialSeedData(): DatabaseSchema {
@@ -460,202 +430,131 @@ export function getInitialSeedData(): DatabaseSchema {
   };
 }
 
-export function getDB(): DatabaseSchema {
-  if (db) return db;
+function ensureSchemaDefaults(target: DatabaseSchema): boolean {
+  const fullSeed = getFullSeedData() as any;
+  let dirty = false;
 
-  ensureDataDir();
-  const dbFile = getDbFilePath();
-  const sourceFile = fs.existsSync(dbFile)
-    ? dbFile
-    : fs.existsSync(BUNDLED_DB_FILE)
-      ? BUNDLED_DB_FILE
-      : null;
-
-  if (sourceFile) {
-    try {
-      const raw = fs.readFileSync(sourceFile, 'utf-8');
-      db = JSON.parse(raw);
-      if (db) {
-        const fullSeed = getFullSeedData() as any;
-        const hasExactSixCategories =
-          Array.isArray(db.categories) &&
-          db.categories.length === 6 &&
-          db.categories.some(c => c.slug === 'round-neck-t-shirt') &&
-          db.categories.some(c => c.slug === 'polo-neck-t-shirt') &&
-          db.categories.some(c => c.slug === 'down-shoulder-t-shirt') &&
-          db.categories.some(c => c.slug === 'customise-t-shirt') &&
-          db.categories.some(c => c.slug === 'laazy-designs') &&
-          db.categories.some(c => c.slug === 'limited-design');
-
-        let needsSave = false;
-        if (!hasExactSixCategories || !Array.isArray(db.products)) {
-          db.products = fullSeed.products;
-          db.categories = fullSeed.categories;
-          needsSave = true;
+  if (!Array.isArray(target.categories) || target.categories.length === 0) {
+    target.categories = fullSeed.categories;
+    dirty = true;
+  }
+  if (!Array.isArray(target.products)) {
+    target.products = fullSeed.products;
+    dirty = true;
+  }
+  if (!Array.isArray(target.users) || target.users.length === 0) {
+    target.users = fullSeed.users;
+    target.passwords = { ...fullSeed.passwords, ...(target.passwords || {}) };
+    dirty = true;
+  }
+  if (!target.settings) {
+    target.settings = fullSeed.settings;
+    dirty = true;
+  } else {
+    if (!target.settings.cashfreeAppId) {
+      target.settings.cashfreeAppId = fullSeed.settings.cashfreeAppId;
+      target.settings.cashfreeEnvironment = fullSeed.settings.cashfreeEnvironment || 'sandbox';
+      dirty = true;
+    }
+    if (target.settings.codEnabled === undefined) {
+      target.settings.codEnabled = true;
+      dirty = true;
+    }
+    if (target.settings.brandName === '4 LAZY') {
+      target.settings.brandName = '4LAAZY';
+      dirty = true;
+    }
+    if (!Array.isArray(target.settings.heroImages) || target.settings.heroImages.length < 4) {
+      target.settings.heroImages = [
+        target.settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+        '/assets/images/campaign_editorial_lookbook_1794456022183.jpg',
+        '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
+        '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+        '/assets/images/tshirt_polo_neck_1794456301588.jpg'
+      ];
+      dirty = true;
+    }
+    if (!Array.isArray(target.settings.heroSlides) || target.settings.heroSlides.length === 0) {
+      const seedSlides: HeroSlide[] = [
+        {
+          id: 'hero_slide_1',
+          imageUrl: target.settings.heroImages[0] || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
+          eyebrow: 'HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE',
+          heading: target.settings.heroHeading || 'LESS EFFORT.\nMORE STYLE.',
+          subhead:
+            target.settings.heroSubhead ||
+            '280–320 GSM heavyweight combed cotton Round Neck T-shirts engineered for an everyday crisp collar.',
+          linkType: 'category',
+          linkTarget: 'Round Neck T-Shirt'
+        },
+        {
+          id: 'hero_slide_2',
+          imageUrl: target.settings.heroImages[1] || '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
+          eyebrow: 'DROP SHOULDER ARCHITECTURE',
+          heading: 'DOWN SHOULDER\nSILHOUETTES.',
+          subhead: 'Boxy dropped-shoulder drapes with clean garment-washed pigments built for effortless layering.',
+          linkType: 'category',
+          linkTarget: 'Down Shoulder T-Shirt'
+        },
+        {
+          id: 'hero_slide_3',
+          imageUrl: target.settings.heroImages[4] || '/assets/images/tshirt_polo_neck_1794456301588.jpg',
+          eyebrow: 'INTERLOCK KNIT COLLARS',
+          heading: 'PRECISION\nKNIT POLOS.',
+          subhead: 'Structured 290 GSM interlock knit Polo Neck T-shirts that hold architectural form all day.',
+          linkType: 'category',
+          linkTarget: 'Polo Neck T-Shirt'
+        },
+        {
+          id: 'hero_slide_4',
+          imageUrl: target.settings.heroImages[3] || '/assets/images/tshirt_acid_wash_1794456303446.jpg',
+          eyebrow: 'SMALL-BATCH COLLECTOR DROP',
+          heading: 'LIMITED\nARCHIVE PIECES.',
+          subhead: 'Numbered acid-wash and limited graphic editions crafted in micro production runs.',
+          linkType: 'category',
+          linkTarget: 'Limited Design'
+        },
+        {
+          id: 'hero_slide_5',
+          imageUrl: '/assets/images/tshirt_custom_print_1794456303137.jpg',
+          eyebrow: 'CUSTOM PRINT STUDIO',
+          heading: 'YOUR ARTWORK.\nOUR HEAVY BLANK.',
+          subhead: 'Preview how the print settles across 4 sample angles and upload your own graphic directly.',
+          linkType: 'category',
+          linkTarget: 'Customise T-Shirt'
         }
-        if (!db.users || db.users.length < 6) {
-          db.users = fullSeed.users;
-          db.passwords = { ...fullSeed.passwords, ...(db.passwords || {}) };
-          needsSave = true;
-        }
-        if (!db.settings) {
-          db.settings = fullSeed.settings;
-          needsSave = true;
-        } else {
-          if (!db.settings.cashfreeAppId) {
-            db.settings.cashfreeAppId = fullSeed.settings.cashfreeAppId;
-            db.settings.cashfreeEnvironment = fullSeed.settings.cashfreeEnvironment || 'sandbox';
-            needsSave = true;
-          }
-          if (db.settings.codEnabled === undefined) {
-            db.settings.codEnabled = true;
-            needsSave = true;
-          }
-          if (db.settings.brandName === '4 LAZY') {
-            db.settings.brandName = '4LAAZY';
-            needsSave = true;
-          }
-          if (!Array.isArray(db.settings.heroImages) || db.settings.heroImages.length < 4) {
-            db.settings.heroImages = [
-              db.settings.heroImageUrl || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
-              '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
-              '/assets/images/product_oversized_heavy_tee_1794056020516.jpg',
-              '/assets/images/tshirt_acid_wash_1794456303446.jpg',
-              '/assets/images/tshirt_polo_neck_1794456301588.jpg'
-            ];
-            needsSave = true;
-          }
-          if (!Array.isArray(db.settings.heroSlides) || db.settings.heroSlides.length === 0) {
-            const seedSlides: HeroSlide[] = [
-              {
-                id: 'hero_slide_1',
-                imageUrl: db.settings.heroImages[0] || '/assets/images/hero_streetwear_campaign_1794056018871.jpg',
-                eyebrow: 'HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE',
-                heading: db.settings.heroHeading || 'LESS EFFORT.\nMORE STYLE.',
-                subhead:
-                  db.settings.heroSubhead ||
-                  '280–320 GSM heavyweight combed cotton Round Neck T-shirts engineered for an everyday crisp collar.',
-                linkType: 'category',
-                linkTarget: 'Round Neck T-Shirt'
-              },
-              {
-                id: 'hero_slide_2',
-                imageUrl: db.settings.heroImages[1] || '/assets/images/campaign_editorial_lookbook_1794056022183.jpg',
-                eyebrow: 'DROP SHOULDER ARCHITECTURE',
-                heading: 'DOWN SHOULDER\nSILHOUETTES.',
-                subhead: 'Boxy dropped-shoulder drapes with clean garment-washed pigments built for effortless layering.',
-                linkType: 'category',
-                linkTarget: 'Down Shoulder T-Shirt'
-              },
-              {
-                id: 'hero_slide_3',
-                imageUrl: db.settings.heroImages[4] || '/assets/images/tshirt_polo_neck_1794456301588.jpg',
-                eyebrow: 'INTERLOCK KNIT COLLARS',
-                heading: 'PRECISION\nKNIT POLOS.',
-                subhead: 'Structured 290 GSM interlock knit Polo Neck T-shirts that hold architectural form all day.',
-                linkType: 'category',
-                linkTarget: 'Polo Neck T-Shirt'
-              },
-              {
-                id: 'hero_slide_4',
-                imageUrl: db.settings.heroImages[3] || '/assets/images/tshirt_acid_wash_1794456303446.jpg',
-                eyebrow: 'SMALL-BATCH COLLECTOR DROP',
-                heading: 'LIMITED\nARCHIVE PIECES.',
-                subhead: 'Numbered acid-wash and limited graphic editions crafted in micro production runs.',
-                linkType: 'category',
-                linkTarget: 'Limited Design'
-              },
-              {
-                id: 'hero_slide_5',
-                imageUrl: '/assets/images/tshirt_custom_print_1794456303137.jpg',
-                eyebrow: 'CUSTOM PRINT STUDIO',
-                heading: 'YOUR ARTWORK.\nOUR HEAVY BLANK.',
-                subhead: 'Preview how the print settles across 4 sample angles and upload your own graphic directly.',
-                linkType: 'category',
-                linkTarget: 'Customise T-Shirt'
-              }
-            ];
-            db.settings.heroSlides = seedSlides;
-            needsSave = true;
-          }
-        }
-        db.returnRequests = db.returnRequests || [];
-        db.carts = db.carts || {};
-        db.wishlists = db.wishlists || {};
-        db.stockNotifications = db.stockNotifications || [];
-
-        // Upgrade seeded products that still have < 4 slides to 4 photo slides
-        for (const p of db.products) {
-          const seedMatch = (fullSeed.products as Product[]).find(sp => sp.id === p.id);
-          if (seedMatch && p.colorGroups[0] && p.colorGroups[0].images.length < 4 && seedMatch.colorGroups[0]?.images.length >= 4) {
-            p.colorGroups = seedMatch.colorGroups;
-            p.variants = p.variants.map(v => {
-              const sv = seedMatch.variants.find(mv => mv.id === v.id);
-              return sv && v.images.length < 4 ? { ...v, images: sv.images } : v;
-            });
-            needsSave = true;
-          }
-        }
-
-        if (needsSave) {
-          saveDB();
-        }
-        return db;
-      }
-    } catch (err) {
-      console.warn('Failed to parse existing db.json, re-initializing with seed data', err);
+      ];
+      target.settings.heroSlides = seedSlides;
+      dirty = true;
     }
   }
 
-  db = getInitialSeedData();
-  saveDB();
+  target.returnRequests = target.returnRequests || [];
+  target.carts = target.carts || {};
+  target.wishlists = target.wishlists || {};
+  target.stockNotifications = target.stockNotifications || [];
+  return dirty;
+}
+
+export function getDB(): DatabaseSchema {
+  if (!db) {
+    db = getInitialSeedData();
+  }
   return db;
 }
 
 export function setDB(updatedDB: Partial<DatabaseSchema>): DatabaseSchema {
   if (!db) {
-    db = getDB();
+    db = getInitialSeedData();
   }
   db = { ...db, ...updatedDB } as DatabaseSchema;
   saveDB();
   return db;
 }
 
-function writeLocalSnapshot() {
-  if (!db) return;
-  const serialized = JSON.stringify(db, null, 2);
-  try {
-    ensureDataDir();
-    const dbFile = getDbFilePath();
-    const tempFile = `${dbFile}.tmp.${Date.now()}`;
-    fs.writeFileSync(tempFile, serialized, 'utf-8');
-    fs.renameSync(tempFile, dbFile);
-  } catch (err: any) {
-    if (err?.code === 'EROFS' || err?.code === 'EACCES' || err?.code === 'EPERM') {
-      if (activeDataDir !== TMP_DATA_DIR) {
-        activeDataDir = TMP_DATA_DIR;
-        try {
-          if (!fs.existsSync(activeDataDir)) {
-            fs.mkdirSync(activeDataDir, { recursive: true });
-          }
-          const dbFile = getDbFilePath();
-          const tempFile = `${dbFile}.tmp.${Date.now()}`;
-          fs.writeFileSync(tempFile, serialized, 'utf-8');
-          fs.renameSync(tempFile, dbFile);
-          return;
-        } catch (retryErr) {
-          console.warn('Warning writing temp snapshot:', retryErr);
-        }
-      }
-    } else {
-      console.error('Error saving db.json:', err);
-    }
-  }
-}
-
 export function hydrateDbFromMongo(mongoData: Partial<DatabaseSchema>) {
   if (!db) {
-    db = getDB();
+    db = getInitialSeedData();
   }
   if (Array.isArray(mongoData.products) && mongoData.products.length > 0) {
     db.products = mongoData.products;
@@ -687,15 +586,48 @@ export function hydrateDbFromMongo(mongoData: Partial<DatabaseSchema>) {
   if (mongoData.settings) {
     db.settings = { ...db.settings, ...mongoData.settings };
   }
-  writeLocalSnapshot();
+
+  ensureSchemaDefaults(db);
 }
 
+/**
+ * Persist a single created/edited product directly to MongoDB Atlas via Mongoose
+ */
+export function persistProduct(product: Product) {
+  if (isMongoConnected()) {
+    trackMongoOp(persistSingleProductToMongo(product));
+    return;
+  }
+  if (process.env.MONGODB_URI) {
+    trackMongoOp(
+      connectMongoDB(process.env.MONGODB_URI).then(res => {
+        if (res.connected) {
+          return persistSingleProductToMongo(product);
+        }
+      })
+    );
+  }
+}
+
+/**
+ * Persist current store state exclusively to MongoDB Atlas (no local filesystem writes)
+ */
 export function saveDB() {
   if (!db) return;
-  writeLocalSnapshot();
 
-  // If MongoDB Atlas is connected, replicate changes and expose promise for serverless flushing
   if (isMongoConnected()) {
     trackMongoOp(syncLocalToMongo(db));
+    return;
+  }
+
+  if (process.env.MONGODB_URI) {
+    const snapshot = db;
+    trackMongoOp(
+      connectMongoDB(process.env.MONGODB_URI).then(res => {
+        if (res.connected) {
+          return syncLocalToMongo(snapshot);
+        }
+      })
+    );
   }
 }
