@@ -6,6 +6,8 @@ interface CouponState {
   discount: number;
   type: 'percent' | 'fixed';
   value: number;
+  minOrderValue?: number;
+  maxDiscount?: number;
 }
 
 interface CartContextType {
@@ -175,7 +177,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const discount = coupon ? coupon.discount : 0;
+  const discount = (() => {
+    if (!coupon || subtotal <= 0) return 0;
+    if (coupon.minOrderValue && subtotal < coupon.minOrderValue) return 0;
+    if (coupon.type === 'percent') {
+      let calc = Math.round((subtotal * coupon.value) / 100);
+      if (coupon.maxDiscount && calc > coupon.maxDiscount) {
+        calc = coupon.maxDiscount;
+      }
+      return Math.min(subtotal, calc);
+    }
+    return Math.min(subtotal, coupon.value);
+  })();
+
   const shippingFee = items.length === 0 || subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_FEE;
   const taxableAmount = Math.max(0, subtotal - discount);
   const tax = Math.round(taxableAmount * TAX_RATE);
@@ -203,7 +217,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         code: data.code,
         discount: data.discount,
         type: data.type,
-        value: data.value
+        value: data.value,
+        minOrderValue: data.minOrderValue || 0,
+        maxDiscount: data.maxDiscount
       });
       return { success: true };
     } catch (e) {

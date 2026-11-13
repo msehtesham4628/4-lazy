@@ -16,7 +16,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose 
           <div className="flex items-center gap-2">
             <Ruler className="w-5 h-5 text-[#E5A914]" />
             <h2 className="font-display text-lg font-bold uppercase tracking-wider text-white">
-              4 LAZY Architectural Sizing Matrix
+              4LAAZY Architectural Sizing Matrix
             </h2>
           </div>
           <button
@@ -29,7 +29,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose 
 
         <div className="mt-4 space-y-4">
           <p className="text-xs text-neutral-300 leading-relaxed">
-            All 4 LAZY silhouettes are cut with an intentional <strong>drop-shoulder boxy drape</strong>.
+            All 4LAAZY silhouettes are cut with an intentional <strong>drop-shoulder boxy drape</strong>.
             For an authentic relaxed streetwear drape, select your true size. For a standard closer fit, size down one step.
           </p>
 

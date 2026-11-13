@@ -24,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="max-w-md text-center md:text-left">
             <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-white uppercase">
-              JOIN THE 4 LAZY VANGUARD
+              JOIN THE 4LAAZY VANGUARD
             </h3>
             <p className="text-neutral-400 mt-1 text-xs">
               Receive secret drop passwords, early release access, and private editorial lookbooks.
@@ -67,20 +67,20 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <div className="flex items-center gap-3">
               <img
                 src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
-                alt="4 LAZY Monogram"
+                alt="4LAAZY Monogram"
                 className="w-10 h-10 object-contain rounded"
                 referrerPolicy="no-referrer"
               />
               <span className="font-display text-2xl font-black text-white tracking-wider">
-                4 LAZY
+                4LAAZY
               </span>
             </div>
             <p className="text-neutral-400 leading-relaxed text-xs max-w-sm">
-              Modern luxury streetwear engineered exclusively around T-shirts. Heavyweight 280–320 GSM combed cotton, architectural collars, and bespoke 3D studio prints.
+              Modern luxury streetwear engineered exclusively around T-shirts. Heavyweight 280–320 GSM combed cotton, architectural collars, and bespoke studio prints.
             </p>
             <div className="pt-2 text-[11px] text-neutral-400">
               <p>Studio Concierge: concierge@4lazyfashion.com</p>
-              <p>Headquarters: Bandra West, Mumbai, India</p>
+              <p>Headquarters: Jubilee Hills, Hyderabad, Telangana, India</p>
             </div>
           </div>
 
@@ -175,7 +175,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         {/* Bottom Bar: Payment Logos & Copyright */}
         <div className="mt-10 pt-8 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-neutral-400 text-center sm:text-left">
-          <p>&copy; {new Date().getFullYear()} 4 LAZY APPAREL INC. LESS EFFORT. MORE STYLE. ALL RIGHTS RESERVED.</p>
+          <p>&copy; {new Date().getFullYear()} 4LAAZY APPAREL INC. LESS EFFORT. MORE STYLE. ALL RIGHTS RESERVED.</p>
           <div className="flex flex-wrap items-center justify-center gap-3 text-neutral-300 font-mono text-[10px]">
             <span className="text-[#E5A914] font-bold">CASHFREE</span>
             <span>·</span>

@@ -118,7 +118,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, initialParams })
       : selectedCategory;
   const heroDescription =
     selectedCategory === 'trending'
-      ? 'Most ordered 4 LAZY silhouettes right now — top-selling heavyweight crewnecks, polos, and drop shoulders.'
+      ? 'Most ordered 4LAAZY silhouettes right now — top-selling heavyweight crewnecks, polos, and drop shoulders.'
       : catMeta
       ? catMeta.heroDescription
       : 'Engineered 280–320 GSM combed cotton silhouettes.';
@@ -252,7 +252,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, initialParams })
         <div className="relative z-10 max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-6 sm:pb-10">
           <div className="max-w-2xl">
             <span className="text-[10px] sm:text-[11px] font-bold tracking-widest text-[#E5A914] uppercase">
-              4 LAZY CATEGORY · {products.length} PIECES
+              4LAAZY CATEGORY · {products.length} PIECES
             </span>
             <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl font-black text-white uppercase tracking-tight mt-1">
               {heroTitle}

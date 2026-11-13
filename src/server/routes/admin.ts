@@ -385,6 +385,11 @@ adminRouter.put('/coupons/:id', (req: AuthenticatedRequest, res: Response) => {
 adminRouter.delete('/coupons/:id', (req: AuthenticatedRequest, res: Response) => {
   const db = getDB();
   db.coupons = db.coupons.filter(c => c.id !== req.params.id);
+  if (isMongoConnected()) {
+    CouponModel.deleteOne({ id: req.params.id }).catch(err => {
+      console.warn('Mongo coupon delete warning:', err?.message || err);
+    });
+  }
   saveDB();
   return res.json({ success: true });
 });
@@ -604,7 +609,7 @@ adminRouter.get('/tally/export-xml', (req: AuthenticatedRequest, res: Response) 
         <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
         <BASICBUYERNAME>${o.customer.name.replace(/&/g, '&amp;')}</BASICBUYERNAME>
         <BASICPLACEOFSUPPLY>${o.shippingAddress.state}</BASICPLACEOFSUPPLY>
-        <NARRATION>4 LAZY Order #${o.orderNumber} - ${o.items.map(i => `${i.productTitle} (${i.quantity})`).join(', ')}</NARRATION>
+        <NARRATION>4LAAZY Order #${o.orderNumber} - ${o.items.map(i => `${i.productTitle} (${i.quantity})`).join(', ')}</NARRATION>
         
         <!-- Dr Party / Bank Ledger -->
         <ALLLEDGERENTRIES.LIST>
@@ -654,7 +659,7 @@ adminRouter.get('/tally/export-xml', (req: AuthenticatedRequest, res: Response) 
       <REQUESTDESC>
         <REPORTNAME>Vouchers</REPORTNAME>
         <STATICVARIABLES>
-          <SVCURRENTCOMPANY>4 LAZY APPAREL INC</SVCURRENTCOMPANY>
+          <SVCURRENTCOMPANY>4LAAZY APPAREL INC</SVCURRENTCOMPANY>
         </STATICVARIABLES>
       </REQUESTDESC>
       <REQUESTDATA>

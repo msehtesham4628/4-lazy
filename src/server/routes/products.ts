@@ -1,7 +1,8 @@
 import { Router, type Response } from 'express';
 import { getDB, saveDB } from '../db.ts';
 import { requireAdmin, optionalAuthenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
-import type { Product, ProductVariant, Review } from '../../types/index.ts';
+import { isMongoConnected, ProductModel } from '../mongodb.ts';
+import type { Product, Review } from '../../types/index.ts';
 
 export const productsRouter = Router();
 
@@ -142,11 +143,20 @@ productsRouter.post('/products/:id/reviews', optionalAuthenticate, (req: Authent
   return res.status(201).json({ review: newReview, rating: product.rating, reviewsCount: product.reviewsCount });
 });
 
+// Admin: Get ALL products (including unpublished drafts)
+productsRouter.get('/admin/products', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const list = [...db.products].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  return res.json({ products: list, total: list.length });
+});
+
 // Admin: Create product
 productsRouter.post('/admin/products', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   const data = req.body;
-  if (!data.title || !data.category || !data.basePrice) {
-    return res.status(400).json({ error: 'Title, category, and base price are required.' });
+  if (!data.title || !data.category || data.basePrice === undefined || Number(data.basePrice) <= 0) {
+    return res.status(400).json({ error: 'Title, category, and valid base price are required.' });
   }
 
   const db = getDB();
@@ -228,6 +238,12 @@ productsRouter.delete('/admin/products/:id', requireAdmin, (req: AuthenticatedRe
     timestamp: new Date().toISOString()
   });
 
+  if (isMongoConnected()) {
+    ProductModel.deleteOne({ id: removed.id }).catch(err => {
+      console.warn('Mongo product delete sync warning:', err?.message || err);
+    });
+  }
+
   saveDB();
   return res.json({ success: true, message: 'Product deleted.' });
 });
@@ -258,7 +274,7 @@ productsRouter.post('/admin/products/bulk-import', requireAdmin, (req: Authentic
       slug,
       title: item.title,
       subtitle: item.subtitle || '',
-      description: item.description || 'Premium 4 LAZY streetwear silhouette.',
+      description: item.description || 'Premium 4LAAZY streetwear silhouette.',
       category: item.category || 'Round Neck T-Shirt',
       tags: Array.isArray(item.tags) ? item.tags : ['New Arrival'],
       basePrice: Number(item.basePrice),

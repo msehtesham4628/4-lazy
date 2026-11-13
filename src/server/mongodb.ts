@@ -254,7 +254,7 @@ const InventoryTxSchema = new Schema(
 // 9. Store Settings Schema
 const StoreSettingsSchema = new Schema(
   {
-    brandName: { type: String, default: '4 LAZY' },
+    brandName: { type: String, default: '4LAAZY' },
     tagline: { type: String, default: 'Less Effort. More Style.' },
     logoUrl: { type: String },
     contactEmail: { type: String, default: 'concierge@4lazyfashion.com' },
@@ -274,6 +274,9 @@ const StoreSettingsSchema = new Schema(
     campaignImageUrl: { type: String },
     razorpayKeyId: { type: String },
     stripePublicKey: { type: String },
+    cashfreeAppId: { type: String },
+    cashfreeEnvironment: { type: String, default: 'sandbox' },
+    codEnabled: { type: Boolean, default: true },
     isTestMode: { type: Boolean, default: true }
   },
   { timestamps: true, collection: 'settings' }

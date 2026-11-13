@@ -302,5 +302,6 @@ export interface StoreSettings {
   stripePublicKey: string;
   cashfreeAppId?: string;
   cashfreeEnvironment?: 'sandbox' | 'production';
+  codEnabled?: boolean;
   isTestMode: boolean;
 }

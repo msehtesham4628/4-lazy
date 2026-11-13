@@ -37,7 +37,7 @@ try {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    app: '4 LAZY E-Commerce API',
+    app: '4LAAZY E-Commerce API',
     timestamp: new Date().toISOString()
   });
 });

@@ -36,7 +36,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
     street: '',
     apartment: '',
     city: '',
-    state: 'Maharashtra',
+    state: 'Telangana',
     pinCode: '',
     country: 'India'
   });

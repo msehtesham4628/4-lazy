@@ -143,7 +143,7 @@ const PRESET_GRAPHICS = [
     id: 'brutalist_arch',
     title: 'BRUTALIST ARCHIVE',
     tag: 'Constructivist',
-    svgText: '4 LAZY\nBRUTALIST ARCHIVE\nDROP 04 / MONOLITH'
+    svgText: '4LAAZY\nBRUTALIST ARCHIVE\nDROP 04 / MONOLITH'
   },
   {
     id: 'subversive_96',
@@ -155,7 +155,7 @@ const PRESET_GRAPHICS = [
     id: 'manifesto_block',
     title: 'LESS EFFORT. MORE STYLE.',
     tag: 'Manifesto',
-    svgText: 'LESS EFFORT.\nMORE STYLE.\n4 LAZY HEAVYWEIGHTS'
+    svgText: 'LESS EFFORT.\nMORE STYLE.\n4LAAZY HEAVYWEIGHTS'
   },
   {
     id: 'crest_monogram',
@@ -193,7 +193,7 @@ export const CustomizeStudioPage: React.FC<CustomizeStudioPageProps> = ({ onNavi
   const [activeTab, setActiveTab] = useState<'text' | 'artwork' | 'presets'>('text');
 
   // Custom Content States
-  const [customText, setCustomText] = useState('4 LAZY');
+  const [customText, setCustomText] = useState('4LAAZY');
   const [customSubtitle, setCustomSubtitle] = useState('LESS EFFORT. MORE STYLE.');
   const [selectedFont, setSelectedFont] = useState(FONT_OPTIONS[0]);
   const [selectedTextColor, setSelectedTextColor] = useState(TEXT_COLORS[1]);
@@ -262,7 +262,7 @@ export const CustomizeStudioPage: React.FC<CustomizeStudioPageProps> = ({ onNavi
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-bold tracking-widest text-[#E5A914]">4 LAZY Studio</span>
+              <span className="text-xs uppercase font-bold tracking-widest text-[#E5A914]">4LAAZY Studio</span>
               <span className="text-neutral-600">/</span>
               <span className="text-xs text-neutral-400 uppercase tracking-wider">Custom Print Atelier</span>
             </div>
@@ -512,7 +512,7 @@ export const CustomizeStudioPage: React.FC<CustomizeStudioPageProps> = ({ onNavi
                       maxLength={24}
                       value={customText}
                       onChange={e => setCustomText(e.target.value)}
-                      placeholder="e.g. 4 LAZY, ARCHIVE, OVERTHINK NOTHING"
+                      placeholder="e.g. 4LAAZY, ARCHIVE, OVERTHINK NOTHING"
                       className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914] font-bold tracking-wider uppercase"
                     />
                   </div>
@@ -617,7 +617,7 @@ export const CustomizeStudioPage: React.FC<CustomizeStudioPageProps> = ({ onNavi
                 </div>
               )}
 
-              {/* TAB 3: 4 LAZY ARCHIVE PRESET GRAPHICS */}
+              {/* TAB 3: 4LAAZY ARCHIVE PRESET GRAPHICS */}
               {activeTab === 'presets' && (
                 <div className="grid grid-cols-2 gap-2.5">
                   {PRESET_GRAPHICS.map(pre => (

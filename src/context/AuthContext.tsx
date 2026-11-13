@@ -25,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authToken.includes('admin')) {
         setUser({
           id: 'usr_admin_001',
-          name: '4 LAZY Founder & Lead Admin',
+          name: '4LAAZY Founder & Lead Admin',
           email: 'admin@4lazyfashion.com',
           phone: '+919876543210',
           role: 'admin',
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (normEmail === 'admin@4lazyfashion.com' && password === 'admin123') {
         const demoUser: User = {
           id: 'usr_admin_001',
-          name: '4 LAZY Founder & Lead Admin',
+          name: '4LAAZY Founder & Lead Admin',
           email: 'admin@4lazyfashion.com',
           phone: '+919876543210',
           role: 'admin',

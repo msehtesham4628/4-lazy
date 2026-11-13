@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   CreditCard,
@@ -30,12 +30,19 @@ const INDIAN_STATES = [
 ];
 
 export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
-  const { items, subtotal, discount, tax, coupon, clearCart } = useCart();
+  const { items, subtotal, discount, tax, coupon, applyCoupon, removeCoupon, clearCart } = useCart();
   const { user } = useAuth();
 
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [codEnabled, setCodEnabled] = useState(true);
+
+  // Coupon state on checkout page
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   // Step 1: Contact
   const [contact, setContact] = useState({
@@ -50,7 +57,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
     street: defaultAddr?.street || '',
     apartment: defaultAddr?.apartment || '',
     city: defaultAddr?.city || '',
-    state: defaultAddr?.state || 'Maharashtra',
+    state: defaultAddr?.state || 'Telangana',
     pinCode: defaultAddr?.pinCode || '',
     country: 'India'
   });
@@ -74,6 +81,37 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
     appId: string;
   } | null>(null);
   const [verifyingCashfree, setVerifyingCashfree] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.settings && data.settings.codEnabled === false) {
+          setCodEnabled(false);
+          setPaymentMethod('cashfree');
+        } else {
+          setCodEnabled(true);
+        }
+      })
+      .catch(() => setCodEnabled(true));
+  }, []);
+
+  const handleApplyCouponCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!couponInput.trim()) return;
+    setApplyingCoupon(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    const res = await applyCoupon(couponInput.trim());
+    if (res.success) {
+      setCouponSuccess(`Coupon "${couponInput.trim().toUpperCase()}" applied.`);
+      setCouponInput('');
+    } else {
+      setCouponError(res.error || 'Invalid or ineligible coupon code.');
+    }
+    setApplyingCoupon(false);
+  };
 
   if (items.length === 0) {
     return (
@@ -116,7 +154,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
       return false;
     }
     if (address.pinCode.trim().length !== 6 || isNaN(Number(address.pinCode))) {
-      setErrorMsg('Please enter a valid 6-digit Indian PIN code (e.g. 400050).');
+      setErrorMsg('Please enter a valid 6-digit Indian PIN code (e.g. 500033).');
       return false;
     }
     setErrorMsg('');
@@ -395,7 +433,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                     type="text"
                     value={address.apartment}
                     onChange={e => setAddress({ ...address, apartment: e.target.value })}
-                    placeholder="Near Linking Road, Bandra West"
+                    placeholder="Road No. 36, Jubilee Hills"
                     className="w-full bg-neutral-950 border border-neutral-800 px-3.5 py-2.5 text-xs text-white rounded focus:outline-none focus:border-neutral-600"
                   />
                 </div>
@@ -407,7 +445,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                       type="text"
                       value={address.city}
                       onChange={e => setAddress({ ...address, city: e.target.value })}
-                      placeholder="Mumbai"
+                      placeholder="Hyderabad"
                       className="w-full bg-neutral-950 border border-neutral-800 px-3.5 py-2.5 text-xs text-white rounded focus:outline-none focus:border-neutral-600"
                       required
                     />
@@ -433,7 +471,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                       maxLength={6}
                       value={address.pinCode}
                       onChange={e => setAddress({ ...address, pinCode: e.target.value.replace(/\D/g, '') })}
-                      placeholder="400050"
+                      placeholder="500033"
                       className="w-full bg-neutral-950 border border-neutral-800 px-3.5 py-2.5 text-xs text-white font-mono rounded focus:outline-none focus:border-neutral-600"
                       required
                     />
@@ -541,7 +579,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                 <button onClick={() => setStep(3)} className="text-xs text-neutral-400 hover:text-white">Back</button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className={`grid grid-cols-1 ${codEnabled ? 'sm:grid-cols-2' : ''} gap-3`}>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cashfree')}
@@ -551,25 +589,86 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                       : 'border-neutral-800 bg-neutral-950/40 text-neutral-400'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-bold text-white">Cashfree Secure Gateway</p>
                     <span className="text-[10px] font-mono text-[#E5A914] font-bold">RECOMMENDED</span>
                   </div>
                   <p className="text-[10px] text-neutral-400 mt-1">UPI, GPay, PhonePe, Cards, NetBanking, Wallets</p>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('cod')}
-                  className={`p-3.5 rounded-lg border text-left transition-all ${
-                    paymentMethod === 'cod'
-                      ? 'border-[#E5A914] bg-neutral-950 ring-1 ring-[#E5A914]'
-                      : 'border-neutral-800 bg-neutral-950/40 text-neutral-400'
-                  }`}
-                >
-                  <p className="text-xs font-bold text-white">Cash on Delivery (COD)</p>
-                  <p className="text-[10px] text-neutral-400 mt-1">Pay cash or UPI at your doorstep</p>
-                </button>
+                {codEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cod')}
+                    className={`p-3.5 rounded-lg border text-left transition-all ${
+                      paymentMethod === 'cod'
+                        ? 'border-[#E5A914] bg-neutral-950 ring-1 ring-[#E5A914]'
+                        : 'border-neutral-800 bg-neutral-950/40 text-neutral-400'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-white">Cash on Delivery (COD)</p>
+                    <p className="text-[10px] text-neutral-400 mt-1">Pay cash or UPI at your doorstep</p>
+                  </button>
+                )}
+              </div>
+
+              {!codEnabled && (
+                <p className="text-[11px] text-neutral-400 bg-neutral-950 border border-neutral-800 px-3 py-2 rounded">
+                  Cash on Delivery is currently disabled by store settings. Complete your order securely via Cashfree.
+                </p>
+              )}
+
+              {/* Coupon Code Application on Payment Step */}
+              <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-[#E5A914]" /> Apply Coupon Code
+                  </span>
+                  {coupon && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeCoupon();
+                        setCouponSuccess('');
+                        setCouponError('');
+                      }}
+                      className="text-[11px] text-red-400 hover:underline font-semibold"
+                    >
+                      Remove ({coupon.code})
+                    </button>
+                  )}
+                </div>
+
+                {coupon ? (
+                  <div className="flex items-center justify-between text-xs bg-neutral-900 border border-[#E5A914]/40 px-3 py-2 rounded">
+                    <span className="font-mono font-bold text-[#E5A914]">{coupon.code} Applied</span>
+                    <span className="font-mono text-emerald-400 font-bold tabular-nums">-₹{discount.toLocaleString()}</span>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={e => {
+                        setCouponInput(e.target.value.toUpperCase());
+                        if (couponError) setCouponError('');
+                      }}
+                      placeholder="Enter code (e.g. LAZY10, FIRST4L)"
+                      className="flex-1 bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono uppercase rounded focus:outline-none focus:border-[#E5A914]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleApplyCouponCode()}
+                      disabled={applyingCoupon || !couponInput.trim()}
+                      className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider disabled:opacity-50 whitespace-nowrap shrink-0"
+                    >
+                      {applyingCoupon ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+
+                {couponError && <p className="text-[11px] text-red-400">{couponError}</p>}
+                {couponSuccess && !couponError && <p className="text-[11px] text-emerald-400">{couponSuccess}</p>}
               </div>
 
               {paymentMethod === 'cashfree' && (
@@ -669,15 +768,57 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
             ))}
           </div>
 
-          {coupon && (
-            <div className="flex items-center justify-between bg-neutral-950 border border-[#E5A914]/40 px-3 py-2 rounded text-xs">
-              <div className="flex items-center gap-1.5 text-[#E5A914]">
-                <Tag className="w-3.5 h-3.5" />
-                <span className="font-mono font-bold">{coupon.code}</span>
+          {/* Promo / Coupon Code inside Order Summary */}
+          <div className="space-y-2">
+            {coupon ? (
+              <div className="flex items-center justify-between bg-neutral-950 border border-[#E5A914]/40 px-3 py-2 rounded text-xs">
+                <div className="flex items-center gap-1.5 text-[#E5A914]">
+                  <Tag className="w-3.5 h-3.5" />
+                  <span className="font-mono font-bold">{coupon.code}</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-emerald-400 font-mono tabular-nums">-₹{discount.toLocaleString()}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeCoupon();
+                      setCouponSuccess('');
+                      setCouponError('');
+                    }}
+                    className="text-[10px] text-neutral-400 hover:text-red-400 uppercase"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
-              <span className="text-emerald-400 font-mono tabular-nums">-₹{discount.toLocaleString()}</span>
-            </div>
-          )}
+            ) : (
+              <form onSubmit={handleApplyCouponCode} className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={e => {
+                    setCouponInput(e.target.value.toUpperCase());
+                    if (couponError) setCouponError('');
+                  }}
+                  placeholder="Promo code (e.g. FIRST4L)"
+                  className="flex-1 bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded focus:outline-none focus:border-neutral-600 uppercase font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={applyingCoupon || !couponInput.trim()}
+                  className="bg-neutral-800 hover:bg-[#E5A914] hover:text-black text-white px-3.5 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
+                >
+                  {applyingCoupon ? '...' : 'Apply'}
+                </button>
+              </form>
+            )}
+            {couponError && <p className="text-[11px] text-red-400">{couponError}</p>}
+            {coupon && discount === 0 && coupon.minOrderValue && (
+              <p className="text-[11px] text-amber-400">
+                Add ₹{(coupon.minOrderValue - subtotal).toLocaleString()} more to activate {coupon.code}.
+              </p>
+            )}
+          </div>
 
           <div className="pt-3 border-t border-neutral-800 space-y-1.5 text-xs text-neutral-400">
             <div className="flex justify-between">
@@ -717,7 +858,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                 <p className="text-[10px] font-mono uppercase tracking-widest text-[#E5A914]">
                   CASHFREE PAYMENTS · {cashfreeSession.environment.toUpperCase()}
                 </p>
-                <h3 className="text-sm font-bold text-white">4 LAZY APPAREL INC.</h3>
+                <h3 className="text-sm font-bold text-white">4LAAZY APPAREL INC.</h3>
               </div>
               <button
                 onClick={() => setCashfreeSession(null)}

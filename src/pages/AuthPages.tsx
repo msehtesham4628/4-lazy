@@ -62,7 +62,7 @@ export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
     const res = await verifyOtp(email, otp);
     setLoading(false);
     if (res.success) {
-      setSuccessMsg('Email verified successfully! Welcome to 4 LAZY.');
+      setSuccessMsg('Email verified successfully! Welcome to 4LAAZY.');
       setTimeout(() => {
         onNavigate('home');
       }, 1200);
@@ -91,7 +91,7 @@ export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
         <div className="text-center space-y-2">
           <img
             src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
-            alt="4 LAZY Monogram"
+            alt="4LAAZY Monogram"
             className="w-12 h-12 mx-auto object-contain rounded"
             referrerPolicy="no-referrer"
           />
@@ -99,7 +99,7 @@ export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
             {step === 'otp'
               ? 'Verify Email Address'
               : mode === 'login'
-              ? 'Sign In to 4 LAZY'
+              ? 'Sign In to 4LAAZY'
               : mode === 'register'
               ? 'Create Vanguard Account'
               : 'Password Assistance'}
@@ -239,7 +239,7 @@ export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
                     <span className="text-xs font-bold text-white group-hover:text-[#E5A914] transition-colors flex items-center gap-1.5">
                       Aryan Verma <span className="text-[10px] text-amber-400 font-normal bg-amber-500/10 px-1 rounded">VIP Buyer</span>
                     </span>
-                    <span className="text-[10px] text-neutral-400 block font-mono">aryan@example.com · Mumbai (Orders History)</span>
+                    <span className="text-[10px] text-neutral-400 block font-mono">aryan@example.com · Hyderabad (Orders History)</span>
                   </div>
                   <span className="text-[10px] uppercase font-bold text-[#E5A914] bg-[#E5A914]/10 px-2 py-1 rounded">
                     Sign In &rarr;

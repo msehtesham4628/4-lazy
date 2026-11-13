@@ -1,0 +1,3818 @@
+{
+  "users": [
+    {
+      "id": "usr_admin_001",
+      "name": "4LAAZY Founder & Lead Admin",
+      "email": "admin@4lazyfashion.com",
+      "phone": "+919876543210",
+      "role": "admin",
+      "isEmailVerified": true,
+      "addresses": [],
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "usr_cust_001",
+      "name": "Aryan Verma",
+      "email": "aryan@example.com",
+      "phone": "+919811223344",
+      "role": "customer",
+      "isEmailVerified": true,
+      "addresses": [
+        {
+          "id": "addr_01",
+          "fullName": "Aryan Verma",
+          "phone": "+919811223344",
+          "street": "Flat 402, Skyline Residency, Road No. 36, Jubilee Hills",
+          "apartment": "Near Jubilee Checkpost",
+          "city": "Hyderabad",
+          "state": "Telangana",
+          "pinCode": "500033",
+          "country": "India",
+          "isDefault": true
+        }
+      ],
+      "createdAt": "2026-02-10T12:00:00Z"
+    }
+  ],
+  "passwords": {
+    "usr_admin_001": "$2b$10$WSE/KZtknVogHmEhNvo11OX9y8cTI/CLy4cVxZBF/nDdgQh0fGQUa",
+    "usr_cust_001": "$2b$10$WSE/KZtknVogHmEhNvo11OF89FFR6fvGarDrQoGgy3P.dExoQkhU2"
+  },
+  "otps": {},
+  "products": [
+    {
+      "id": "prod_round_01",
+      "slug": "signature-heavy-combed-round-neck-tee",
+      "title": "Signature Heavy Combed Round Neck T-Shirt",
+      "subtitle": "280 GSM Pure Cotton · Thick Ribbed Collar · Pre-Shrunk",
+      "description": "Cut from substantial 280 GSM ringspun cotton with a high, snug round neckline and balanced sleeves that retain shape wash after wash.",
+      "category": "Round Neck T-Shirt",
+      "tags": [
+        "Trending",
+        "Round Neck",
+        "280 GSM"
+      ],
+      "basePrice": 1799,
+      "discountPrice": 1499,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Slate Charcoal",
+          "colorHex": "#2f3136",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_RN01-SC_s",
+          "colorName": "Slate Charcoal",
+          "colorHex": "#2f3136",
+          "size": "S",
+          "sku": "4L-RN01-SC-S",
+          "stock": 28,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-SC_m",
+          "colorName": "Slate Charcoal",
+          "colorHex": "#2f3136",
+          "size": "M",
+          "sku": "4L-RN01-SC-M",
+          "stock": 25,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-SC_l",
+          "colorName": "Slate Charcoal",
+          "colorHex": "#2f3136",
+          "size": "L",
+          "sku": "4L-RN01-SC-L",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-SC_xl",
+          "colorName": "Slate Charcoal",
+          "colorHex": "#2f3136",
+          "size": "XL",
+          "sku": "4L-RN01-SC-XL",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "S",
+          "sku": "4L-RN01-PB-S",
+          "stock": 22,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "M",
+          "sku": "4L-RN01-PB-M",
+          "stock": 19,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "L",
+          "sku": "4L-RN01-PB-L",
+          "stock": 16,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN01-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "XL",
+          "sku": "4L-RN01-PB-XL",
+          "stock": 13,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "100% Ringspun Heavyweight Cotton",
+        "gsm": 280,
+        "fit": "Relaxed modern crewneck",
+        "care": "Cold gentle wash",
+        "modelStats": "6'0\" wearing size M"
+      },
+      "rating": 5,
+      "reviewsCount": 62,
+      "createdAt": "2026-03-01T10:00:00Z"
+    },
+    {
+      "id": "prod_round_02",
+      "slug": "monolith-320gsm-thick-collar-crewneck",
+      "title": "Monolith 320 GSM Round Neck Blank",
+      "subtitle": "Ultra-Dense 320 GSM Jersey · 1.5\" Ribbed Neckline",
+      "description": "Our heaviest round neck blank woven with dual-twisted 320 GSM yarn for sculptural structure and zero wrinkling.",
+      "category": "Round Neck T-Shirt",
+      "tags": [
+        "Round Neck",
+        "320 GSM",
+        "Blank"
+      ],
+      "basePrice": 2099,
+      "discountPrice": 1799,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f7",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_RN02-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f7",
+          "size": "S",
+          "sku": "4L-RN02-PW-S",
+          "stock": 24,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f7",
+          "size": "M",
+          "sku": "4L-RN02-PW-M",
+          "stock": 21,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f7",
+          "size": "L",
+          "sku": "4L-RN02-PW-L",
+          "stock": 18,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f7",
+          "size": "XL",
+          "sku": "4L-RN02-PW-XL",
+          "stock": 15,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-WB_s",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "S",
+          "sku": "4L-RN02-WB-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-WB_m",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "M",
+          "sku": "4L-RN02-WB-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-WB_l",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "L",
+          "sku": "4L-RN02-WB-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_RN02-WB_xl",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "XL",
+          "sku": "4L-RN02-WB-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "320 GSM Heavy Combed Cotton",
+        "gsm": 320,
+        "fit": "Square box cut",
+        "care": "Wash cold. Air dry.",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 37,
+      "createdAt": "2026-02-28T15:00:00Z"
+    },
+    {
+      "id": "prod_round_03",
+      "slug": "essential-sandstone-round-neck-tee",
+      "title": "Sandstone Bio-Wash Round Neck Tee",
+      "subtitle": "260 GSM Peached Cotton · Soft-Touch Crewneck",
+      "description": "Enzyme bio-washed for a suede-like hand feel with reinforced shoulder taping and zero-twist collar elasticity.",
+      "category": "Round Neck T-Shirt",
+      "tags": [
+        "Round Neck",
+        "Bio-Wash",
+        "Daily"
+      ],
+      "basePrice": 1699,
+      "discountPrice": 1399,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Sandstone Bone",
+          "colorHex": "#d9d2c5",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "colorName": "Obsidian Black",
+          "colorHex": "#141416",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_RN03-SB_s",
+          "colorName": "Sandstone Bone",
+          "colorHex": "#d9d2c5",
+          "size": "S",
+          "sku": "4L-RN03-SB-S",
+          "stock": 26,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-SB_m",
+          "colorName": "Sandstone Bone",
+          "colorHex": "#d9d2c5",
+          "size": "M",
+          "sku": "4L-RN03-SB-M",
+          "stock": 23,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-SB_l",
+          "colorName": "Sandstone Bone",
+          "colorHex": "#d9d2c5",
+          "size": "L",
+          "sku": "4L-RN03-SB-L",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-SB_xl",
+          "colorName": "Sandstone Bone",
+          "colorHex": "#d9d2c5",
+          "size": "XL",
+          "sku": "4L-RN03-SB-XL",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-OB_s",
+          "colorName": "Obsidian Black",
+          "colorHex": "#141416",
+          "size": "S",
+          "sku": "4L-RN03-OB-S",
+          "stock": 18,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-OB_m",
+          "colorName": "Obsidian Black",
+          "colorHex": "#141416",
+          "size": "M",
+          "sku": "4L-RN03-OB-M",
+          "stock": 15,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-OB_l",
+          "colorName": "Obsidian Black",
+          "colorHex": "#141416",
+          "size": "L",
+          "sku": "4L-RN03-OB-L",
+          "stock": 12,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN03-OB_xl",
+          "colorName": "Obsidian Black",
+          "colorHex": "#141416",
+          "size": "XL",
+          "sku": "4L-RN03-OB-XL",
+          "stock": 9,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "260 GSM Bio-Washed Combed Cotton",
+        "gsm": 260,
+        "fit": "Classic tailored streetwear fit",
+        "care": "Gentle cold wash",
+        "modelStats": "5'11\" wearing size M"
+      },
+      "rating": 4.8,
+      "reviewsCount": 29,
+      "createdAt": "2026-02-24T12:00:00Z"
+    },
+    {
+      "id": "prod_round_04",
+      "slug": "studio-graphite-micro-rib-round-neck-tee",
+      "title": "Graphite Micro-Rib Round Neck T-Shirt",
+      "subtitle": "290 GSM Compact Knit · Tonal Stitch Framing",
+      "description": "Dense compact cotton jersey finished with twin-needle flatlock seams and an elevated mock-height ribbed crewneck.",
+      "category": "Round Neck T-Shirt",
+      "tags": [
+        "Round Neck",
+        "Micro-Rib"
+      ],
+      "basePrice": 1899,
+      "discountPrice": 1599,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Graphite Slate",
+          "colorHex": "#3c3e42",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_RN04-GS_s",
+          "colorName": "Graphite Slate",
+          "colorHex": "#3c3e42",
+          "size": "S",
+          "sku": "4L-RN04-GS-S",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-GS_m",
+          "colorName": "Graphite Slate",
+          "colorHex": "#3c3e42",
+          "size": "M",
+          "sku": "4L-RN04-GS-M",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-GS_l",
+          "colorName": "Graphite Slate",
+          "colorHex": "#3c3e42",
+          "size": "L",
+          "sku": "4L-RN04-GS-L",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-GS_xl",
+          "colorName": "Graphite Slate",
+          "colorHex": "#3c3e42",
+          "size": "XL",
+          "sku": "4L-RN04-GS-XL",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-VB_s",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "S",
+          "sku": "4L-RN04-VB-S",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-VB_m",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "M",
+          "sku": "4L-RN04-VB-M",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-VB_l",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "L",
+          "sku": "4L-RN04-VB-L",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_RN04-VB_xl",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "XL",
+          "sku": "4L-RN04-VB-XL",
+          "stock": 10,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "290 GSM Compact Cotton",
+        "gsm": 290,
+        "fit": "Relaxed regular drape",
+        "care": "Machine wash cold",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 21,
+      "createdAt": "2026-02-21T10:00:00Z"
+    },
+    {
+      "id": "prod_polo_01",
+      "slug": "brutalist-boxy-knit-polo-tee",
+      "title": "Brutalist Boxy Knit Polo T-Shirt",
+      "subtitle": "Structured Knit Collar · 290 GSM Interlock · Horn Placket",
+      "description": "Elevated luxury meets relaxed streetwear with high-density 290 GSM interlock cotton and a structured knit collar.",
+      "category": "Polo Neck T-Shirt",
+      "tags": [
+        "Trending",
+        "Polo",
+        "Collared"
+      ],
+      "basePrice": 2499,
+      "discountPrice": 2199,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "colorName": "Vintage Bone",
+          "colorHex": "#e5e1d7",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_PL01-WB_s",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "S",
+          "sku": "4L-PL01-WB-S",
+          "stock": 25,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-WB_m",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "M",
+          "sku": "4L-PL01-WB-M",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-WB_l",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "L",
+          "sku": "4L-PL01-WB-L",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-WB_xl",
+          "colorName": "Washed Black",
+          "colorHex": "#18181a",
+          "size": "XL",
+          "sku": "4L-PL01-WB-XL",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-VB_s",
+          "colorName": "Vintage Bone",
+          "colorHex": "#e5e1d7",
+          "size": "S",
+          "sku": "4L-PL01-VB-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-VB_m",
+          "colorName": "Vintage Bone",
+          "colorHex": "#e5e1d7",
+          "size": "M",
+          "sku": "4L-PL01-VB-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-VB_l",
+          "colorName": "Vintage Bone",
+          "colorHex": "#e5e1d7",
+          "size": "L",
+          "sku": "4L-PL01-VB-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_PL01-VB_xl",
+          "colorName": "Vintage Bone",
+          "colorHex": "#e5e1d7",
+          "size": "XL",
+          "sku": "4L-PL01-VB-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "290 GSM Combed Cotton Interlock",
+        "gsm": 290,
+        "fit": "Boxy streetwear polo",
+        "care": "Gentle cold wash. Flat dry.",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 35,
+      "createdAt": "2026-02-20T14:00:00Z"
+    },
+    {
+      "id": "prod_polo_02",
+      "slug": "quarter-zip-french-terry-polo-tee",
+      "title": "Quarter-Zip French Terry Polo T-Shirt",
+      "subtitle": "YKK Metal Half-Zip · Stand-Up Collar · 300 GSM Terry",
+      "description": "Industrial gunmetal quarter-zip polo allowing dynamic styling from crisp fold-down collar to funnel neck.",
+      "category": "Polo Neck T-Shirt",
+      "tags": [
+        "Polo",
+        "Zip Collar"
+      ],
+      "basePrice": 2699,
+      "discountPrice": 2299,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Obsidian Black",
+          "colorHex": "#121214",
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "colorName": "Muted Taupe",
+          "colorHex": "#545048",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_PL02-OB_s",
+          "colorName": "Obsidian Black",
+          "colorHex": "#121214",
+          "size": "S",
+          "sku": "4L-PL02-OB-S",
+          "stock": 18,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-OB_m",
+          "colorName": "Obsidian Black",
+          "colorHex": "#121214",
+          "size": "M",
+          "sku": "4L-PL02-OB-M",
+          "stock": 15,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-OB_l",
+          "colorName": "Obsidian Black",
+          "colorHex": "#121214",
+          "size": "L",
+          "sku": "4L-PL02-OB-L",
+          "stock": 12,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-OB_xl",
+          "colorName": "Obsidian Black",
+          "colorHex": "#121214",
+          "size": "XL",
+          "sku": "4L-PL02-OB-XL",
+          "stock": 9,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-MT_s",
+          "colorName": "Muted Taupe",
+          "colorHex": "#545048",
+          "size": "S",
+          "sku": "4L-PL02-MT-S",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-MT_m",
+          "colorName": "Muted Taupe",
+          "colorHex": "#545048",
+          "size": "M",
+          "sku": "4L-PL02-MT-M",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-MT_l",
+          "colorName": "Muted Taupe",
+          "colorHex": "#545048",
+          "size": "L",
+          "sku": "4L-PL02-MT-L",
+          "stock": 10,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_PL02-MT_xl",
+          "colorName": "Muted Taupe",
+          "colorHex": "#545048",
+          "size": "XL",
+          "sku": "4L-PL02-MT-XL",
+          "stock": 7,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "300 GSM Loopback French Terry",
+        "gsm": 300,
+        "fit": "Boxy dropped-shoulder polo",
+        "care": "Zip closed before cold wash",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 4.8,
+      "reviewsCount": 29,
+      "createdAt": "2026-02-25T11:00:00Z"
+    },
+    {
+      "id": "prod_polo_03",
+      "slug": "open-placket-waffle-polo-tshirt",
+      "title": "Open-Placket Honeycomb Polo T-Shirt",
+      "subtitle": "Buttonless V-Placket · 280 GSM Breathable Waffle Knit",
+      "description": "Clean buttonless open-placket collar with dimensional waffle texture for breezy resort-streetwear elegance.",
+      "category": "Polo Neck T-Shirt",
+      "tags": [
+        "Polo",
+        "Waffle Knit"
+      ],
+      "basePrice": 2399,
+      "discountPrice": 1999,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Chalk Ivory",
+          "colorHex": "#efece6",
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_PL03-CI_s",
+          "colorName": "Chalk Ivory",
+          "colorHex": "#efece6",
+          "size": "S",
+          "sku": "4L-PL03-CI-S",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-CI_m",
+          "colorName": "Chalk Ivory",
+          "colorHex": "#efece6",
+          "size": "M",
+          "sku": "4L-PL03-CI-M",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-CI_l",
+          "colorName": "Chalk Ivory",
+          "colorHex": "#efece6",
+          "size": "L",
+          "sku": "4L-PL03-CI-L",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-CI_xl",
+          "colorName": "Chalk Ivory",
+          "colorHex": "#efece6",
+          "size": "XL",
+          "sku": "4L-PL03-CI-XL",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "S",
+          "sku": "4L-PL03-PB-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "M",
+          "sku": "4L-PL03-PB-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "L",
+          "sku": "4L-PL03-PB-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_PL03-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "XL",
+          "sku": "4L-PL03-PB-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "280 GSM Cotton Waffle Knit",
+        "gsm": 280,
+        "fit": "Relaxed open collar drape",
+        "care": "Lay flat to dry",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 24,
+      "createdAt": "2026-02-27T10:00:00Z"
+    },
+    {
+      "id": "prod_polo_04",
+      "slug": "contrast-piped-atelier-polo-tee",
+      "title": "Contrast Piped Atelier Polo T-Shirt",
+      "subtitle": "Tipped Jacquard Collar · 285 GSM Combed Pique Cotton",
+      "description": "Fine honeycomb pique cotton paired with subtle architectural collar tipping and split-tail vented side hems.",
+      "category": "Polo Neck T-Shirt",
+      "tags": [
+        "Polo",
+        "Pique"
+      ],
+      "basePrice": 2499,
+      "discountPrice": 2099,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Noir Gold",
+          "colorHex": "#19191b",
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "colorName": "Sage Concrete",
+          "colorHex": "#4b534b",
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_PL04-NG_s",
+          "colorName": "Noir Gold",
+          "colorHex": "#19191b",
+          "size": "S",
+          "sku": "4L-PL04-NG-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-NG_m",
+          "colorName": "Noir Gold",
+          "colorHex": "#19191b",
+          "size": "M",
+          "sku": "4L-PL04-NG-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-NG_l",
+          "colorName": "Noir Gold",
+          "colorHex": "#19191b",
+          "size": "L",
+          "sku": "4L-PL04-NG-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-NG_xl",
+          "colorName": "Noir Gold",
+          "colorHex": "#19191b",
+          "size": "XL",
+          "sku": "4L-PL04-NG-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-SC_s",
+          "colorName": "Sage Concrete",
+          "colorHex": "#4b534b",
+          "size": "S",
+          "sku": "4L-PL04-SC-S",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-SC_m",
+          "colorName": "Sage Concrete",
+          "colorHex": "#4b534b",
+          "size": "M",
+          "sku": "4L-PL04-SC-M",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-SC_l",
+          "colorName": "Sage Concrete",
+          "colorHex": "#4b534b",
+          "size": "L",
+          "sku": "4L-PL04-SC-L",
+          "stock": 10,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_PL04-SC_xl",
+          "colorName": "Sage Concrete",
+          "colorHex": "#4b534b",
+          "size": "XL",
+          "sku": "4L-PL04-SC-XL",
+          "stock": 7,
+          "images": [
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "285 GSM Heavy Combed Pique",
+        "gsm": 285,
+        "fit": "Structured boxy polo",
+        "care": "Cold delicate wash",
+        "modelStats": "6'0\" wearing size M"
+      },
+      "rating": 4.8,
+      "reviewsCount": 19,
+      "createdAt": "2026-03-02T09:00:00Z"
+    },
+    {
+      "id": "prod_drop_01",
+      "slug": "architectural-drop-shoulder-box-tee",
+      "title": "Architectural Down Shoulder T-Shirt",
+      "subtitle": "280 GSM Combed Cotton · Exaggerated Low Shoulder · Boxy Fit",
+      "description": "The flagship 4LAAZY silhouette with lowered shoulder seams, generous sleeve length, and zero-curl 1.25\" ribbed collar.",
+      "category": "Down Shoulder T-Shirt",
+      "tags": [
+        "Trending",
+        "Bestseller",
+        "Down Shoulder"
+      ],
+      "basePrice": 1999,
+      "discountPrice": 1699,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Washed Black",
+          "colorHex": "#1c1b1f",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "colorName": "Charcoal Grey",
+          "colorHex": "#3b3b40",
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_DS01-WB_s",
+          "colorName": "Washed Black",
+          "colorHex": "#1c1b1f",
+          "size": "S",
+          "sku": "4L-DS01-WB-S",
+          "stock": 35,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-WB_m",
+          "colorName": "Washed Black",
+          "colorHex": "#1c1b1f",
+          "size": "M",
+          "sku": "4L-DS01-WB-M",
+          "stock": 32,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-WB_l",
+          "colorName": "Washed Black",
+          "colorHex": "#1c1b1f",
+          "size": "L",
+          "sku": "4L-DS01-WB-L",
+          "stock": 29,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-WB_xl",
+          "colorName": "Washed Black",
+          "colorHex": "#1c1b1f",
+          "size": "XL",
+          "sku": "4L-DS01-WB-XL",
+          "stock": 26,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-VB_s",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "S",
+          "sku": "4L-DS01-VB-S",
+          "stock": 26,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-VB_m",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "M",
+          "sku": "4L-DS01-VB-M",
+          "stock": 23,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-VB_l",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "L",
+          "sku": "4L-DS01-VB-L",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS01-VB_xl",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "XL",
+          "sku": "4L-DS01-VB-XL",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "100% Combed Compact Cotton",
+        "gsm": 280,
+        "fit": "Boxy oversized down-shoulder cut",
+        "care": "Machine wash cold inside out",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 48,
+      "createdAt": "2026-02-15T10:00:00Z"
+    },
+    {
+      "id": "prod_drop_02",
+      "slug": "monochrome-raw-edge-down-shoulder-tee",
+      "title": "Monochrome Raw-Edge Down Shoulder Tee",
+      "subtitle": "Exaggerated Drape · Raw Laser Cut Cuff & Hem · 280 GSM",
+      "description": "Dropped shoulder seam resting 4 inches below the natural shoulder blade with treated raw-cut sleeve openings.",
+      "category": "Down Shoulder T-Shirt",
+      "tags": [
+        "Down Shoulder",
+        "Raw Edge"
+      ],
+      "basePrice": 1999,
+      "discountPrice": 1699,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Washed Charcoal",
+          "colorHex": "#353538",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "colorName": "Bone Chalk",
+          "colorHex": "#eae7e1",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_DS02-WC_s",
+          "colorName": "Washed Charcoal",
+          "colorHex": "#353538",
+          "size": "S",
+          "sku": "4L-DS02-WC-S",
+          "stock": 24,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-WC_m",
+          "colorName": "Washed Charcoal",
+          "colorHex": "#353538",
+          "size": "M",
+          "sku": "4L-DS02-WC-M",
+          "stock": 21,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-WC_l",
+          "colorName": "Washed Charcoal",
+          "colorHex": "#353538",
+          "size": "L",
+          "sku": "4L-DS02-WC-L",
+          "stock": 18,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-WC_xl",
+          "colorName": "Washed Charcoal",
+          "colorHex": "#353538",
+          "size": "XL",
+          "sku": "4L-DS02-WC-XL",
+          "stock": 15,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-BC_s",
+          "colorName": "Bone Chalk",
+          "colorHex": "#eae7e1",
+          "size": "S",
+          "sku": "4L-DS02-BC-S",
+          "stock": 18,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-BC_m",
+          "colorName": "Bone Chalk",
+          "colorHex": "#eae7e1",
+          "size": "M",
+          "sku": "4L-DS02-BC-M",
+          "stock": 15,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-BC_l",
+          "colorName": "Bone Chalk",
+          "colorHex": "#eae7e1",
+          "size": "L",
+          "sku": "4L-DS02-BC-L",
+          "stock": 12,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_DS02-BC_xl",
+          "colorName": "Bone Chalk",
+          "colorHex": "#eae7e1",
+          "size": "XL",
+          "sku": "4L-DS02-BC-XL",
+          "stock": 9,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "280 GSM Egyptian Cotton",
+        "gsm": 280,
+        "fit": "Relaxed down-shoulder slouch",
+        "care": "Gentle machine wash",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.8,
+      "reviewsCount": 31,
+      "createdAt": "2026-03-03T10:00:00Z"
+    },
+    {
+      "id": "prod_drop_03",
+      "slug": "heavy-cube-boxy-down-shoulder-tshirt",
+      "title": "Heavy Cube 310 GSM Down Shoulder Tee",
+      "subtitle": "310 GSM Structured Loopback · Cropped Boxy Length",
+      "description": "Slightly cropped boxy body paired with extended wide sleeves for clean proportions over relaxed cargos or denims.",
+      "category": "Down Shoulder T-Shirt",
+      "tags": [
+        "Down Shoulder",
+        "310 GSM",
+        "Heavyweight"
+      ],
+      "basePrice": 2199,
+      "discountPrice": 1849,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#101012",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "colorName": "Olive Sage",
+          "colorHex": "#464d44",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_DS03-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#101012",
+          "size": "S",
+          "sku": "4L-DS03-PB-S",
+          "stock": 26,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#101012",
+          "size": "M",
+          "sku": "4L-DS03-PB-M",
+          "stock": 23,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#101012",
+          "size": "L",
+          "sku": "4L-DS03-PB-L",
+          "stock": 20,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#101012",
+          "size": "XL",
+          "sku": "4L-DS03-PB-XL",
+          "stock": 17,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-OS_s",
+          "colorName": "Olive Sage",
+          "colorHex": "#464d44",
+          "size": "S",
+          "sku": "4L-DS03-OS-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-OS_m",
+          "colorName": "Olive Sage",
+          "colorHex": "#464d44",
+          "size": "M",
+          "sku": "4L-DS03-OS-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-OS_l",
+          "colorName": "Olive Sage",
+          "colorHex": "#464d44",
+          "size": "L",
+          "sku": "4L-DS03-OS-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_DS03-OS_xl",
+          "colorName": "Olive Sage",
+          "colorHex": "#464d44",
+          "size": "XL",
+          "sku": "4L-DS03-OS-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "310 GSM Custom Loopback Cotton",
+        "gsm": 310,
+        "fit": "Wide boxy down-shoulder",
+        "care": "Cold wash inside out",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 41,
+      "createdAt": "2026-03-04T11:00:00Z"
+    },
+    {
+      "id": "prod_drop_04",
+      "slug": "seam-detail-slouch-down-shoulder-tee",
+      "title": "Reverse-Seam Down Shoulder T-Shirt",
+      "subtitle": "Exposed Overlock Shoulder Seams · 290 GSM Combed Jersey",
+      "description": "Architectural exposed shoulder stitching emphasizes the wide down-shoulder silhouette in tonal thread.",
+      "category": "Down Shoulder T-Shirt",
+      "tags": [
+        "Down Shoulder",
+        "Architectural"
+      ],
+      "basePrice": 2099,
+      "discountPrice": 1749,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Concrete Ash",
+          "colorHex": "#55565a",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_DS04-CA_s",
+          "colorName": "Concrete Ash",
+          "colorHex": "#55565a",
+          "size": "S",
+          "sku": "4L-DS04-CA-S",
+          "stock": 22,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-CA_m",
+          "colorName": "Concrete Ash",
+          "colorHex": "#55565a",
+          "size": "M",
+          "sku": "4L-DS04-CA-M",
+          "stock": 19,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-CA_l",
+          "colorName": "Concrete Ash",
+          "colorHex": "#55565a",
+          "size": "L",
+          "sku": "4L-DS04-CA-L",
+          "stock": 16,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-CA_xl",
+          "colorName": "Concrete Ash",
+          "colorHex": "#55565a",
+          "size": "XL",
+          "sku": "4L-DS04-CA-XL",
+          "stock": 13,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "S",
+          "sku": "4L-DS04-PW-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "M",
+          "sku": "4L-DS04-PW-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "L",
+          "sku": "4L-DS04-PW-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_DS04-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "XL",
+          "sku": "4L-DS04-PW-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "290 GSM Ringspun Cotton",
+        "gsm": 290,
+        "fit": "Relaxed down-shoulder fit",
+        "care": "Wash inside out",
+        "modelStats": "6'0\" wearing size M"
+      },
+      "rating": 4.8,
+      "reviewsCount": 18,
+      "createdAt": "2026-03-04T16:00:00Z"
+    },
+    {
+      "id": "prod_custom_01",
+      "slug": "bespoke-custom-print-streetwear-tee",
+      "title": "Bespoke 3D Studio White Customise Tee",
+      "subtitle": "3D Rotatable Blank · Upload Artwork & Text · 280 GSM Heavyweight",
+      "description": "Upload your artwork or custom typography in our live 3D studio and preview it front and back on crisp white 280 GSM cotton.",
+      "category": "Customise T-Shirt",
+      "tags": [
+        "Trending",
+        "Customise",
+        "3D Studio"
+      ],
+      "basePrice": 2299,
+      "discountPrice": 1999,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_CS01-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "S",
+          "sku": "4L-CS01-PW-S",
+          "stock": 45,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "M",
+          "sku": "4L-CS01-PW-M",
+          "stock": 42,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "L",
+          "sku": "4L-CS01-PW-L",
+          "stock": 39,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "XL",
+          "sku": "4L-CS01-PW-XL",
+          "stock": 36,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "S",
+          "sku": "4L-CS01-PB-S",
+          "stock": 35,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "M",
+          "sku": "4L-CS01-PB-M",
+          "stock": 32,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "L",
+          "sku": "4L-CS01-PB-L",
+          "stock": 29,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS01-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "XL",
+          "sku": "4L-CS01-PB-XL",
+          "stock": 26,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "280 GSM Print-Ready Heavy Cotton",
+        "gsm": 280,
+        "fit": "Oversized down-shoulder print blank",
+        "care": "Cold wash inside out",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 5,
+      "reviewsCount": 84,
+      "createdAt": "2026-03-01T12:00:00Z"
+    },
+    {
+      "id": "prod_custom_02",
+      "slug": "custom-3d-puff-print-oversized-blank",
+      "title": "3D Silicone Puff Customise T-Shirt",
+      "subtitle": "Raised 3D Ink Finish · Front & Back Placement · 300 GSM",
+      "description": "High-relief 3D silicone puff ink pressed onto a 300 GSM boxy down-shoulder blank using your own crest or back graphic.",
+      "category": "Customise T-Shirt",
+      "tags": [
+        "Customise",
+        "3D Puff"
+      ],
+      "basePrice": 2499,
+      "discountPrice": 2149,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Pure White",
+          "colorHex": "#ffffff",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_CS02-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#ffffff",
+          "size": "S",
+          "sku": "4L-CS02-PW-S",
+          "stock": 30,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#ffffff",
+          "size": "M",
+          "sku": "4L-CS02-PW-M",
+          "stock": 27,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#ffffff",
+          "size": "L",
+          "sku": "4L-CS02-PW-L",
+          "stock": 24,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#ffffff",
+          "size": "XL",
+          "sku": "4L-CS02-PW-XL",
+          "stock": 21,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-VB_s",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "S",
+          "sku": "4L-CS02-VB-S",
+          "stock": 24,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-VB_m",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "M",
+          "sku": "4L-CS02-VB-M",
+          "stock": 21,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-VB_l",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "L",
+          "sku": "4L-CS02-VB-L",
+          "stock": 18,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS02-VB_xl",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "XL",
+          "sku": "4L-CS02-VB-XL",
+          "stock": 15,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "300 GSM Heavy Ringspun Cotton",
+        "gsm": 300,
+        "fit": "Boxy studio print fit",
+        "care": "Do not iron directly over puff print",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 53,
+      "createdAt": "2026-03-02T11:00:00Z"
+    },
+    {
+      "id": "prod_custom_03",
+      "slug": "custom-back-canvas-statement-tee",
+      "title": "Full Back Canvas Customise T-Shirt",
+      "subtitle": "12\" × 16\" Monumental Back Print · HD DTG · 280 GSM",
+      "description": "Dedicated oversized back canvas customisation with chest pocket monogram for maximum streetwear impact.",
+      "category": "Customise T-Shirt",
+      "tags": [
+        "Customise",
+        "Back Print"
+      ],
+      "basePrice": 2399,
+      "discountPrice": 2049,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#121214",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_CS03-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#121214",
+          "size": "S",
+          "sku": "4L-CS03-PB-S",
+          "stock": 28,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#121214",
+          "size": "M",
+          "sku": "4L-CS03-PB-M",
+          "stock": 25,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#121214",
+          "size": "L",
+          "sku": "4L-CS03-PB-L",
+          "stock": 22,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#121214",
+          "size": "XL",
+          "sku": "4L-CS03-PB-XL",
+          "stock": 19,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "S",
+          "sku": "4L-CS03-PW-S",
+          "stock": 28,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "M",
+          "sku": "4L-CS03-PW-M",
+          "stock": 25,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "L",
+          "sku": "4L-CS03-PW-L",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_CS03-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "XL",
+          "sku": "4L-CS03-PW-XL",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "280 GSM Combed Cotton",
+        "gsm": 280,
+        "fit": "Boxy streetwear cut",
+        "care": "Gentle cold wash",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 39,
+      "createdAt": "2026-03-03T13:00:00Z"
+    },
+    {
+      "id": "prod_custom_04",
+      "slug": "custom-team-agency-pack-polo-or-tee",
+      "title": "Metallic Gold Foil Customise T-Shirt",
+      "subtitle": "Reflective Foil Heat-Press · Custom Crest & Slogan",
+      "description": "Studio vacuum metallic gold or chrome foil press on custom 290 GSM black or white heavyweight tees.",
+      "category": "Customise T-Shirt",
+      "tags": [
+        "Customise",
+        "Gold Foil"
+      ],
+      "basePrice": 2599,
+      "discountPrice": 2249,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_CS04-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "S",
+          "sku": "4L-CS04-PB-S",
+          "stock": 24,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "M",
+          "sku": "4L-CS04-PB-M",
+          "stock": 21,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "L",
+          "sku": "4L-CS04-PB-L",
+          "stock": 18,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#111112",
+          "size": "XL",
+          "sku": "4L-CS04-PB-XL",
+          "stock": 15,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "S",
+          "sku": "4L-CS04-PW-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "M",
+          "sku": "4L-CS04-PW-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "L",
+          "sku": "4L-CS04-PW-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_CS04-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#fbfbfe",
+          "size": "XL",
+          "sku": "4L-CS04-PW-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "290 GSM Combed Cotton",
+        "gsm": 290,
+        "fit": "Relaxed studio fit",
+        "care": "Hand wash inside out",
+        "modelStats": "6'0\" wearing size M"
+      },
+      "rating": 5,
+      "reviewsCount": 27,
+      "createdAt": "2026-03-04T09:00:00Z"
+    },
+    {
+      "id": "prod_laazy_01",
+      "slug": "laazy-designs-mineral-acid-wash-tee",
+      "title": "Laazy Designs Acid Wash Signature Tee",
+      "subtitle": "300 GSM Heavyweight · Hand Mineral Patina · Raw Hem",
+      "description": "Signature atelier acid-washed cotton tee with organic charcoal marbling and distressed neckline detailing.",
+      "category": "Laazy Designs",
+      "tags": [
+        "Trending",
+        "Laazy Designs",
+        "Acid Wash"
+      ],
+      "basePrice": 2199,
+      "discountPrice": 1899,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Acid Charcoal",
+          "colorHex": "#2b2c30",
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "colorName": "Acid Sand",
+          "colorHex": "#787368",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LD01-AC_s",
+          "colorName": "Acid Charcoal",
+          "colorHex": "#2b2c30",
+          "size": "S",
+          "sku": "4L-LD01-AC-S",
+          "stock": 28,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AC_m",
+          "colorName": "Acid Charcoal",
+          "colorHex": "#2b2c30",
+          "size": "M",
+          "sku": "4L-LD01-AC-M",
+          "stock": 25,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AC_l",
+          "colorName": "Acid Charcoal",
+          "colorHex": "#2b2c30",
+          "size": "L",
+          "sku": "4L-LD01-AC-L",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AC_xl",
+          "colorName": "Acid Charcoal",
+          "colorHex": "#2b2c30",
+          "size": "XL",
+          "sku": "4L-LD01-AC-XL",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AS_s",
+          "colorName": "Acid Sand",
+          "colorHex": "#787368",
+          "size": "S",
+          "sku": "4L-LD01-AS-S",
+          "stock": 20,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AS_m",
+          "colorName": "Acid Sand",
+          "colorHex": "#787368",
+          "size": "M",
+          "sku": "4L-LD01-AS-M",
+          "stock": 17,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AS_l",
+          "colorName": "Acid Sand",
+          "colorHex": "#787368",
+          "size": "L",
+          "sku": "4L-LD01-AS-L",
+          "stock": 14,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LD01-AS_xl",
+          "colorName": "Acid Sand",
+          "colorHex": "#787368",
+          "size": "XL",
+          "sku": "4L-LD01-AS-XL",
+          "stock": 11,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "300 GSM Mineral Washed Cotton",
+        "gsm": 300,
+        "fit": "Wide streetwear cut",
+        "care": "Wash cold with dark garments",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 52,
+      "createdAt": "2026-02-22T13:00:00Z"
+    },
+    {
+      "id": "prod_laazy_02",
+      "slug": "subversive-archive-typography-laazy-design-tee",
+      "title": "Subversive Typography Laazy Design Tee",
+      "subtitle": "Dual-Side 3D Puff Screen Graphic · 280 GSM Oversized",
+      "description": "In-house constructivist typography across the chest in raised 3D puff ink paired with a nape monogram.",
+      "category": "Laazy Designs",
+      "tags": [
+        "Trending",
+        "Laazy Designs",
+        "Graphic"
+      ],
+      "basePrice": 2199,
+      "discountPrice": 1799,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "colorName": "Washed Black",
+          "colorHex": "#141416",
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LD02-VB_s",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "S",
+          "sku": "4L-LD02-VB-S",
+          "stock": 26,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-VB_m",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "M",
+          "sku": "4L-LD02-VB-M",
+          "stock": 23,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-VB_l",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "L",
+          "sku": "4L-LD02-VB-L",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-VB_xl",
+          "colorName": "Vintage Bone",
+          "colorHex": "#ebe7df",
+          "size": "XL",
+          "sku": "4L-LD02-VB-XL",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-WB_s",
+          "colorName": "Washed Black",
+          "colorHex": "#141416",
+          "size": "S",
+          "sku": "4L-LD02-WB-S",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-WB_m",
+          "colorName": "Washed Black",
+          "colorHex": "#141416",
+          "size": "M",
+          "sku": "4L-LD02-WB-M",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-WB_l",
+          "colorName": "Washed Black",
+          "colorHex": "#141416",
+          "size": "L",
+          "sku": "4L-LD02-WB-L",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LD02-WB_xl",
+          "colorName": "Washed Black",
+          "colorHex": "#141416",
+          "size": "XL",
+          "sku": "4L-LD02-WB-XL",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "280 GSM Ringspun Cotton",
+        "gsm": 280,
+        "fit": "Exaggerated streetwear fit",
+        "care": "Turn inside out before washing",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 5,
+      "reviewsCount": 46,
+      "createdAt": "2026-03-02T16:00:00Z"
+    },
+    {
+      "id": "prod_laazy_03",
+      "slug": "brutalist-blueprint-back-graphic-laazy-tee",
+      "title": "Brutalist Blueprint Back-Print Tee",
+      "subtitle": "Architectural Grid Artwork · 290 GSM Boxy Cut",
+      "description": "High-contrast tonal blueprint schematic printed across the full back with subtle chest coordinates.",
+      "category": "Laazy Designs",
+      "tags": [
+        "Laazy Designs",
+        "Back Print"
+      ],
+      "basePrice": 2299,
+      "discountPrice": 1899,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Obsidian Ink",
+          "colorHex": "#131316",
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "colorName": "Chalk Grey",
+          "colorHex": "#949599",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LD03-OI_s",
+          "colorName": "Obsidian Ink",
+          "colorHex": "#131316",
+          "size": "S",
+          "sku": "4L-LD03-OI-S",
+          "stock": 22,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-OI_m",
+          "colorName": "Obsidian Ink",
+          "colorHex": "#131316",
+          "size": "M",
+          "sku": "4L-LD03-OI-M",
+          "stock": 19,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-OI_l",
+          "colorName": "Obsidian Ink",
+          "colorHex": "#131316",
+          "size": "L",
+          "sku": "4L-LD03-OI-L",
+          "stock": 16,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-OI_xl",
+          "colorName": "Obsidian Ink",
+          "colorHex": "#131316",
+          "size": "XL",
+          "sku": "4L-LD03-OI-XL",
+          "stock": 13,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/tshirt_custom_print_1794456303137.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-CG_s",
+          "colorName": "Chalk Grey",
+          "colorHex": "#949599",
+          "size": "S",
+          "sku": "4L-LD03-CG-S",
+          "stock": 18,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-CG_m",
+          "colorName": "Chalk Grey",
+          "colorHex": "#949599",
+          "size": "M",
+          "sku": "4L-LD03-CG-M",
+          "stock": 15,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-CG_l",
+          "colorName": "Chalk Grey",
+          "colorHex": "#949599",
+          "size": "L",
+          "sku": "4L-LD03-CG-L",
+          "stock": 12,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LD03-CG_xl",
+          "colorName": "Chalk Grey",
+          "colorHex": "#949599",
+          "size": "XL",
+          "sku": "4L-LD03-CG-XL",
+          "stock": 9,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "290 GSM Heavy Cotton",
+        "gsm": 290,
+        "fit": "Relaxed down-shoulder fit",
+        "care": "Cold gentle cycle",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 33,
+      "createdAt": "2026-03-03T15:00:00Z"
+    },
+    {
+      "id": "prod_laazy_04",
+      "slug": "less-effort-manifesto-heavy-tee",
+      "title": "Less Effort Manifesto Statement Tee",
+      "subtitle": "Soft-Wash DTG Graphic · 280 GSM Pre-Shrunk Jersey",
+      "description": "Our signature ethos rendered in sharp editorial type that softens seamlessly into the combed cotton weave.",
+      "category": "Laazy Designs",
+      "tags": [
+        "Laazy Designs",
+        "Manifesto"
+      ],
+      "basePrice": 2099,
+      "discountPrice": 1699,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Washed Black",
+          "colorHex": "#1a1a1d",
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LD04-WB_s",
+          "colorName": "Washed Black",
+          "colorHex": "#1a1a1d",
+          "size": "S",
+          "sku": "4L-LD04-WB-S",
+          "stock": 26,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-WB_m",
+          "colorName": "Washed Black",
+          "colorHex": "#1a1a1d",
+          "size": "M",
+          "sku": "4L-LD04-WB-M",
+          "stock": 23,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-WB_l",
+          "colorName": "Washed Black",
+          "colorHex": "#1a1a1d",
+          "size": "L",
+          "sku": "4L-LD04-WB-L",
+          "stock": 20,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-WB_xl",
+          "colorName": "Washed Black",
+          "colorHex": "#1a1a1d",
+          "size": "XL",
+          "sku": "4L-LD04-WB-XL",
+          "stock": 17,
+          "images": [
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-PW_s",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "S",
+          "sku": "4L-LD04-PW-S",
+          "stock": 24,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-PW_m",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "M",
+          "sku": "4L-LD04-PW-M",
+          "stock": 21,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-PW_l",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "L",
+          "sku": "4L-LD04-PW-L",
+          "stock": 18,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        },
+        {
+          "id": "var_LD04-PW_xl",
+          "colorName": "Pure White",
+          "colorHex": "#f5f5f5",
+          "size": "XL",
+          "sku": "4L-LD04-PW-XL",
+          "stock": 15,
+          "images": [
+            "/assets/images/tshirt_custom_print_1794456303137.jpg",
+            "/assets/images/tshirt_round_neck_1794456303307.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "280 GSM Combed Cotton",
+        "gsm": 280,
+        "fit": "Modern relaxed boxy cut",
+        "care": "Machine wash cold",
+        "modelStats": "6'0\" wearing size M"
+      },
+      "rating": 4.8,
+      "reviewsCount": 25,
+      "createdAt": "2026-03-04T12:00:00Z"
+    },
+    {
+      "id": "prod_limited_01",
+      "slug": "numbered-capsule-04-limited-design-tee",
+      "title": "Capsule 04 Numbered Limited Design Tee",
+      "subtitle": "Edition of 100 · Gold Foil Crest · 320 GSM Honeycomb Knit",
+      "description": "Strictly limited numbered collector edition—never restocked. Crafted from 320 GSM textured cotton with metallic gold foil crest.",
+      "category": "Limited Design",
+      "tags": [
+        "Trending",
+        "Limited Design",
+        "Numbered"
+      ],
+      "basePrice": 2999,
+      "discountPrice": 2599,
+      "isFeatured": true,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Obsidian Gold",
+          "colorHex": "#151517",
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "colorName": "Sage Concrete",
+          "colorHex": "#525a52",
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LM01-OG_s",
+          "colorName": "Obsidian Gold",
+          "colorHex": "#151517",
+          "size": "S",
+          "sku": "4L-LM01-OG-S",
+          "stock": 10,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-OG_m",
+          "colorName": "Obsidian Gold",
+          "colorHex": "#151517",
+          "size": "M",
+          "sku": "4L-LM01-OG-M",
+          "stock": 7,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-OG_l",
+          "colorName": "Obsidian Gold",
+          "colorHex": "#151517",
+          "size": "L",
+          "sku": "4L-LM01-OG-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-OG_xl",
+          "colorName": "Obsidian Gold",
+          "colorHex": "#151517",
+          "size": "XL",
+          "sku": "4L-LM01-OG-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-SC_s",
+          "colorName": "Sage Concrete",
+          "colorHex": "#525a52",
+          "size": "S",
+          "sku": "4L-LM01-SC-S",
+          "stock": 8,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-SC_m",
+          "colorName": "Sage Concrete",
+          "colorHex": "#525a52",
+          "size": "M",
+          "sku": "4L-LM01-SC-M",
+          "stock": 5,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-SC_l",
+          "colorName": "Sage Concrete",
+          "colorHex": "#525a52",
+          "size": "L",
+          "sku": "4L-LM01-SC-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM01-SC_xl",
+          "colorName": "Sage Concrete",
+          "colorHex": "#525a52",
+          "size": "XL",
+          "sku": "4L-LM01-SC-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "320 GSM Architectural Cotton Knit",
+        "gsm": 320,
+        "fit": "Sculpted boxy cut with woven edition tag",
+        "care": "Gentle hand wash inside out",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 5,
+      "reviewsCount": 28,
+      "createdAt": "2026-03-05T09:00:00Z"
+    },
+    {
+      "id": "prod_limited_02",
+      "slug": "monolith-atelier-embossed-limited-tee",
+      "title": "Monolith Embossed Collector T-Shirt",
+      "subtitle": "Edition of 75 · Heat-Debossed Chest Relief · 320 GSM",
+      "description": "Blind heat-embossed 4LAAZY relief across ultra-dense 320 GSM loopback jersey with satin internal serial numbering.",
+      "category": "Limited Design",
+      "tags": [
+        "Limited Design",
+        "Embossed",
+        "Collector"
+      ],
+      "basePrice": 3199,
+      "discountPrice": 2799,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Carbon Noir",
+          "colorHex": "#121213",
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "colorName": "Raw Travertine",
+          "colorHex": "#dcd7cc",
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LM02-CN_s",
+          "colorName": "Carbon Noir",
+          "colorHex": "#121213",
+          "size": "S",
+          "sku": "4L-LM02-CN-S",
+          "stock": 8,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-CN_m",
+          "colorName": "Carbon Noir",
+          "colorHex": "#121213",
+          "size": "M",
+          "sku": "4L-LM02-CN-M",
+          "stock": 5,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-CN_l",
+          "colorName": "Carbon Noir",
+          "colorHex": "#121213",
+          "size": "L",
+          "sku": "4L-LM02-CN-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-CN_xl",
+          "colorName": "Carbon Noir",
+          "colorHex": "#121213",
+          "size": "XL",
+          "sku": "4L-LM02-CN-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-RT_s",
+          "colorName": "Raw Travertine",
+          "colorHex": "#dcd7cc",
+          "size": "S",
+          "sku": "4L-LM02-RT-S",
+          "stock": 7,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-RT_m",
+          "colorName": "Raw Travertine",
+          "colorHex": "#dcd7cc",
+          "size": "M",
+          "sku": "4L-LM02-RT-M",
+          "stock": 4,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-RT_l",
+          "colorName": "Raw Travertine",
+          "colorHex": "#dcd7cc",
+          "size": "L",
+          "sku": "4L-LM02-RT-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM02-RT_xl",
+          "colorName": "Raw Travertine",
+          "colorHex": "#dcd7cc",
+          "size": "XL",
+          "sku": "4L-LM02-RT-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/tshirt_round_neck_1794456303307.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "320 GSM Loopback Cotton",
+        "gsm": 320,
+        "fit": "Architectural oversized silhouette",
+        "care": "Cold wash inside out",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 5,
+      "reviewsCount": 19,
+      "createdAt": "2026-03-05T14:00:00Z"
+    },
+    {
+      "id": "prod_limited_03",
+      "slug": "archive-silver-foil-runway-edition-tee",
+      "title": "Silver Foil Runway Archive Tee",
+      "subtitle": "Edition of 50 · Chrome Foil Back Coordinates · 300 GSM",
+      "description": "Runway release featuring liquid silver foil back typography over sun-faded mineral black cotton.",
+      "category": "Limited Design",
+      "tags": [
+        "Limited Design",
+        "Runway",
+        "Archive"
+      ],
+      "basePrice": 3299,
+      "discountPrice": 2899,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Faded Obsidian",
+          "colorHex": "#1f2023",
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "colorName": "Pitch Black",
+          "colorHex": "#0f0f11",
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LM03-FO_s",
+          "colorName": "Faded Obsidian",
+          "colorHex": "#1f2023",
+          "size": "S",
+          "sku": "4L-LM03-FO-S",
+          "stock": 7,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-FO_m",
+          "colorName": "Faded Obsidian",
+          "colorHex": "#1f2023",
+          "size": "M",
+          "sku": "4L-LM03-FO-M",
+          "stock": 4,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-FO_l",
+          "colorName": "Faded Obsidian",
+          "colorHex": "#1f2023",
+          "size": "L",
+          "sku": "4L-LM03-FO-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-FO_xl",
+          "colorName": "Faded Obsidian",
+          "colorHex": "#1f2023",
+          "size": "XL",
+          "sku": "4L-LM03-FO-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-PB_s",
+          "colorName": "Pitch Black",
+          "colorHex": "#0f0f11",
+          "size": "S",
+          "sku": "4L-LM03-PB-S",
+          "stock": 6,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-PB_m",
+          "colorName": "Pitch Black",
+          "colorHex": "#0f0f11",
+          "size": "M",
+          "sku": "4L-LM03-PB-M",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-PB_l",
+          "colorName": "Pitch Black",
+          "colorHex": "#0f0f11",
+          "size": "L",
+          "sku": "4L-LM03-PB-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        },
+        {
+          "id": "var_LM03-PB_xl",
+          "colorName": "Pitch Black",
+          "colorHex": "#0f0f11",
+          "size": "XL",
+          "sku": "4L-LM03-PB-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/tshirt_acid_wash_1794456303446.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "300 GSM Washed Cotton",
+        "gsm": 300,
+        "fit": "Drop-shoulder runway cut",
+        "care": "Hand wash cold only",
+        "modelStats": "6'1\" wearing size L"
+      },
+      "rating": 4.9,
+      "reviewsCount": 16,
+      "createdAt": "2026-03-06T10:00:00Z"
+    },
+    {
+      "id": "prod_limited_04",
+      "slug": "founder-series-hand-distressed-edition-tee",
+      "title": "Founder Series Woven Jacquard Edition Tee",
+      "subtitle": "Edition of 60 · Custom Woven Tape & Heavy Collar · 320 GSM",
+      "description": "Signed Founder Series capsule cut from heavyweight jacquard weave with metallic brass collar clasp.",
+      "category": "Limited Design",
+      "tags": [
+        "Limited Design",
+        "Founder Series"
+      ],
+      "basePrice": 3499,
+      "discountPrice": 2999,
+      "isFeatured": false,
+      "isPublished": true,
+      "colorGroups": [
+        {
+          "colorName": "Espresso Noir",
+          "colorHex": "#201c1a",
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "colorName": "Bone Ivory",
+          "colorHex": "#e6e2d8",
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_LM04-EN_s",
+          "colorName": "Espresso Noir",
+          "colorHex": "#201c1a",
+          "size": "S",
+          "sku": "4L-LM04-EN-S",
+          "stock": 8,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-EN_m",
+          "colorName": "Espresso Noir",
+          "colorHex": "#201c1a",
+          "size": "M",
+          "sku": "4L-LM04-EN-M",
+          "stock": 5,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-EN_l",
+          "colorName": "Espresso Noir",
+          "colorHex": "#201c1a",
+          "size": "L",
+          "sku": "4L-LM04-EN-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-EN_xl",
+          "colorName": "Espresso Noir",
+          "colorHex": "#201c1a",
+          "size": "XL",
+          "sku": "4L-LM04-EN-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-BI_s",
+          "colorName": "Bone Ivory",
+          "colorHex": "#e6e2d8",
+          "size": "S",
+          "sku": "4L-LM04-BI-S",
+          "stock": 6,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-BI_m",
+          "colorName": "Bone Ivory",
+          "colorHex": "#e6e2d8",
+          "size": "M",
+          "sku": "4L-LM04-BI-M",
+          "stock": 4,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-BI_l",
+          "colorName": "Bone Ivory",
+          "colorHex": "#e6e2d8",
+          "size": "L",
+          "sku": "4L-LM04-BI-L",
+          "stock": 4,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        },
+        {
+          "id": "var_LM04-BI_xl",
+          "colorName": "Bone Ivory",
+          "colorHex": "#e6e2d8",
+          "size": "XL",
+          "sku": "4L-LM04-BI-XL",
+          "stock": 4,
+          "images": [
+            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg"
+          ]
+        }
+      ],
+      "details": {
+        "fabric": "320 GSM Jacquard Cotton",
+        "gsm": 320,
+        "fit": "Structured oversized box cut",
+        "care": "Dry clean or cold hand wash",
+        "modelStats": "6'2\" wearing size L"
+      },
+      "rating": 5,
+      "reviewsCount": 14,
+      "createdAt": "2026-03-06T16:00:00Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat_round_neck",
+      "slug": "round-neck-t-shirt",
+      "name": "Round Neck T-Shirt",
+      "description": "Essential 280–320 GSM combed cotton crewnecks with reinforced anti-collapse ribbed collars.",
+      "image": "/assets/images/tshirt_round_neck_1794456303307.jpg",
+      "heroImage": "/assets/images/tshirt_round_neck_1794456303307.jpg",
+      "itemCount": 4
+    },
+    {
+      "id": "cat_polo_neck",
+      "slug": "polo-neck-t-shirt",
+      "name": "Polo Neck T-Shirt",
+      "description": "Structured knit polo tees, quarter-zips, and crisp collar silhouettes in 290–300 GSM cotton.",
+      "image": "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+      "heroImage": "/assets/images/tshirt_polo_neck_1794456301588.jpg",
+      "itemCount": 4
+    },
+    {
+      "id": "cat_down_shoulder",
+      "slug": "down-shoulder-t-shirt",
+      "name": "Down Shoulder T-Shirt",
+      "description": "Exaggerated boxy silhouettes with lowered shoulder seams and heavyweight street drape.",
+      "image": "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+      "heroImage": "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
+      "itemCount": 4
+    },
+    {
+      "id": "cat_customise",
+      "slug": "customise-t-shirt",
+      "name": "Customise T-Shirt",
+      "description": "Design your own 3D T-shirt with custom artwork uploads, typography, and puff or screen prints.",
+      "image": "/assets/images/tshirt_custom_print_1794456303137.jpg",
+      "heroImage": "/assets/images/tshirt_custom_print_1794456303137.jpg",
+      "itemCount": 4
+    },
+    {
+      "id": "cat_laazy_designs",
+      "slug": "laazy-designs",
+      "name": "Laazy Designs",
+      "description": "Signature in-house graphic prints, mineral acid washes, and expressive editorial tees.",
+      "image": "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+      "heroImage": "/assets/images/tshirt_acid_wash_1794456303446.jpg",
+      "itemCount": 4
+    },
+    {
+      "id": "cat_limited_design",
+      "slug": "limited-design",
+      "name": "Limited Design",
+      "description": "Numbered small-batch collector drops and heavyweight capsule releases—never restocked.",
+      "image": "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+      "heroImage": "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+      "itemCount": 4
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord_1001",
+      "orderNumber": "4L-2026-1001",
+      "userId": "usr_cust_001",
+      "customer": {
+        "name": "Aryan Verma",
+        "email": "aryan@example.com",
+        "phone": "+919811223344"
+      },
+      "shippingAddress": {
+        "id": "addr_01",
+        "fullName": "Aryan Verma",
+        "phone": "+919811223344",
+        "street": "Flat 402, Skyline Residency, Road No. 36, Jubilee Hills",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "pinCode": "500033",
+        "country": "India",
+        "isDefault": true
+      },
+      "items": [
+        {
+          "productId": "prod_heavy_tee_01",
+          "variantId": "var_tee_wb_l",
+          "productTitle": "Heavyweight Oversized Box Tee",
+          "colorName": "Washed Black",
+          "size": "L",
+          "sku": "4L-TEE-WB-L",
+          "price": 1699,
+          "quantity": 1,
+          "image": "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
+        },
+        {
+          "productId": "prod_hoodie_01",
+          "variantId": "var_hood_vc_l",
+          "productTitle": "500 GSM French Terry Boxy Hoodie",
+          "colorName": "Vintage Charcoal",
+          "size": "L",
+          "sku": "4L-HD-VC-L",
+          "price": 3899,
+          "quantity": 1,
+          "image": "/assets/images/product_streetwear_hoodie_1794056020931.jpg"
+        }
+      ],
+      "subtotal": 5598,
+      "discount": 500,
+      "shippingFee": 0,
+      "tax": 254.9,
+      "total": 5352.9,
+      "payment": {
+        "provider": "upi",
+        "transactionId": "pay_rzp_live_998124",
+        "status": "completed",
+        "paidAt": "2026-03-01T15:20:00Z",
+        "amount": 5352.9,
+        "currency": "INR"
+      },
+      "status": "Shipped",
+      "statusHistory": [
+        {
+          "status": "Order Placed",
+          "timestamp": "2026-03-01T15:20:00Z"
+        },
+        {
+          "status": "Confirmed",
+          "timestamp": "2026-03-01T15:35:00Z",
+          "note": "Payment verified via Razorpay UPI."
+        },
+        {
+          "status": "Packed",
+          "timestamp": "2026-03-02T10:00:00Z",
+          "note": "Inspected and packaged in biodegradable luxury matte box."
+        },
+        {
+          "status": "Shipped",
+          "timestamp": "2026-03-02T14:30:00Z",
+          "note": "Dispatched via Blue Dart Express courier."
+        }
+      ],
+      "tracking": {
+        "courierCompany": "Blue Dart Express",
+        "trackingNumber": "BLUEDART-847291038",
+        "trackingUrl": "https://www.bluedart.com/tracking?trackNumber=BLUEDART-847291038",
+        "dispatchDate": "2026-03-02",
+        "estimatedDeliveryDate": "2026-03-05",
+        "statusNotes": "In transit to Hyderabad Hub"
+      },
+      "internalNotes": "VIP customer, included 4LAAZY brass monogram pin gift.",
+      "createdAt": "2026-03-01T15:20:00Z"
+    }
+  ],
+  "returnRequests": [
+    {
+      "id": "ret_1001",
+      "orderId": "ord_1001",
+      "orderNumber": "4L-2026-1001",
+      "customerName": "Aryan Verma",
+      "customerEmail": "aryan@example.com",
+      "customerPhone": "+919811223344",
+      "reason": "Size Exchange",
+      "details": "Wanted to exchange Heavyweight Box Tee from Size L to Size XL for a more exaggerated drop-shoulder drape.",
+      "items": [
+        {
+          "productId": "prod_heavy_tee_01",
+          "productTitle": "Heavyweight Oversized Box Tee",
+          "variantSku": "4L-TEE-WB-L",
+          "size": "L",
+          "colorName": "Washed Black",
+          "quantity": 1,
+          "price": 1699
+        }
+      ],
+      "refundAmount": 1699,
+      "status": "Pickup Scheduled",
+      "pickupAwb": "BLUE-RET-9921448",
+      "notes": "Reverse pickup scheduled via Blue Dart reverse logistics.",
+      "createdAt": "2026-03-03T11:00:00Z",
+      "updatedAt": "2026-03-03T14:00:00Z"
+    }
+  ],
+  "coupons": [
+    {
+      "id": "cpn_lazy10",
+      "code": "LAZY10",
+      "type": "percent",
+      "value": 10,
+      "minOrderValue": 1499,
+      "maxDiscount": 1000,
+      "expiresAt": "2027-12-31T23:59:59Z",
+      "usageLimit": 1000,
+      "usedCount": 84,
+      "isActive": true
+    },
+    {
+      "id": "cpn_first4l",
+      "code": "FIRST4L",
+      "type": "fixed",
+      "value": 500,
+      "minOrderValue": 2499,
+      "expiresAt": "2027-12-31T23:59:59Z",
+      "usageLimit": 500,
+      "usedCount": 132,
+      "isActive": true
+    },
+    {
+      "id": "cpn_oversized20",
+      "code": "OVERSIZED20",
+      "type": "percent",
+      "value": 20,
+      "minOrderValue": 3999,
+      "maxDiscount": 1500,
+      "expiresAt": "2027-06-30T23:59:59Z",
+      "usageLimit": 200,
+      "usedCount": 47,
+      "isActive": true
+    }
+  ],
+  "reviews": [
+    {
+      "id": "rev_01",
+      "productId": "prod_heavy_tee_01",
+      "userName": "Rohan M.",
+      "rating": 5,
+      "title": "Unbelievable fabric weight & collar structure",
+      "comment": "Honestly better quality than my €120 European tees. The collar stays crisp even after 5 washes and the drop shoulder cut is perfection.",
+      "verifiedPurchase": true,
+      "createdAt": "2026-02-28T14:10:00Z"
+    },
+    {
+      "id": "rev_02",
+      "productId": "prod_hoodie_01",
+      "userName": "Tanya K.",
+      "rating": 5,
+      "title": "Worth every single rupee",
+      "comment": "The 500 GSM fleece has so much structure. Doesn't collapse at the neck and looks so sculptural. Best streetwear purchase this season.",
+      "verifiedPurchase": true,
+      "createdAt": "2026-02-25T11:42:00Z"
+    }
+  ],
+  "inventoryTransactions": [
+    {
+      "id": "inv_tx_01",
+      "productId": "prod_heavy_tee_01",
+      "productTitle": "Heavyweight Oversized Box Tee",
+      "variantSku": "4L-TEE-WB-L",
+      "colorName": "Washed Black",
+      "size": "L",
+      "change": -1,
+      "previousStock": 43,
+      "newStock": 42,
+      "reason": "Order #4L-2026-1001 fulfillment",
+      "timestamp": "2026-03-01T15:20:00Z"
+    }
+  ],
+  "adminLogs": [
+    {
+      "id": "log_1794599951621",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "SETTINGS_UPDATED",
+      "details": "Store settings and website content updated.",
+      "timestamp": "2026-11-13T19:59:11.621Z"
+    },
+    {
+      "id": "log_1794599951611",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "SETTINGS_UPDATED",
+      "details": "Store settings and website content updated.",
+      "timestamp": "2026-11-13T19:59:11.611Z"
+    },
+    {
+      "id": "log_1794599951586",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "COUPON_CREATED",
+      "details": "Created coupon HYDTEST20",
+      "timestamp": "2026-11-13T19:59:11.586Z"
+    },
+    {
+      "id": "log_1794599951573",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "PRODUCT_DELETED",
+      "details": "Deleted product \"Hyderabad Test Heavy Tee\" (prod_1794599951563).",
+      "timestamp": "2026-11-13T19:59:11.573Z"
+    },
+    {
+      "id": "log_1794599951563",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "PRODUCT_CREATED",
+      "details": "Created product \"Hyderabad Test Heavy Tee\" with 1 variants.",
+      "timestamp": "2026-11-13T19:59:11.563Z"
+    },
+    {
+      "id": "log_01",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "ORDER_DISPATCHED",
+      "details": "Assigned courier tracking BLUEDART-847291038 to order 4L-2026-1001",
+      "timestamp": "2026-03-02T14:30:00Z"
+    }
+  ],
+  "emailLogs": [
+    {
+      "id": "eml_01",
+      "to": "aryan@example.com",
+      "subject": "Your 4LAAZY Order #4L-2026-1001 is on the way",
+      "type": "shipping_update",
+      "sentAt": "2026-03-02T14:30:00Z",
+      "status": "delivered",
+      "previewHtml": "<h1>4LAAZY</h1><p>Hey Aryan, your package has been handed over to Blue Dart Express. Tracking: BLUEDART-847291038</p>"
+    }
+  ],
+  "settings": {
+    "brandName": "4LAAZY",
+    "tagline": "Less Effort. More Style.",
+    "logoUrl": "/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png",
+    "contactEmail": "concierge@4lazyfashion.com",
+    "contactPhone": "+91 80004 52999",
+    "currency": "INR",
+    "taxRatePercent": 5,
+    "freeShippingThreshold": 1999,
+    "standardShippingFee": 99,
+    "expressShippingFee": 199,
+    "announcements": [
+      "COMPLIMENTARY SHIPPING ACROSS INDIA ON ORDERS OVER ₹1,999",
+      "DROP 04 / BRUTALIST HEAVYWEIGHTS NOW LIVE",
+      "USE CODE \"FIRST4L\" FOR ₹500 OFF YOUR FIRST ORDER"
+    ],
+    "heroHeading": "LESS EFFORT. MORE STYLE.",
+    "heroSubhead": "Engineered for the contemporary vanguard. Architectural heavyweight silhouettes, custom 280-500 GSM loopback knits, and uncompromising minimal tailoring.",
+    "heroButtonText": "SHOP DROP 04",
+    "heroImageUrl": "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
+    "campaignTitle": "THE BRUTALIST MONOLITH",
+    "campaignDescription": "Stripped of excess ornamentation. Raw unbrushed French Terry, drop-shoulder geometry, and muted industrial pigments crafted for timeless daily wear.",
+    "campaignImageUrl": "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
+    "razorpayKeyId": "rzp_test_4LAZYStoreDemo",
+    "stripePublicKey": "pk_test_4LAZYStoreDemo",
+    "cashfreeAppId": "TEST1029384756CF",
+    "cashfreeEnvironment": "sandbox",
+    "codEnabled": true,
+    "isTestMode": true
+  },
+  "carts": {},
+  "wishlists": {}
+}

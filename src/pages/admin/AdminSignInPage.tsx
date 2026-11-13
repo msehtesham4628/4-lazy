@@ -56,7 +56,7 @@ export const AdminSignInPage: React.FC<AdminSignInPageProps> = ({ onNavigate }) 
           <div className="w-14 h-14 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-center mx-auto shadow-inner">
             <img
               src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
-              alt="4 LAZY Logo"
+              alt="4LAAZY Logo"
               className="w-10 h-10 object-contain rounded"
               referrerPolicy="no-referrer"
             />

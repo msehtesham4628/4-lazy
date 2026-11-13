@@ -12,7 +12,7 @@ function evaluateCoupon(code: string, subtotal: number, category?: string) {
   const coupon = db.coupons.find(c => c.code.toUpperCase() === code.toUpperCase() && c.isActive);
   if (!coupon) return { valid: false, message: 'Invalid or inactive coupon code.' };
 
-  if (Date.now() > new Date(coupon.expiresAt).getTime()) {
+  if (coupon.expiresAt && Date.now() > new Date(coupon.expiresAt).getTime()) {
     return { valid: false, message: 'Coupon code has expired.' };
   }
 
@@ -34,7 +34,8 @@ function evaluateCoupon(code: string, subtotal: number, category?: string) {
     discount = coupon.value;
   }
 
-  return { valid: true, coupon, discount: Math.round(discount) };
+  discount = Math.min(subtotal, Math.round(discount));
+  return { valid: true, coupon, discount };
 }
 
 // Public: Validate coupon endpoint
@@ -52,7 +53,9 @@ ordersRouter.post('/coupons/validate', (req, res) => {
     code: result.coupon!.code,
     discount: result.discount,
     type: result.coupon!.type,
-    value: result.coupon!.value
+    value: result.coupon!.value,
+    minOrderValue: result.coupon!.minOrderValue || 0,
+    maxDiscount: result.coupon!.maxDiscount
   });
 });
 
@@ -86,7 +89,7 @@ ordersRouter.post('/payments/cashfree/create-session', async (req, res) => {
           order_id: cfOrderId,
           order_amount: Number(numericAmount.toFixed(2)),
           order_currency: db.settings.currency || 'INR',
-          order_note: orderNote || '4 LAZY Apparel Purchase',
+          order_note: orderNote || '4LAAZY Apparel Purchase',
           customer_details: {
             customer_id: `cust_${customer.phone.replace(/\D/g, '').slice(-10) || Date.now()}`,
             customer_name: customer.name,
@@ -194,6 +197,10 @@ ordersRouter.post('/orders', optionalAuthenticate, (req: AuthenticatedRequest, r
   }
 
   const db = getDB();
+
+  if (paymentMethod === 'cod' && db.settings.codEnabled === false) {
+    return res.status(400).json({ error: 'Cash on Delivery (COD) is currently disabled. Please pay via Cashfree.' });
+  }
 
   // 1. Verify item inventory and lock server-side prices
   const verifiedOrderItems: OrderItem[] = [];

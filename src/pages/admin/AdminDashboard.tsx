@@ -178,12 +178,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [newCoupon, setNewCoupon] = useState({
     code: '',
-    type: 'percent',
+    type: 'percent' as 'percent' | 'flat',
     value: 10,
     minOrderValue: 1499,
     maxDiscount: 1000,
-    usageLimit: 500
+    usageLimit: 500,
+    expiresAt: ''
   });
+
+  // Inline feedback & two-step delete confirmation states (iframe-safe, zero window.alert/confirm)
+  const [adminNotice, setAdminNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [confirmDeleteProductId, setConfirmDeleteProductId] = useState<string | null>(null);
+  const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState<string | null>(null);
+  const [confirmDeleteCouponId, setConfirmDeleteCouponId] = useState<string | null>(null);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [savingCoupon, setSavingCoupon] = useState(false);
+  const [togglingCod, setTogglingCod] = useState(false);
+
+  const showNotice = (type: 'success' | 'error', text: string) => {
+    setAdminNotice({ type, text });
+    setTimeout(() => {
+      setAdminNotice(prev => (prev?.text === text ? null : prev));
+    }, 5000);
+  };
 
   // Settings & CMS Content
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
@@ -322,7 +339,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
   const fetchProductsList = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/admin/products', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const fallbackRes = await fetch('/api/products');
+        const fallbackData = await fallbackRes.json();
+        setProducts(fallbackData.products || []);
+        return;
+      }
       const d = await res.json();
       setProducts(d.products || []);
     } catch (e) {
@@ -540,18 +565,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingProduct(true);
     try {
-      const codePrefix = productForm.title.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '4L');
+      const cleanTitle = productForm.title.trim();
+      const codePrefix = (cleanTitle.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '') || '4L').padEnd(2, 'L');
+      const ts = Date.now();
       const variants: ProductVariant[] = [
-        { id: `var_${Date.now()}_s`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'S', sku: `4L-${codePrefix}-S`, stock: Number(productForm.stockS), images: [productForm.imageUrl] },
-        { id: `var_${Date.now()}_m`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'M', sku: `4L-${codePrefix}-M`, stock: Number(productForm.stockM), images: [productForm.imageUrl] },
-        { id: `var_${Date.now()}_l`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'L', sku: `4L-${codePrefix}-L`, stock: Number(productForm.stockL), images: [productForm.imageUrl] },
-        { id: `var_${Date.now()}_xl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XL', sku: `4L-${codePrefix}-XL`, stock: Number(productForm.stockXL), images: [productForm.imageUrl] },
-        { id: `var_${Date.now()}_xxl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XXL', sku: `4L-${codePrefix}-XXL`, stock: Number(productForm.stockXXL), images: [productForm.imageUrl] }
+        { id: `var_${ts}_s`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'S', sku: `4L-${codePrefix}-S-${ts % 1000}`, stock: Number(productForm.stockS), images: [productForm.imageUrl] },
+        { id: `var_${ts}_m`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'M', sku: `4L-${codePrefix}-M-${ts % 1000}`, stock: Number(productForm.stockM), images: [productForm.imageUrl] },
+        { id: `var_${ts}_l`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'L', sku: `4L-${codePrefix}-L-${ts % 1000}`, stock: Number(productForm.stockL), images: [productForm.imageUrl] },
+        { id: `var_${ts}_xl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XL', sku: `4L-${codePrefix}-XL-${ts % 1000}`, stock: Number(productForm.stockXL), images: [productForm.imageUrl] },
+        { id: `var_${ts}_xxl`, colorName: productForm.colorName, colorHex: productForm.colorHex, size: 'XXL', sku: `4L-${codePrefix}-XXL-${ts % 1000}`, stock: Number(productForm.stockXXL), images: [productForm.imageUrl] }
       ];
 
       const payload = {
-        title: productForm.title,
+        title: cleanTitle,
         subtitle: productForm.subtitle,
         category: productForm.category,
         basePrice: Number(productForm.basePrice),
@@ -583,34 +611,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         body: JSON.stringify(payload)
       });
 
+      const d = await res.json();
       if (res.ok) {
         setShowProductModal(false);
-        fetchProductsList();
-        fetchInventory();
-        fetchOverview();
+        showNotice('success', editingProduct ? `Updated "${cleanTitle}" successfully.` : `Added "${cleanTitle}" to catalog.`);
+        await Promise.all([fetchProductsList(), fetchInventory(), fetchOverview()]);
       } else {
-        const d = await res.json();
-        alert(d.error || 'Failed to save product');
+        showNotice('error', d.error || 'Failed to save product.');
       }
     } catch (e: any) {
-      alert('Error saving product: ' + e.message);
+      showNotice('error', 'Error saving product: ' + (e.message || 'Unknown error'));
+    } finally {
+      setSavingProduct(false);
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to permanently delete this piece from the catalog?')) return;
     try {
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        fetchProductsList();
-        fetchInventory();
-        fetchOverview();
+        setConfirmDeleteProductId(null);
+        setProducts(prev => prev.filter(p => p.id !== id));
+        showNotice('success', 'Product permanently deleted from catalog.');
+        await Promise.all([fetchProductsList(), fetchInventory(), fetchOverview()]);
+      } else {
+        showNotice('error', data.error || 'Failed to delete product.');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      showNotice('error', 'Failed to delete product: ' + (e.message || 'Network error'));
     }
   };
 
@@ -630,7 +662,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const handleBulkImport = async () => {
     try {
       const lines = bulkCsvText.trim().split('\n');
-      if (lines.length < 2) return alert('Please provide at least a header row and one product row.');
+      if (lines.length < 2) {
+        showNotice('error', 'Please provide at least a header row and one product row.');
+        return;
+      }
 
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       const productsToImport: any[] = [];
@@ -645,7 +680,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         });
 
         productsToImport.push({
-          title: row['title'] || row['name'] || `4 LAZY Drop Piece ${i}`,
+          title: row['title'] || row['name'] || `4LAAZY Drop Piece ${i}`,
           category: row['category'] || 'Round Neck T-Shirt',
           basePrice: Number(row['price']) || 1999,
           discountPrice: row['saleprice'] ? Number(row['saleprice']) : undefined,
@@ -674,17 +709,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        showNotice('success', data.message || `Imported ${productsToImport.length} products.`);
         setShowBulkModal(false);
         setBulkCsvText('');
-        fetchProductsList();
-        fetchInventory();
-        fetchOverview();
+        await Promise.all([fetchProductsList(), fetchInventory(), fetchOverview()]);
       } else {
-        alert(data.error);
+        showNotice('error', data.error || 'Bulk import failed.');
       }
     } catch (err: any) {
-      alert('Error parsing CSV: ' + err.message);
+      showNotice('error', 'Error parsing CSV: ' + err.message);
     }
   };
 
@@ -818,27 +851,156 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       });
       if (res.ok) {
         setShowCategoryModal(false);
+        showNotice('success', editingCategory ? 'Category updated.' : 'Category created.');
         fetchCategories();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showNotice('error', err.error || 'Failed to save category.');
       }
     } catch (e) {
       console.error(e);
+      showNotice('error', 'Failed to save category.');
     }
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
     try {
-      await fetch(`/api/admin/categories/${id}`, {
+      const res = await fetch(`/api/admin/categories/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchCategories();
+      if (res.ok) {
+        setConfirmDeleteCategoryId(null);
+        showNotice('success', 'Category deleted.');
+        fetchCategories();
+      } else {
+        showNotice('error', 'Failed to delete category.');
+      }
     } catch (e) {
       console.error(e);
+      showNotice('error', 'Failed to delete category.');
     }
   };
 
-  // SETTINGS SAVE
+  // COUPONS CRUD
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = newCoupon.code.trim().toUpperCase();
+    if (!cleanCode) {
+      showNotice('error', 'Please enter a valid promo code.');
+      return;
+    }
+    setSavingCoupon(true);
+    try {
+      const res = await fetch('/api/admin/coupons', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code: cleanCode,
+          type: newCoupon.type,
+          value: Number(newCoupon.value),
+          minOrderValue: Number(newCoupon.minOrderValue) || 0,
+          maxDiscount: newCoupon.type === 'percent' && newCoupon.maxDiscount ? Number(newCoupon.maxDiscount) : undefined,
+          usageLimit: Number(newCoupon.usageLimit) || 500,
+          expiresAt: newCoupon.expiresAt || undefined
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowCouponModal(false);
+        setNewCoupon({
+          code: '',
+          type: 'percent',
+          value: 10,
+          minOrderValue: 1499,
+          maxDiscount: 1000,
+          usageLimit: 500,
+          expiresAt: ''
+        });
+        showNotice('success', `Coupon ${cleanCode} created and activated.`);
+        fetchCoupons();
+      } else {
+        showNotice('error', data.error || 'Failed to create coupon.');
+      }
+    } catch (err: any) {
+      showNotice('error', err.message || 'Failed to create coupon.');
+    } finally {
+      setSavingCoupon(false);
+    }
+  };
+
+  const handleToggleCoupon = async (coupon: Coupon) => {
+    try {
+      const res = await fetch(`/api/admin/coupons/${coupon.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive: !coupon.isActive })
+      });
+      if (res.ok) {
+        showNotice('success', `Coupon ${coupon.code} is now ${!coupon.isActive ? 'Active' : 'Paused'}.`);
+        fetchCoupons();
+      } else {
+        showNotice('error', 'Failed to update coupon status.');
+      }
+    } catch (err) {
+      showNotice('error', 'Failed to update coupon status.');
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/coupons/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setConfirmDeleteCouponId(null);
+        setCoupons(prev => prev.filter(c => c.id !== id));
+        showNotice('success', 'Coupon deleted.');
+        fetchCoupons();
+      } else {
+        showNotice('error', 'Failed to delete coupon.');
+      }
+    } catch (err) {
+      showNotice('error', 'Failed to delete coupon.');
+    }
+  };
+
+  // SETTINGS SAVE & COD TOGGLE
+  const handleToggleCod = async () => {
+    if (!storeSettings) return;
+    const nextCod = storeSettings.codEnabled === false;
+    setTogglingCod(true);
+    try {
+      const updated = { ...storeSettings, codEnabled: nextCod };
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStoreSettings(data.settings || updated);
+        showNotice('success', `Cash on Delivery (COD) is now ${nextCod ? 'ENABLED' : 'DISABLED'} on checkout.`);
+      } else {
+        showNotice('error', 'Failed to toggle COD setting.');
+      }
+    } catch (err) {
+      showNotice('error', 'Failed to update COD setting.');
+    } finally {
+      setTogglingCod(false);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!storeSettings) return;
@@ -854,10 +1016,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       });
       if (res.ok) {
         setSettingsSuccess(true);
+        showNotice('success', 'Store settings saved and published.');
         setTimeout(() => setSettingsSuccess(false), 3000);
+      } else {
+        showNotice('error', 'Failed to save store settings.');
       }
     } catch (e) {
       console.error(e);
+      showNotice('error', 'Error saving store settings.');
     }
   };
 
@@ -908,14 +1074,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
               <div className="w-9 h-9 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center p-1 shadow-inner">
                 <img
                   src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
-                  alt="4 LAZY Logo"
+                  alt="4LAAZY Logo"
                   className="w-full h-full object-contain"
                   referrerPolicy="no-referrer"
                 />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-display text-sm font-black text-white tracking-wider">4 LAZY</span>
+                  <span className="font-display text-sm font-black text-white tracking-wider">4LAAZY</span>
                   <span className="text-[9px] font-bold tracking-widest text-[#E5A914] bg-[#E5A914]/10 border border-[#E5A914]/30 px-1.5 py-0.5 rounded uppercase font-mono">
                     ADMIN
                   </span>
@@ -1035,6 +1201,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
       {/* Main Admin Content Container */}
       <main className="flex-1 max-w-[1700px] w-full mx-auto p-4 sm:p-6 lg:p-10 overflow-y-auto">
+        {adminNotice && (
+          <div
+            className={`mb-6 px-4 py-3 rounded-xl border text-xs flex items-center justify-between gap-3 ${
+              adminNotice.type === 'success'
+                ? 'bg-emerald-950/70 border-emerald-500/40 text-emerald-200'
+                : 'bg-red-950/70 border-red-500/40 text-red-200'
+            }`}
+          >
+            <div className="flex items-center gap-2 font-medium">
+              {adminNotice.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              )}
+              <span>{adminNotice.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAdminNotice(null)}
+              className="text-neutral-400 hover:text-white p-1"
+              aria-label="Dismiss message"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         
         {/* OVERVIEW DASHBOARD */}
         {activeTab === 'overview' && metrics && (
@@ -1225,8 +1417,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
               </div>
             </div>
 
+            {/* Product Search & Count Toolbar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg text-xs max-w-md w-full">
+                <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Search by product title, category, or SKU..."
+                  className="bg-transparent text-white focus:outline-none text-xs w-full"
+                />
+                {productSearch && (
+                  <button type="button" onClick={() => setProductSearch('')} className="text-neutral-400 hover:text-white">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <span className="text-xs text-neutral-400 font-mono">
+                {products.filter(p =>
+                  !productSearch.trim() ||
+                  p.title.toLowerCase().includes(productSearch.toLowerCase()) ||
+                  p.category.toLowerCase().includes(productSearch.toLowerCase()) ||
+                  p.slug.toLowerCase().includes(productSearch.toLowerCase()) ||
+                  p.variants.some(v => v.sku.toLowerCase().includes(productSearch.toLowerCase()))
+                ).length}{' '}
+                of {products.length} pieces
+              </span>
+            </div>
+
             {/* Product List Table */}
-            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
@@ -1239,7 +1460,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800">
-                  {products.map(p => (
+                  {products
+                    .filter(p =>
+                      !productSearch.trim() ||
+                      p.title.toLowerCase().includes(productSearch.toLowerCase()) ||
+                      p.category.toLowerCase().includes(productSearch.toLowerCase()) ||
+                      p.slug.toLowerCase().includes(productSearch.toLowerCase()) ||
+                      p.variants.some(v => v.sku.toLowerCase().includes(productSearch.toLowerCase()))
+                    )
+                    .map(p => (
                     <tr key={p.id} className="hover:bg-neutral-800/20">
                       <td className="p-3.5 flex items-center gap-3">
                         <img
@@ -1254,7 +1483,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                         </div>
                       </td>
                       <td className="p-3.5 text-neutral-300 font-semibold">{p.category}</td>
-                      <td className="p-3.5 font-mono">
+                      <td className="p-3.5 font-mono tabular-nums">
                         <span className="font-bold text-white">₹{(p.discountPrice || p.basePrice).toLocaleString()}</span>
                         {p.discountPrice && <span className="text-neutral-500 line-through ml-2">₹{p.basePrice.toLocaleString()}</span>}
                       </td>
@@ -1264,7 +1493,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                             <span key={cg.colorName} className="w-3 h-3 rounded-full border border-neutral-700" style={{ backgroundColor: cg.colorHex }} title={cg.colorName} />
                           ))}
                         </div>
-                        <span className="text-[11px] font-mono text-neutral-400">
+                        <span className="text-[11px] font-mono text-neutral-400 tabular-nums">
                           {p.variants.reduce((sum, v) => sum + v.stock, 0)} units total
                         </span>
                       </td>
@@ -1273,22 +1502,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                           {p.isPublished ? 'Live' : 'Draft'}
                         </span>
                       </td>
-                      <td className="p-3.5 text-right space-x-2">
-                        <button
-                          onClick={() => openEditProductModal(p)}
-                          className="text-[#E5A914] hover:underline font-bold text-xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(p.id)}
-                          className="text-red-400 hover:underline font-semibold text-xs ml-2"
-                        >
-                          Delete
-                        </button>
+                      <td className="p-3.5 text-right whitespace-nowrap">
+                        {confirmDeleteProductId === p.id ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProduct(p.id)}
+                              className="bg-red-600 hover:bg-red-500 text-white font-bold px-2.5 py-1 rounded text-[11px] uppercase"
+                            >
+                              Confirm Delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteProductId(null)}
+                              className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold px-2 py-1 rounded text-[11px]"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => openEditProductModal(p)}
+                              className="text-[#E5A914] hover:underline font-bold text-xs"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteProductId(p.id)}
+                              className="text-red-400 hover:underline font-semibold text-xs"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
+                  {products.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-neutral-400 text-xs">
+                        No products in catalog yet. Click &quot;Add Product&quot; to create one.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1724,10 +1983,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 How to Import into Tally ERP 9 / TallyPrime:
               </h3>
               <ol className="list-decimal list-inside space-y-1.5 text-neutral-300">
-                <li>Click <strong>&quot;Export Tally XML Vouchers&quot;</strong> above to download <code className="text-[#E5A914]">4LAZY_Tally_Sales_Vouchers.xml</code>.</li>
-                <li>Open TallyPrime &gt; Select your Company (e.g. <strong>4 LAZY APPAREL INC</strong>).</li>
+                <li>Click <strong>&quot;Export Tally XML Vouchers&quot;</strong> above to download <code className="text-[#E5A914]">4LAAZY_Tally_Sales_Vouchers.xml</code>.</li>
+                <li>Open TallyPrime &gt; Select your Company (e.g. <strong>4LAAZY APPAREL INC</strong>).</li>
                 <li>Navigate to <strong>Import &gt; Transactions &gt; XML Format</strong>.</li>
-                <li>Select the exported file. Tally will automatically post Dr to Bank/Razorpay Ledger and Cr to Streetwear Sales + Output CGST/SGST Ledgers!</li>
+                <li>Select the exported file. Tally will automatically post Dr to Bank/Cashfree Ledger and Cr to Streetwear Sales + Output CGST/SGST Ledgers!</li>
               </ol>
             </div>
           </div>
@@ -1853,12 +2112,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                         >
                           Edit
                         </button>
-                        <button
-                          onClick={() => handleDeleteCategory(cat.id)}
-                          className="text-neutral-500 hover:text-red-400 text-xs ml-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {confirmDeleteCategoryId === cat.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteCategoryId(null)}
+                              className="text-neutral-400 hover:text-white text-[10px] px-1"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteCategoryId(cat.id)}
+                            className="text-neutral-500 hover:text-red-400 text-xs ml-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1936,8 +2215,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-neutral-800 space-y-3">
-                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">Payment Gateway Configuration (Cashfree Primary)</h3>
+              <div className="pt-4 border-t border-neutral-800 space-y-4">
+                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">Payment Gateway &amp; Checkout Options</h3>
+
+                {/* Cash on Delivery (COD) On/Off Toggle Card */}
+                <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">
+                        Cash on Delivery (COD)
+                      </span>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                          storeSettings.codEnabled !== false
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-red-500/20 text-red-400'
+                        }`}
+                      >
+                        {storeSettings.codEnabled !== false ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      When switched OFF, Cash on Delivery is hidden on the Checkout payment page and blocked at order submission.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={storeSettings.codEnabled !== false}
+                    disabled={togglingCod}
+                    onClick={handleToggleCod}
+                    className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                      storeSettings.codEnabled !== false ? 'bg-emerald-500' : 'bg-neutral-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        storeSettings.codEnabled !== false ? 'translate-x-7' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Cashfree App ID</label>
@@ -2140,6 +2460,131 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
           </div>
         )}
 
+        {/* COUPONS & PROMO CODES TAB */}
+        {activeTab === 'coupons' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Coupons &amp; Promo Codes</h1>
+                <p className="text-xs text-neutral-400">Create percentage or flat discount codes, toggle active status, and monitor redemptions.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCouponModal(true)}
+                className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" /> Create Coupon
+              </button>
+            </div>
+
+            {/* Summary KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Total Coupons</span>
+                <p className="font-mono text-xl font-bold text-white mt-0.5 tabular-nums">{coupons.length}</p>
+              </div>
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Active Promo Codes</span>
+                <p className="font-mono text-xl font-bold text-emerald-400 mt-0.5 tabular-nums">
+                  {coupons.filter(c => c.isActive).length}
+                </p>
+              </div>
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl">
+                <span className="text-[10px] text-neutral-400 uppercase font-semibold">Total Redemptions</span>
+                <p className="font-mono text-xl font-bold text-[#E5A914] mt-0.5 tabular-nums">
+                  {coupons.reduce((sum, c) => sum + (c.usedCount || 0), 0)}
+                </p>
+              </div>
+            </div>
+
+            {/* Coupons Table */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                    <th className="p-3.5">Coupon Code</th>
+                    <th className="p-3.5">Discount Offer</th>
+                    <th className="p-3.5">Min Order</th>
+                    <th className="p-3.5">Redemptions</th>
+                    <th className="p-3.5">Expiry</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800 font-mono">
+                  {coupons.map(c => (
+                    <tr key={c.id} className="hover:bg-neutral-800/20">
+                      <td className="p-3.5 font-bold text-[#E5A914] text-sm tracking-wider">{c.code}</td>
+                      <td className="p-3.5 font-sans text-white font-semibold">
+                        {c.type === 'percent' ? `${c.value}% OFF` : `₹${c.value} FLAT OFF`}
+                        {c.type === 'percent' && c.maxDiscount ? (
+                          <span className="text-[11px] text-neutral-400 font-mono block">Max ₹{c.maxDiscount}</span>
+                        ) : null}
+                      </td>
+                      <td className="p-3.5 text-neutral-300 tabular-nums">₹{(c.minOrderValue || 0).toLocaleString()}</td>
+                      <td className="p-3.5 text-neutral-300 tabular-nums">
+                        {c.usedCount} / {c.usageLimit}
+                      </td>
+                      <td className="p-3.5 text-neutral-400 text-[11px]">
+                        {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : 'No Expiry'}
+                      </td>
+                      <td className="p-3.5 font-sans">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCoupon(c)}
+                          className={`px-2.5 py-1 rounded text-[10px] uppercase font-bold transition-colors ${
+                            c.isActive
+                              ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                              : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                          }`}
+                        >
+                          {c.isActive ? 'Active (Click to Pause)' : 'Paused (Click to Enable)'}
+                        </button>
+                      </td>
+                      <td className="p-3.5 text-right font-sans whitespace-nowrap">
+                        {confirmDeleteCouponId === c.id ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCoupon(c.id)}
+                              className="bg-red-600 hover:bg-red-500 text-white font-bold px-2.5 py-1 rounded text-[11px] uppercase"
+                            >
+                              Confirm Delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteCouponId(null)}
+                              className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold px-2 py-1 rounded text-[11px]"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteCouponId(c.id)}
+                            className="text-red-400 hover:underline font-semibold text-xs"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {coupons.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center font-sans text-neutral-400">
+                        No promo coupons created yet. Click &quot;Create Coupon&quot; to add one.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* EMAIL NOTIFICATIONS LOG TAB */}
         {activeTab === 'emails' && (
           <div className="space-y-6">
@@ -2339,10 +2784,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 />
               </div>
 
+              <div className="flex flex-wrap items-center gap-6 p-3 bg-neutral-950 border border-neutral-800 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-white font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={productForm.isPublished}
+                    onChange={e => setProductForm({ ...productForm, isPublished: e.target.checked })}
+                    className="accent-[#E5A914] w-4 h-4"
+                  />
+                  <span>Publish Live on Storefront</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-white font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={productForm.isFeatured}
+                    onChange={e => setProductForm({ ...productForm, isFeatured: e.target.checked })}
+                    className="accent-[#E5A914] w-4 h-4"
+                  />
+                  <span>Feature in Trending Products</span>
+                </label>
+              </div>
+
               <div className="flex justify-end gap-3 pt-3">
                 <button type="button" onClick={() => setShowProductModal(false)} className="text-xs text-neutral-400 px-4">Cancel</button>
-                <button type="submit" className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-wider hover:bg-[#d49b10]">
-                  {editingProduct ? 'Save Changes' : 'Create & Publish Piece'}
+                <button
+                  type="submit"
+                  disabled={savingProduct}
+                  className="bg-[#E5A914] text-black font-extrabold px-6 py-2.5 rounded text-xs uppercase tracking-wider hover:bg-[#d49b10] disabled:opacity-50"
+                >
+                  {savingProduct ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create & Publish Piece'}
                 </button>
               </div>
             </form>
@@ -2599,16 +3069,142 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         </div>
       )}
 
+      {/* CREATE COUPON MODAL */}
+      {showCouponModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-md w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+              <h3 className="font-display text-base font-bold text-white uppercase flex items-center gap-2">
+                <Tag className="w-4 h-4 text-[#E5A914]" /> Create Promo Coupon
+              </h3>
+              <button type="button" onClick={() => setShowCouponModal(false)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleCreateCoupon} className="space-y-3 text-xs">
+              <div>
+                <label className="block uppercase text-neutral-400 mb-1">Coupon Code</label>
+                <input
+                  type="text"
+                  value={newCoupon.code}
+                  onChange={e => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                  placeholder="e.g. HYD4L20"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono font-bold uppercase"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Discount Type</label>
+                  <select
+                    value={newCoupon.type}
+                    onChange={e => setNewCoupon({ ...newCoupon, type: e.target.value as 'percent' | 'flat' })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                  >
+                    <option value="percent">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">
+                    {newCoupon.type === 'percent' ? 'Percent Off (%)' : 'Flat Discount (₹)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={newCoupon.type === 'percent' ? 90 : 50000}
+                    value={newCoupon.value}
+                    onChange={e => setNewCoupon({ ...newCoupon, value: Number(e.target.value) })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Min Order Value (₹)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newCoupon.minOrderValue}
+                    onChange={e => setNewCoupon({ ...newCoupon, minOrderValue: Number(e.target.value) })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">
+                    {newCoupon.type === 'percent' ? 'Max Discount Cap (₹)' : 'Usage Limit'}
+                  </label>
+                  {newCoupon.type === 'percent' ? (
+                    <input
+                      type="number"
+                      min={0}
+                      value={newCoupon.maxDiscount}
+                      onChange={e => setNewCoupon({ ...newCoupon, maxDiscount: Number(e.target.value) })}
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min={1}
+                      value={newCoupon.usageLimit}
+                      onChange={e => setNewCoupon({ ...newCoupon, usageLimit: Number(e.target.value) })}
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {newCoupon.type === 'percent' && (
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Usage Limit</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={newCoupon.usageLimit}
+                      onChange={e => setNewCoupon({ ...newCoupon, usageLimit: Number(e.target.value) })}
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    />
+                  </div>
+                )}
+                <div className={newCoupon.type === 'percent' ? '' : 'col-span-2'}>
+                  <label className="block uppercase text-neutral-400 mb-1">Expiry Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={newCoupon.expiresAt}
+                    onChange={e => setNewCoupon({ ...newCoupon, expiresAt: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button type="button" onClick={() => setShowCouponModal(false)} className="text-xs text-neutral-400 px-3">Cancel</button>
+                <button
+                  type="submit"
+                  disabled={savingCoupon}
+                  className="bg-[#E5A914] text-black font-extrabold px-5 py-2 rounded text-xs uppercase tracking-wider hover:bg-[#d49b10] disabled:opacity-50"
+                >
+                  {savingCoupon ? 'Creating...' : 'Create Coupon'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* PRINTABLE GST INVOICE MODAL */}
       {viewInvoiceOrder && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white text-neutral-950 max-w-2xl w-full p-8 rounded-xl shadow-2xl space-y-6 my-8 font-sans">
             <div className="flex justify-between items-start border-b border-neutral-300 pb-5">
               <div>
-                <h2 className="text-2xl font-black tracking-tight">4 LAZY</h2>
+                <h2 className="text-2xl font-black tracking-tight">4LAAZY</h2>
                 <p className="text-xs text-neutral-500 uppercase tracking-widest mt-0.5">LESS EFFORT. MORE STYLE.</p>
-                <p className="text-xs text-neutral-600 mt-2">GSTIN: 27AABCL4921E1Z8</p>
-                <p className="text-xs text-neutral-600">Linking Road, Bandra West, Mumbai 400050</p>
+                <p className="text-xs text-neutral-600 mt-2">GSTIN: 36AABCL4921E1Z8</p>
+                <p className="text-xs text-neutral-600">Road No. 36, Jubilee Hills, Hyderabad 500033</p>
               </div>
               <div className="text-right">
                 <span className="text-xs font-bold text-neutral-500 uppercase block">TAX INVOICE</span>

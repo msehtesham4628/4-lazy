@@ -51,13 +51,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             >
               <img
                 src="/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png"
-                alt="4 LAZY Monogram Logo"
+                alt="4LAAZY Monogram Logo"
                 className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-md transition-transform group-hover:scale-105"
                 referrerPolicy="no-referrer"
               />
               <div className="flex flex-col">
                 <span className="font-display text-lg sm:text-xl font-black tracking-tight text-white group-hover:text-[#E5A914] transition-colors leading-none whitespace-nowrap">
-                  4 LAZY
+                  4LAAZY
                 </span>
                 <span className="text-[8px] sm:text-[9px] tracking-[0.22em] text-neutral-400 uppercase font-medium mt-0.5 whitespace-nowrap">
                   STREETWEAR

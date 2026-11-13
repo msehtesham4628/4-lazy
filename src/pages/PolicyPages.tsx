@@ -29,7 +29,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ page, onNavigate }) =>
             LESS EFFORT. MORE STYLE.
           </h1>
           <p className="text-sm text-neutral-400 max-w-xl mx-auto leading-relaxed">
-            The founding philosophy of 4 LAZY: Luxury should feel intuitive, effortless, and uncompromisingly bold.
+            The founding philosophy of 4LAAZY: Luxury should feel intuitive, effortless, and uncompromisingly bold.
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ page, onNavigate }) =>
               1. The Streetwear Monolith
             </h2>
             <p>
-              Contemporary fast fashion has overwhelmed modern dressing with transient micro-trends, flimsy 160 GSM fabrics, and collapsing collars. <strong>4 LAZY</strong> was founded to execute the exact opposite: heavy, sculptural garments that stand as architectural statements on their own.
+              Contemporary fast fashion has overwhelmed modern dressing with transient micro-trends, flimsy 160 GSM fabrics, and collapsing collars. <strong>4LAAZY</strong> was founded in Hyderabad to execute the exact opposite: heavy, sculptural garments that stand as architectural statements on their own.
             </p>
           </div>
 
@@ -82,7 +82,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ page, onNavigate }) =>
             STUDIO CONCIERGE
           </span>
           <h1 className="font-display text-3xl sm:text-4xl font-black text-white uppercase tracking-tight">
-            Contact 4 LAZY
+            Contact 4LAAZY
           </h1>
           <p className="text-xs text-neutral-400 max-w-md mx-auto">
             Our concierge team is available Monday through Saturday, 10:00 AM – 7:00 PM IST.
@@ -113,7 +113,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ page, onNavigate }) =>
                 <MapPin className="w-4 h-4 text-[#E5A914] shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-white block">Design Studio HQ</strong>
-                  <p className="text-neutral-400 mt-0.5">Linking Road, Bandra West, Mumbai 400050, India</p>
+                  <p className="text-neutral-400 mt-0.5">Road No. 36, Jubilee Hills, Hyderabad 500033, Telangana, India</p>
                 </div>
               </div>
             </div>
@@ -133,7 +133,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ page, onNavigate }) =>
                 <div className="flex items-center gap-2 font-bold">
                   <CheckCircle2 className="w-4 h-4" /> Message Dispatched
                 </div>
-                <p>Thank you. A 4 LAZY concierge specialist will respond within 24 business hours.</p>
+                <p>Thank you. A 4LAAZY concierge specialist will respond within 24 business hours.</p>
               </div>
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-3">
@@ -219,7 +219,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ page, onNavigate }) =>
         ) : (
           <div className="space-y-4">
             <p>
-              4 LAZY collects only necessary customer information required to process and dispatch orders securely, calculate state-specific tax rates, and provide real-time shipment updates.
+              4LAAZY collects only necessary customer information required to process and dispatch orders securely, calculate state-specific tax rates, and provide real-time shipment updates.
             </p>
             <p>
               We do not store raw credit/debit card numbers. All electronic payment transactions are encrypted and tokenized through certified gateway partners (Razorpay / Stripe) in compliance with PCI-DSS standards.

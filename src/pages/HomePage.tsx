@@ -67,7 +67,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="absolute inset-0">
           <img
             src={heroImg}
-            alt="4 LAZY T-Shirt Campaign"
+            alt="4LAAZY T-Shirt Campaign"
             className="w-full h-full object-cover object-center"
             referrerPolicy="no-referrer"
           />
@@ -76,7 +76,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white py-14 sm:py-20">
           <p className="mb-3 text-[10px] sm:text-[11px] font-bold tracking-[0.25em] uppercase text-[#E5A914]">
-            THE ARCHITECTURAL T-SHIRT HOUSE
+            HYDERABAD · THE ARCHITECTURAL T-SHIRT HOUSE
           </p>
 
           <h1 className="font-display text-3xl sm:text-6xl lg:text-7xl font-black tracking-tight uppercase leading-[0.96] max-w-4xl mx-auto text-balance whitespace-pre-line">
@@ -101,31 +101,22 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="absolute bottom-4 inset-x-0 hidden md:flex justify-center gap-8 text-[11px] uppercase tracking-wider text-neutral-400 font-semibold z-10">
           <span className="flex items-center gap-1.5"><Truck className="w-4 h-4 text-[#E5A914]" /> Free Express Shipping Over ₹1,999</span>
           <span>·</span>
-          <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-[#E5A914]" /> Cashfree Verified Gateway &amp; COD</span>
+          <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-[#E5A914]" /> Cashfree Verified Gateway</span>
           <span>·</span>
           <span className="flex items-center gap-1.5"><RotateCcw className="w-4 h-4 text-[#E5A914]" /> Hassle-Free 7-Day Exchanges</span>
         </div>
       </section>
 
       {/* 2. Trending Products Section */}
-      <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-6 sm:mb-8 gap-3 border-b border-neutral-800 pb-4">
-          <div>
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#E5A914] flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5" />
-              MOST WANTED NOW
-            </span>
-            <h2 className="font-display text-xl sm:text-3xl font-black text-white uppercase tracking-tight mt-1">
-              Trending Products
-            </h2>
-          </div>
-          <button
-            onClick={() => onNavigate('shop', { category: 'trending' })}
-            className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-[#E5A914] hover:text-white flex items-center gap-1.5 transition-colors group whitespace-nowrap shrink-0"
-          >
-            <span>View more</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
+      <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-6">
+        <div className="border-b border-neutral-800 pb-4">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#E5A914] flex items-center gap-1.5">
+            <Flame className="w-3.5 h-3.5" />
+            MOST WANTED NOW
+          </span>
+          <h2 className="font-display text-xl sm:text-3xl font-black text-white uppercase tracking-tight mt-1">
+            Trending Products
+          </h2>
         </div>
 
         {loading ? (
@@ -144,9 +135,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <div className="flex justify-center">
               <button
                 onClick={() => onNavigate('shop', { category: 'trending' })}
-                className="border border-neutral-700 hover:border-[#E5A914] bg-neutral-900 hover:bg-[#E5A914] text-white hover:text-black font-bold px-7 py-2.5 rounded text-xs uppercase tracking-widest transition-colors flex items-center gap-2"
+                className="border border-neutral-700 hover:border-[#E5A914] bg-neutral-900 hover:bg-[#E5A914] text-white hover:text-black font-bold px-8 py-3 rounded text-xs uppercase tracking-widest transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
               >
-                <span>View More Trending</span>
+                <span>View more</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -154,66 +145,44 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         )}
       </section>
 
-      {/* 3–8. Dedicated Editorial Banner + Category Name + Vertical 4-Product Grid + View More for Each of the 6 Categories */}
-      {CATEGORY_ROUTE_META.map((catMeta, index) => {
+      {/* 3–8. Category Name -> Banner -> Products -> Centered View More */}
+      {CATEGORY_ROUTE_META.map((catMeta) => {
         const catProducts = getCategoryProducts(catMeta.name);
         if (catProducts.length === 0) return null;
 
         return (
           <section key={catMeta.slug} className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-6">
-            {/* Category Feature Banner */}
+            {/* Category Name Heading ONLY (no category numbers, no top View more) */}
+            <div className="border-b border-neutral-800 pb-3">
+              <h2 className="font-display text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
+                {catMeta.name}
+              </h2>
+            </div>
+
+            {/* Category Banner */}
             <div
               onClick={() => onNavigate('shop', { category: catMeta.name })}
-              className="group relative h-48 sm:h-60 lg:h-72 rounded-xl overflow-hidden border border-neutral-800 cursor-pointer bg-neutral-950"
+              className="group relative h-48 sm:h-64 lg:h-72 rounded-xl overflow-hidden border border-neutral-800 cursor-pointer bg-neutral-950"
             >
               <img
                 src={catMeta.heroImage}
                 alt={catMeta.name}
-                className="w-full h-full object-cover object-center opacity-60 group-hover:scale-[1.03] transition-transform duration-700"
+                className="w-full h-full object-cover object-center opacity-65 group-hover:scale-[1.03] transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-950/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-950/65 to-transparent" />
 
-              <div className="relative z-10 h-full flex flex-col justify-between p-5 sm:p-8 lg:p-10 max-w-2xl">
-                <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-widest text-[#E5A914]">
-                  0{index + 1} // CATEGORY COLLECTION
-                </span>
-
-                <div className="space-y-1.5 sm:space-y-2">
-                  <h2 className="font-display text-2xl sm:text-4xl font-black text-white uppercase tracking-tight">
-                    {catMeta.name}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-neutral-300 line-clamp-2 max-w-xl">
-                    {catMeta.heroDescription}
-                  </p>
-                </div>
-
+              <div className="relative z-10 h-full flex flex-col justify-end p-5 sm:p-8 lg:p-10 max-w-2xl space-y-3">
+                <p className="text-xs sm:text-sm text-neutral-200 line-clamp-2 max-w-xl leading-relaxed">
+                  {catMeta.heroDescription}
+                </p>
                 <div>
                   <span className="inline-flex items-center gap-2 text-[11px] sm:text-xs font-extrabold uppercase tracking-widest text-[#E5A914] group-hover:text-white transition-colors">
-                    <span>Explore {catMeta.shortLabel}</span>
+                    <span>Explore {catMeta.name}</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* Category Name Heading Row + View More Button */}
-            <div className="flex items-end justify-between gap-3 border-b border-neutral-800 pb-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#E5A914]">
-                  CATEGORY 0{index + 1}
-                </span>
-                <h3 className="font-display text-xl sm:text-2xl font-black text-white uppercase tracking-tight mt-0.5">
-                  {catMeta.name}
-                </h3>
-              </div>
-              <button
-                onClick={() => onNavigate('shop', { category: catMeta.name })}
-                className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-[#E5A914] hover:text-white flex items-center gap-1.5 transition-colors group whitespace-nowrap shrink-0"
-              >
-                <span>View more</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
             </div>
 
             {/* Vertical 4-Product Grid */}
@@ -223,13 +192,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               ))}
             </div>
 
-            {/* Bottom View More Button */}
+            {/* Centered View More Button in the Middle */}
             <div className="flex justify-center pt-1">
               <button
                 onClick={() => onNavigate('shop', { category: catMeta.name })}
-                className="border border-neutral-700 hover:border-[#E5A914] bg-neutral-900 hover:bg-[#E5A914] text-white hover:text-black font-bold px-7 py-2.5 rounded text-xs uppercase tracking-widest transition-colors flex items-center gap-2"
+                className="border border-neutral-700 hover:border-[#E5A914] bg-neutral-900 hover:bg-[#E5A914] text-white hover:text-black font-bold px-8 py-3 rounded text-xs uppercase tracking-widest transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
               >
-                <span>View more {catMeta.name}</span>
+                <span>View more</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -242,13 +211,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-neutral-900/60 border border-neutral-800 rounded-xl overflow-hidden p-5 sm:p-10">
           <div className="lg:col-span-5 space-y-5">
             <span className="text-xs font-bold uppercase tracking-widest text-[#E5A914]">
-              THE 4 LAZY ETHOS
+              THE 4LAAZY ETHOS · HYDERABAD
             </span>
             <h2 className="font-display text-2xl sm:text-4xl font-black text-white uppercase tracking-tight leading-tight">
               THE SCIENCE OF THE PERFECT T-SHIRT
             </h2>
             <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
-              We craft T-shirts exclusively — zero distractions. Every 280–320 GSM combed cotton silhouette is bio-washed and engineered so collars never sag.
+              Born in Hyderabad, 4LAAZY crafts T-shirts exclusively — zero distractions. Every 280–320 GSM combed cotton silhouette is bio-washed and engineered so collars never sag.
             </p>
             <div className="space-y-2.5 text-xs text-neutral-400">
               <p><strong className="text-white">· Anti-Collapse 1.25&quot; Rib Collar:</strong> High-density 2x2 ribbing holds shape wash after wash.</p>
@@ -266,7 +235,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <div className="lg:col-span-7 h-[360px] sm:h-[480px] rounded-lg overflow-hidden border border-neutral-800">
             <img
               src={lookbookImg}
-              alt="4 LAZY Lookbook Model"
+              alt="4LAAZY Lookbook Model"
               className="w-full h-full object-cover object-top"
               referrerPolicy="no-referrer"
             />

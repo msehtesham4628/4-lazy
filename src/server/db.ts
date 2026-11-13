@@ -106,7 +106,7 @@ export function getInitialSeedData(): DatabaseSchema {
   const users: User[] = [
     {
       id: adminId,
-      name: '4 LAZY Founder & Lead Admin',
+      name: '4LAAZY Founder & Lead Admin',
       email: 'admin@4lazyfashion.com',
       phone: '+919876543210',
       role: 'admin',
@@ -126,11 +126,11 @@ export function getInitialSeedData(): DatabaseSchema {
           id: 'addr_01',
           fullName: 'Aryan Verma',
           phone: '+919811223344',
-          street: 'Flat 402, Skyline Residency, Bandra West',
-          apartment: 'Near Linking Road',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pinCode: '400050',
+          street: 'Flat 402, Skyline Residency, Road No. 36, Jubilee Hills',
+          apartment: 'Near Jubilee Checkpost',
+          city: 'Hyderabad',
+          state: 'Telangana',
+          pinCode: '500033',
           country: 'India',
           isDefault: true
         }
@@ -153,10 +153,10 @@ export function getInitialSeedData(): DatabaseSchema {
         id: 'addr_01',
         fullName: 'Aryan Verma',
         phone: '+919811223344',
-        street: 'Flat 402, Skyline Residency, Bandra West',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pinCode: '400050',
+        street: 'Flat 402, Skyline Residency, Road No. 36, Jubilee Hills',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pinCode: '500033',
         country: 'India',
         isDefault: true
       },
@@ -210,9 +210,9 @@ export function getInitialSeedData(): DatabaseSchema {
         trackingUrl: 'https://www.bluedart.com/tracking?trackNumber=BLUEDART-847291038',
         dispatchDate: '2026-03-02',
         estimatedDeliveryDate: '2026-03-05',
-        statusNotes: 'In transit to Mumbai Hub'
+        statusNotes: 'In transit to Hyderabad Hub'
       },
-      internalNotes: 'VIP customer, included 4 LAZY brass monogram pin gift.',
+      internalNotes: 'VIP customer, included 4LAAZY brass monogram pin gift.',
       createdAt: '2026-03-01T15:20:00Z'
     }
   ];
@@ -270,16 +270,16 @@ export function getInitialSeedData(): DatabaseSchema {
     {
       id: 'eml_01',
       to: 'aryan@example.com',
-      subject: 'Your 4 LAZY Order #4L-2026-1001 is on the way',
+      subject: 'Your 4LAAZY Order #4L-2026-1001 is on the way',
       type: 'shipping_update',
       sentAt: '2026-03-02T14:30:00Z',
       status: 'delivered',
-      previewHtml: '<h1>4 LAZY</h1><p>Hey Aryan, your package has been handed over to Blue Dart Express. Tracking: BLUEDART-847291038</p>'
+      previewHtml: '<h1>4LAAZY</h1><p>Hey Aryan, your package has been handed over to Blue Dart Express. Tracking: BLUEDART-847291038</p>'
     }
   ];
 
   const settings: StoreSettings = {
-    brandName: '4 LAZY',
+    brandName: '4LAAZY',
     tagline: 'Less Effort. More Style.',
     logoUrl: logoImg,
     contactEmail: 'concierge@4lazyfashion.com',
@@ -305,6 +305,7 @@ export function getInitialSeedData(): DatabaseSchema {
     stripePublicKey: 'pk_test_4LAZYStoreDemo',
     cashfreeAppId: 'TEST1029384756CF',
     cashfreeEnvironment: 'sandbox',
+    codEnabled: true,
     isTestMode: true
   };
 
@@ -379,7 +380,7 @@ export function getDB(): DatabaseSchema {
           db.categories.some(c => c.slug === 'limited-design');
 
         let needsSave = false;
-        if (!hasExactSixCategories || !db.products || db.products.length < 24) {
+        if (!hasExactSixCategories || !Array.isArray(db.products)) {
           db.products = fullSeed.products;
           db.categories = fullSeed.categories;
           needsSave = true;
@@ -392,10 +393,20 @@ export function getDB(): DatabaseSchema {
         if (!db.settings) {
           db.settings = fullSeed.settings;
           needsSave = true;
-        } else if (!db.settings.cashfreeAppId) {
-          db.settings.cashfreeAppId = fullSeed.settings.cashfreeAppId;
-          db.settings.cashfreeEnvironment = fullSeed.settings.cashfreeEnvironment || 'sandbox';
-          needsSave = true;
+        } else {
+          if (!db.settings.cashfreeAppId) {
+            db.settings.cashfreeAppId = fullSeed.settings.cashfreeAppId;
+            db.settings.cashfreeEnvironment = fullSeed.settings.cashfreeEnvironment || 'sandbox';
+            needsSave = true;
+          }
+          if (db.settings.codEnabled === undefined) {
+            db.settings.codEnabled = true;
+            needsSave = true;
+          }
+          if (db.settings.brandName === '4 LAZY') {
+            db.settings.brandName = '4LAAZY';
+            needsSave = true;
+          }
         }
         db.returnRequests = db.returnRequests || [];
         db.carts = db.carts || {};

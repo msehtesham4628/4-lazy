@@ -193,7 +193,7 @@ export const TShirt3DViewer: React.FC<TShirt3DViewerProps> = ({
 
       ctx.fillStyle = 'rgba(229, 169, 20, 0.85)';
       ctx.font = 'bold 22px sans-serif';
-      ctx.fillText('4 LAZY CUSTOM PRINT AREA', 0, -20);
+      ctx.fillText('4LAAZY CUSTOM PRINT AREA', 0, -20);
 
       ctx.fillStyle = 'rgba(100, 100, 110, 0.8)';
       ctx.font = '16px monospace';

@@ -35,13 +35,13 @@ export function sendWelcomeEmail(name: string, email: string) {
   const html = `
     <div style="background-color: #0c0c0e; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="letter-spacing: 4px; font-size: 26px; margin: 0; color: #f4f4f5;">4 LAZY</h1>
+        <h1 style="letter-spacing: 4px; font-size: 26px; margin: 0; color: #f4f4f5;">4LAAZY</h1>
         <p style="font-size: 11px; letter-spacing: 2px; color: #a1a1aa; margin-top: 4px;">LESS EFFORT. MORE STYLE.</p>
       </div>
       <div style="background-color: #18181b; padding: 28px; border: 1px solid #27272a;">
         <h2 style="font-size: 18px; margin-top: 0; font-weight: 600;">Welcome to the Vanguard, ${name}.</h2>
         <p style="color: #a1a1aa; line-height: 1.6; font-size: 14px;">
-          Your 4 LAZY account is now active. You have unlocked access to exclusive drop notifications, order tracking, and private archivals.
+          Your 4LAAZY account is now active. You have unlocked access to exclusive drop notifications, order tracking, and private archivals.
         </p>
         <div style="margin: 24px 0; padding: 16px; background-color: #0c0c0e; border: 1px dashed #E5A914; text-align: center;">
           <p style="margin: 0; font-size: 11px; color: #a1a1aa; letter-spacing: 1.5px;">YOUR WELCOME PRIVILEGE</p>
@@ -50,14 +50,14 @@ export function sendWelcomeEmail(name: string, email: string) {
         </div>
       </div>
       <div style="text-align: center; margin-top: 30px; font-size: 11px; color: #71717a;">
-        &copy; ${new Date().getFullYear()} 4 LAZY INC. ALL RIGHTS RESERVED.
+        &copy; ${new Date().getFullYear()} 4LAAZY INC. ALL RIGHTS RESERVED.
       </div>
     </div>
   `;
 
   return sendEmail({
     to: email,
-    subject: 'Welcome to 4 LAZY | Less Effort. More Style.',
+    subject: 'Welcome to 4LAAZY | Less Effort. More Style.',
     type: 'welcome',
     htmlContent: html
   });
@@ -67,7 +67,7 @@ export function sendOtpEmail(email: string, otp: string) {
   const html = `
     <div style="background-color: #0c0c0e; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <h1 style="letter-spacing: 4px; font-size: 24px; margin: 0;">4 LAZY</h1>
+        <h1 style="letter-spacing: 4px; font-size: 24px; margin: 0;">4LAAZY</h1>
       </div>
       <div style="background-color: #18181b; padding: 24px; border: 1px solid #27272a; text-align: center;">
         <h2 style="font-size: 16px; margin-top: 0; color: #f4f4f5;">Email Verification Code</h2>
@@ -82,7 +82,7 @@ export function sendOtpEmail(email: string, otp: string) {
 
   return sendEmail({
     to: email,
-    subject: `${otp} is your 4 LAZY verification code`,
+    subject: `${otp} is your 4LAAZY verification code`,
     type: 'email_otp',
     htmlContent: html
   });
@@ -104,7 +104,7 @@ export function sendOrderConfirmationEmail(order: Order) {
   const html = `
     <div style="background-color: #0c0c0e; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="letter-spacing: 4px; font-size: 26px; margin: 0;">4 LAZY</h1>
+        <h1 style="letter-spacing: 4px; font-size: 26px; margin: 0;">4LAAZY</h1>
         <p style="font-size: 11px; letter-spacing: 2px; color: #a1a1aa; margin-top: 4px;">ORDER CONFIRMATION</p>
       </div>
       <div style="background-color: #18181b; padding: 24px; border: 1px solid #27272a;">
@@ -158,7 +158,7 @@ export function sendOrderConfirmationEmail(order: Order) {
 
   return sendEmail({
     to: order.customer.email,
-    subject: `Order Confirmed: ${order.orderNumber} | 4 LAZY`,
+    subject: `Order Confirmed: ${order.orderNumber} | 4LAAZY`,
     type: 'order_confirmation',
     htmlContent: html
   });
@@ -168,7 +168,7 @@ export function sendShippingUpdateEmail(order: Order) {
   const html = `
     <div style="background-color: #0c0c0e; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <h1 style="letter-spacing: 4px; font-size: 24px; margin: 0;">4 LAZY</h1>
+        <h1 style="letter-spacing: 4px; font-size: 24px; margin: 0;">4LAAZY</h1>
         <p style="font-size: 11px; letter-spacing: 2px; color: #a1a1aa; margin-top: 4px;">SHIPMENT UPDATE</p>
       </div>
       <div style="background-color: #18181b; padding: 24px; border: 1px solid #27272a;">
@@ -186,7 +186,7 @@ export function sendShippingUpdateEmail(order: Order) {
           <div style="font-size: 13px; color: #f4f4f5; margin-top: 2px;">${order.tracking.estimatedDeliveryDate}</div>` : ''}
         </div>` : ''}
 
-        <p style="font-size: 12px; color: #71717a; margin-bottom: 0;">Track real-time status in your 4 LAZY customer account anytime.</p>
+        <p style="font-size: 12px; color: #71717a; margin-bottom: 0;">Track real-time status in your 4LAAZY customer account anytime.</p>
       </div>
     </div>
   `;

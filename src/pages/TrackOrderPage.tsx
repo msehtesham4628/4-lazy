@@ -69,7 +69,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ onNavigate, init
           REAL-TIME SHIPMENT DISPATCH
         </span>
         <h1 className="font-display text-3xl sm:text-4xl font-black text-white uppercase tracking-tight">
-          Track Your 4 LAZY Order
+          Track Your 4LAAZY Order
         </h1>
         <p className="text-xs text-neutral-400 max-w-md mx-auto">
           Enter your order reference (e.g. <strong>4L-2026-1001</strong>) and contact email to view live courier transit milestones.
