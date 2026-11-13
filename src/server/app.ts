@@ -32,17 +32,19 @@ try {
 }
 
 // Kick off background init on Node servers, and await once per cold-start in serverless
-function ensureMongoReady() {
-  return initMongoDB(initialData || getDB(), hydrateDbFromMongo).catch(err => {
+function ensureMongoReady(forceRefresh = false) {
+  return initMongoDB(initialData || getDB(), hydrateDbFromMongo, forceRefresh).catch(err => {
     console.warn('MongoDB initialization notice:', err?.message || err);
   });
 }
-ensureMongoReady();
+ensureMongoReady(false);
 
 app.use('/api', async (req, res, next) => {
-  await ensureMongoReady();
+  const isMutation = req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS';
+  const isAdminRead = req.path.startsWith('/admin');
+  await ensureMongoReady(isMutation || isAdminRead);
 
-  if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+  if (isMutation) {
     const origJson = res.json.bind(res);
     res.json = ((body: any) => {
       const pending = getPendingMongoSync();

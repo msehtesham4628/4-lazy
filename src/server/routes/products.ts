@@ -1,5 +1,5 @@
 import { Router, type Response } from 'express';
-import { getDB, saveDB } from '../db.ts';
+import { getDB, saveDB, trackMongoOp } from '../db.ts';
 import { requireAdmin, optionalAuthenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { isMongoConnected, ProductModel } from '../mongodb.ts';
 import type { Product, Review, StockNotificationRequest } from '../../types/index.ts';
@@ -329,9 +329,7 @@ productsRouter.delete('/admin/products/:id', requireAdmin, (req: AuthenticatedRe
   });
 
   if (isMongoConnected()) {
-    ProductModel.deleteOne({ id: removed.id }).catch(err => {
-      console.warn('Mongo product delete sync warning:', err?.message || err);
-    });
+    trackMongoOp(ProductModel.deleteOne({ id: removed.id }));
   }
 
   saveDB();

@@ -361,6 +361,8 @@ export const StockNotificationModel = mongoose.models.StockNotification || mongo
 const g = globalThis as typeof globalThis & {
   __4laazyMongoConnectPromise?: Promise<any> | null;
   __4laazyMongoInitPromise?: Promise<void> | null;
+  __4laazyMongoPullPromise?: Promise<void> | null;
+  __4laazyMongoLastPullAt?: number;
   __4laazyMongoLastFailAt?: number;
 };
 
@@ -447,8 +449,9 @@ export async function connectMongoDB(uri?: string): Promise<{
 
     console.log(`Connecting to MongoDB...`);
     g.__4laazyMongoConnectPromise = mongoose.connect(cleanUri, {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 6000
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 5
     });
     await g.__4laazyMongoConnectPromise;
     g.__4laazyMongoConnectPromise = null;
@@ -634,7 +637,7 @@ export async function syncLocalToMongo(dbData: any): Promise<{ success: boolean;
 
     if (dbData.settings) {
       counts.settings = 1;
-      ops.push(StoreSettingsModel.findOneAndUpdate({}, dbData.settings, { upsert: true, new: true }));
+      ops.push(StoreSettingsModel.findOneAndUpdate({}, dbData.settings, { upsert: true, returnDocument: 'after' }));
     }
 
     await Promise.all(ops);
@@ -759,18 +762,45 @@ export async function syncMongoToLocal(): Promise<{
  * Initialize MongoDB on boot / cold-start if MONGODB_URI is provided.
  * Automatically caches initialization and pulls remote collections into memory.
  */
-export async function initMongoDB(initialDbData?: any, onPull?: (data: any) => void): Promise<void> {
+export async function initMongoDB(
+  initialDbData?: any,
+  onPull?: (data: any) => void,
+  forceRefresh = false
+): Promise<void> {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     return;
   }
 
   if (isMongoConnected()) {
+    // On Vercel multi-worker serverless, keep warm containers synchronized with MongoDB writes from other workers
+    if (
+      process.env.VERCEL &&
+      onPull &&
+      (forceRefresh || !g.__4laazyMongoLastPullAt || Date.now() - g.__4laazyMongoLastPullAt > 1500)
+    ) {
+      if (!g.__4laazyMongoPullPromise) {
+        g.__4laazyMongoPullPromise = (async () => {
+          try {
+            const pulled = await syncMongoToLocal();
+            if (pulled.success && pulled.data) {
+              onPull(pulled.data);
+              g.__4laazyMongoLastPullAt = Date.now();
+            }
+          } catch (e) {
+            console.warn('MongoDB serverless refresh warning:', e);
+          }
+        })().finally(() => {
+          g.__4laazyMongoPullPromise = null;
+        });
+      }
+      await g.__4laazyMongoPullPromise;
+    }
     return;
   }
 
-  // Avoid hammering blocked MongoDB Atlas on every request within a 30s window
-  if (g.__4laazyMongoLastFailAt && Date.now() - g.__4laazyMongoLastFailAt < 30000) {
+  // Avoid hammering blocked MongoDB Atlas on every request within a 10s window
+  if (g.__4laazyMongoLastFailAt && Date.now() - g.__4laazyMongoLastFailAt < 10000) {
     return;
   }
 
@@ -790,6 +820,7 @@ export async function initMongoDB(initialDbData?: any, onPull?: (data: any) => v
               onPull(pulled.data);
             }
           }
+          g.__4laazyMongoLastPullAt = Date.now();
         } catch (e) {
           console.error('Failed to check or hydrate MongoDB:', e);
         }

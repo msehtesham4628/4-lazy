@@ -1,5 +1,5 @@
 import { Router, type Response } from 'express';
-import { getDB, saveDB, setDB } from '../db.ts';
+import { getDB, saveDB, setDB, trackMongoOp } from '../db.ts';
 import { requireAdmin, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendShippingUpdateEmail } from '../emailService.ts';
 import type { OrderStatus, InventoryTransaction } from '../../types/index.ts';
@@ -398,9 +398,7 @@ adminRouter.delete('/coupons/:id', (req: AuthenticatedRequest, res: Response) =>
   const db = getDB();
   db.coupons = db.coupons.filter(c => c.id !== req.params.id);
   if (isMongoConnected()) {
-    CouponModel.deleteOne({ id: req.params.id }).catch(err => {
-      console.warn('Mongo coupon delete warning:', err?.message || err);
-    });
+    trackMongoOp(CouponModel.deleteOne({ id: req.params.id }));
   }
   saveDB();
   return res.json({ success: true });
@@ -495,9 +493,7 @@ adminRouter.delete('/categories/:id', (req: AuthenticatedRequest, res: Response)
   const db = getDB();
   db.categories = db.categories.filter(c => c.id !== req.params.id);
   if (isMongoConnected()) {
-    CategoryModel.deleteOne({ id: req.params.id }).catch(err => {
-      console.warn('Mongo category delete warning:', err?.message || err);
-    });
+    trackMongoOp(CategoryModel.deleteOne({ id: req.params.id }));
   }
   saveDB();
   return res.json({ success: true });

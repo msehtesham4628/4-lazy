@@ -9,7 +9,7 @@
       "name": "4LAAZY Founder & Lead Admin",
       "phone": "+919876543210",
       "role": "admin",
-      "updatedAt": "2026-11-13T20:32:12.844Z"
+      "updatedAt": "2026-11-13T20:41:56.762Z"
     },
     {
       "id": "usr_admin_002",
@@ -20,7 +20,7 @@
       "name": "Vikram Singhania (Store Manager)",
       "phone": "+919876500000",
       "role": "admin",
-      "updatedAt": "2026-11-13T20:32:12.912Z"
+      "updatedAt": "2026-11-13T20:41:56.762Z"
     },
     {
       "id": "usr_cust_001",
@@ -44,7 +44,7 @@
       "name": "Aryan Verma",
       "phone": "+919811223344",
       "role": "customer",
-      "updatedAt": "2026-11-13T20:32:12.980Z"
+      "updatedAt": "2026-11-13T20:41:56.762Z"
     },
     {
       "id": "usr_cust_002",
@@ -68,7 +68,7 @@
       "name": "Riya Sharma",
       "phone": "+919822334455",
       "role": "customer",
-      "updatedAt": "2026-11-13T20:32:13.047Z"
+      "updatedAt": "2026-11-13T20:41:56.762Z"
     },
     {
       "id": "usr_cust_003",
@@ -92,7 +92,7 @@
       "name": "Kabir Mehta",
       "phone": "+919833445566",
       "role": "customer",
-      "updatedAt": "2026-11-13T20:32:13.114Z"
+      "updatedAt": "2026-11-13T20:41:56.762Z"
     },
     {
       "id": "usr_cust_004",
@@ -116,7 +116,7 @@
       "name": "Ananya Sen",
       "phone": "+919844556677",
       "role": "customer",
-      "updatedAt": "2026-11-13T20:32:13.182Z"
+      "updatedAt": "2026-11-13T20:41:56.762Z"
     }
   ],
   "passwords": {
@@ -182,7 +182,7 @@
         "Streetwear"
       ],
       "title": "Heavyweight Oversized Box Tee",
-      "updatedAt": "2026-11-07T19:48:46.312Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_tee_wb_s",
@@ -373,7 +373,7 @@
         "Winter Essential"
       ],
       "title": "500 GSM French Terry Boxy Hoodie",
-      "updatedAt": "2026-11-07T19:48:46.382Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_hood_vc_s",
@@ -499,7 +499,7 @@
         "New Arrival"
       ],
       "title": "Relaxed Pleated Cargo Trousers",
-      "updatedAt": "2026-11-07T19:48:46.451Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_crg_bo_s",
@@ -616,7 +616,7 @@
         "Statement Piece"
       ],
       "title": "Brutalist Minimalist Zip Jacket",
-      "updatedAt": "2026-11-07T19:48:46.519Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_jkt_dc_s",
@@ -716,7 +716,7 @@
         "Everyday Comfort"
       ],
       "title": "500 GSM Heavy Loopback Sweatpants",
-      "updatedAt": "2026-11-07T19:48:46.586Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_jog_vc_s",
@@ -842,7 +842,7 @@
         "Architectural"
       ],
       "title": "Architectural Boxy Utility Overshirt",
-      "updatedAt": "2026-11-07T19:48:46.654Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_ovr_eo_s",
@@ -968,7 +968,7 @@
         "Limited Edition"
       ],
       "title": "Vanguard Raw Hem Acid Wash Tee",
-      "updatedAt": "2026-11-07T19:48:46.721Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_acd_mg_s",
@@ -1094,7 +1094,7 @@
         "Heavyweight"
       ],
       "title": "Dual-Zipper Heavyweight Boxy Hoodie",
-      "updatedAt": "2026-11-07T19:48:46.790Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_zh_wc_s",
@@ -1220,7 +1220,7 @@
         "Wide Leg"
       ],
       "title": "Tailored Wide-Leg Pleated Trousers",
-      "updatedAt": "2026-11-07T19:48:46.858Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_wt_de_s",
@@ -1346,7 +1346,7 @@
         "Drop 04 Exclusive"
       ],
       "title": "Monochrome Brutalist Co-ord Set",
-      "updatedAt": "2026-11-07T19:48:46.926Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_cd_sm_s",
@@ -1486,7 +1486,7 @@
         "280 GSM"
       ],
       "title": "Signature Heavy Combed Round Neck T-Shirt",
-      "updatedAt": "2026-11-13T20:32:13.678Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_RN01-SC_s",
@@ -1658,7 +1658,7 @@
         "Blank"
       ],
       "title": "Monolith 320 GSM Round Neck Blank",
-      "updatedAt": "2026-11-13T20:32:13.755Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_RN02-PW_s",
@@ -1830,7 +1830,7 @@
         "Daily"
       ],
       "title": "Sandstone Bio-Wash Round Neck Tee",
-      "updatedAt": "2026-11-13T20:32:13.824Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_RN03-SB_s",
@@ -2001,7 +2001,7 @@
         "Micro-Rib"
       ],
       "title": "Graphite Micro-Rib Round Neck T-Shirt",
-      "updatedAt": "2026-11-13T20:32:13.903Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_RN04-GS_s",
@@ -2173,7 +2173,7 @@
         "Collared"
       ],
       "title": "Brutalist Boxy Knit Polo T-Shirt",
-      "updatedAt": "2026-11-13T20:32:13.977Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_PL01-WB_s",
@@ -2344,7 +2344,7 @@
         "Zip Collar"
       ],
       "title": "Quarter-Zip French Terry Polo T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.047Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_PL02-OB_s",
@@ -2515,7 +2515,7 @@
         "Waffle Knit"
       ],
       "title": "Open-Placket Honeycomb Polo T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.128Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_PL03-CI_s",
@@ -2686,7 +2686,7 @@
         "Pique"
       ],
       "title": "Contrast Piped Atelier Polo T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.196Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_PL04-NG_s",
@@ -2868,7 +2868,7 @@
         "Down Shoulder"
       ],
       "title": "Architectural Down Shoulder T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.265Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_DS01-WB_s",
@@ -3039,7 +3039,7 @@
         "Raw Edge"
       ],
       "title": "Monochrome Raw-Edge Down Shoulder Tee",
-      "updatedAt": "2026-11-13T20:32:14.335Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_DS02-WC_s",
@@ -3211,7 +3211,7 @@
         "Heavyweight"
       ],
       "title": "Heavy Cube 310 GSM Down Shoulder Tee",
-      "updatedAt": "2026-11-13T20:32:14.406Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_DS03-PB_s",
@@ -3382,7 +3382,7 @@
         "Architectural"
       ],
       "title": "Reverse-Seam Down Shoulder T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.481Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_DS04-CA_s",
@@ -3554,7 +3554,7 @@
         "3D Studio"
       ],
       "title": "Bespoke 3D Studio White Customise Tee",
-      "updatedAt": "2026-11-13T20:32:14.551Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_CS01-PW_s",
@@ -3725,7 +3725,7 @@
         "3D Puff"
       ],
       "title": "3D Silicone Puff Customise T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.619Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_CS02-PW_s",
@@ -3896,7 +3896,7 @@
         "Back Print"
       ],
       "title": "Full Back Canvas Customise T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.688Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_CS03-PB_s",
@@ -4067,7 +4067,7 @@
         "Gold Foil"
       ],
       "title": "Metallic Gold Foil Customise T-Shirt",
-      "updatedAt": "2026-11-13T20:32:14.757Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_CS04-PB_s",
@@ -4239,7 +4239,7 @@
         "Acid Wash"
       ],
       "title": "Laazy Designs Acid Wash Signature Tee",
-      "updatedAt": "2026-11-13T20:32:14.826Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_LD01-AC_s",
@@ -4411,7 +4411,7 @@
         "Graphic"
       ],
       "title": "Subversive Typography Laazy Design Tee",
-      "updatedAt": "2026-11-13T20:32:14.896Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_LD02-VB_s",
@@ -4582,7 +4582,7 @@
         "Back Print"
       ],
       "title": "Brutalist Blueprint Back-Print Tee",
-      "updatedAt": "2026-11-13T20:32:14.965Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_LD03-OI_s",
@@ -4753,7 +4753,7 @@
         "Manifesto"
       ],
       "title": "Less Effort Manifesto Statement Tee",
-      "updatedAt": "2026-11-13T20:32:15.034Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_LD04-WB_s",
@@ -4925,7 +4925,7 @@
         "Numbered"
       ],
       "title": "Capsule 04 Numbered Limited Design Tee",
-      "updatedAt": "2026-11-13T20:32:15.107Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_LM01-OG_s",
@@ -5097,7 +5097,7 @@
         "Collector"
       ],
       "title": "Monolith Embossed Collector T-Shirt",
-      "updatedAt": "2026-11-13T20:32:15.177Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_LM02-CN_s",
@@ -5222,349 +5222,6 @@
       ]
     },
     {
-      "id": "prod_limited_03",
-      "basePrice": 3299,
-      "category": "Limited Design",
-      "colorGroups": [
-        {
-          "colorName": "Faded Obsidian",
-          "colorHex": "#1f2023",
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ]
-        },
-        {
-          "colorName": "Pitch Black",
-          "colorHex": "#0f0f11",
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ]
-        }
-      ],
-      "createdAt": "Fri Nov 13 2026 20:07:50 GMT+0000 (Coordinated Universal Time)",
-      "description": "Runway release featuring liquid silver foil back typography over sun-faded mineral black cotton.",
-      "details": {
-        "fabric": "300 GSM Washed Cotton",
-        "gsm": 300,
-        "fit": "Drop-shoulder runway cut",
-        "care": "Hand wash cold only",
-        "modelStats": "6'1\" wearing size L"
-      },
-      "discountPrice": 2899,
-      "isFeatured": false,
-      "isPublished": true,
-      "rating": 4.9,
-      "reviewsCount": 16,
-      "slug": "archive-silver-foil-runway-edition-tee",
-      "subtitle": "Edition of 50 · Chrome Foil Back Coordinates · 300 GSM",
-      "tags": [
-        "Limited Design",
-        "Runway",
-        "Archive"
-      ],
-      "title": "Silver Foil Runway Archive Tee",
-      "updatedAt": "2026-11-13T20:32:15.248Z",
-      "variants": [
-        {
-          "id": "var_LM03-FO_s",
-          "colorName": "Faded Obsidian",
-          "colorHex": "#1f2023",
-          "size": "S",
-          "sku": "4L-LM03-FO-S",
-          "stock": 7,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-FO_m",
-          "colorName": "Faded Obsidian",
-          "colorHex": "#1f2023",
-          "size": "M",
-          "sku": "4L-LM03-FO-M",
-          "stock": 4,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-FO_l",
-          "colorName": "Faded Obsidian",
-          "colorHex": "#1f2023",
-          "size": "L",
-          "sku": "4L-LM03-FO-L",
-          "stock": 4,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-FO_xl",
-          "colorName": "Faded Obsidian",
-          "colorHex": "#1f2023",
-          "size": "XL",
-          "sku": "4L-LM03-FO-XL",
-          "stock": 4,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-PB_s",
-          "colorName": "Pitch Black",
-          "colorHex": "#0f0f11",
-          "size": "S",
-          "sku": "4L-LM03-PB-S",
-          "stock": 6,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-PB_m",
-          "colorName": "Pitch Black",
-          "colorHex": "#0f0f11",
-          "size": "M",
-          "sku": "4L-LM03-PB-M",
-          "stock": 4,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-PB_l",
-          "colorName": "Pitch Black",
-          "colorHex": "#0f0f11",
-          "size": "L",
-          "sku": "4L-LM03-PB-L",
-          "stock": 4,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM03-PB_xl",
-          "colorName": "Pitch Black",
-          "colorHex": "#0f0f11",
-          "size": "XL",
-          "sku": "4L-LM03-PB-XL",
-          "stock": 4,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_acid_wash_1794456303446.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        }
-      ]
-    },
-    {
-      "id": "prod_limited_04",
-      "basePrice": 3499,
-      "category": "Limited Design",
-      "colorGroups": [
-        {
-          "colorName": "Espresso Noir",
-          "colorHex": "#201c1a",
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
-          ]
-        },
-        {
-          "colorName": "Bone Ivory",
-          "colorHex": "#e6e2d8",
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ]
-        }
-      ],
-      "createdAt": "Fri Nov 13 2026 20:07:50 GMT+0000 (Coordinated Universal Time)",
-      "description": "Signed Founder Series capsule cut from heavyweight jacquard weave with metallic brass collar clasp.",
-      "details": {
-        "fabric": "320 GSM Jacquard Cotton",
-        "gsm": 320,
-        "fit": "Structured oversized box cut",
-        "care": "Dry clean or cold hand wash",
-        "modelStats": "6'2\" wearing size L"
-      },
-      "discountPrice": 2999,
-      "isFeatured": false,
-      "isPublished": true,
-      "rating": 5,
-      "reviewsCount": 14,
-      "slug": "founder-series-hand-distressed-edition-tee",
-      "subtitle": "Edition of 60 · Custom Woven Tape & Heavy Collar · 320 GSM",
-      "tags": [
-        "Limited Design",
-        "Founder Series"
-      ],
-      "title": "Founder Series Woven Jacquard Edition Tee",
-      "updatedAt": "2026-11-13T20:32:15.326Z",
-      "variants": [
-        {
-          "id": "var_LM04-EN_s",
-          "colorName": "Espresso Noir",
-          "colorHex": "#201c1a",
-          "size": "S",
-          "sku": "4L-LM04-EN-S",
-          "stock": 8,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-EN_m",
-          "colorName": "Espresso Noir",
-          "colorHex": "#201c1a",
-          "size": "M",
-          "sku": "4L-LM04-EN-M",
-          "stock": 5,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-EN_l",
-          "colorName": "Espresso Noir",
-          "colorHex": "#201c1a",
-          "size": "L",
-          "sku": "4L-LM04-EN-L",
-          "stock": 4,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-EN_xl",
-          "colorName": "Espresso Noir",
-          "colorHex": "#201c1a",
-          "size": "XL",
-          "sku": "4L-LM04-EN-XL",
-          "stock": 4,
-          "images": [
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/tshirt_polo_neck_1794456301588.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-BI_s",
-          "colorName": "Bone Ivory",
-          "colorHex": "#e6e2d8",
-          "size": "S",
-          "sku": "4L-LM04-BI-S",
-          "stock": 6,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-BI_m",
-          "colorName": "Bone Ivory",
-          "colorHex": "#e6e2d8",
-          "size": "M",
-          "sku": "4L-LM04-BI-M",
-          "stock": 4,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-BI_l",
-          "colorName": "Bone Ivory",
-          "colorHex": "#e6e2d8",
-          "size": "L",
-          "sku": "4L-LM04-BI-L",
-          "stock": 4,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        },
-        {
-          "id": "var_LM04-BI_xl",
-          "colorName": "Bone Ivory",
-          "colorHex": "#e6e2d8",
-          "size": "XL",
-          "sku": "4L-LM04-BI-XL",
-          "stock": 4,
-          "images": [
-            "/assets/images/hero_streetwear_campaign_1794056018871.jpg",
-            "/assets/images/campaign_editorial_lookbook_1794056022183.jpg",
-            "/assets/images/tshirt_round_neck_1794456303307.jpg",
-            "/assets/images/product_oversized_heavy_tee_1794056020516.jpg"
-          ],
-          "priceAdjustment": 0
-        }
-      ]
-    },
-    {
       "id": "prod_1794600608656",
       "basePrice": 100000,
       "category": "Round Neck T-Shirt",
@@ -5596,7 +5253,7 @@
         "Streetwear"
       ],
       "title": "Muzammil",
-      "updatedAt": "2026-11-13T20:10:09.535Z",
+      "updatedAt": "2026-11-13T20:41:56.782Z",
       "variants": [
         {
           "id": "var_1794600607885_s",
@@ -5670,7 +5327,7 @@
       "itemCount": 18,
       "name": "Oversized T-Shirts",
       "slug": "oversized-t-shirts",
-      "updatedAt": "2026-11-07T19:48:45.783Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_hoodies",
@@ -5680,7 +5337,7 @@
       "itemCount": 12,
       "name": "Hoodies & Sweatshirts",
       "slug": "hoodies-sweatshirts",
-      "updatedAt": "2026-11-07T19:48:45.849Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_trousers",
@@ -5690,7 +5347,7 @@
       "itemCount": 10,
       "name": "Trousers & Cargo",
       "slug": "trousers-cargo",
-      "updatedAt": "2026-11-07T19:48:45.915Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_jackets",
@@ -5700,7 +5357,7 @@
       "itemCount": 8,
       "name": "Jackets & Outerwear",
       "slug": "jackets-outerwear",
-      "updatedAt": "2026-11-07T19:48:45.983Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_joggers",
@@ -5710,7 +5367,7 @@
       "itemCount": 7,
       "name": "Joggers & Sweatpants",
       "slug": "joggers-sweatpants",
-      "updatedAt": "2026-11-07T19:48:46.050Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_shirts",
@@ -5720,7 +5377,7 @@
       "itemCount": 6,
       "name": "Shirts",
       "slug": "shirts",
-      "updatedAt": "2026-11-07T19:48:46.116Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_coords",
@@ -5730,7 +5387,7 @@
       "itemCount": 5,
       "name": "Co-ord Sets",
       "slug": "co-ord-sets",
-      "updatedAt": "2026-11-07T19:48:46.181Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_accessories",
@@ -5740,7 +5397,7 @@
       "itemCount": 4,
       "name": "Accessories",
       "slug": "accessories",
-      "updatedAt": "2026-11-07T19:48:46.246Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_round_neck",
@@ -5750,7 +5407,7 @@
       "itemCount": 4,
       "name": "Round Neck T-Shirt",
       "slug": "round-neck-t-shirt",
-      "updatedAt": "2026-11-13T20:32:13.264Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_polo_neck",
@@ -5760,7 +5417,7 @@
       "itemCount": 4,
       "name": "Polo Neck T-Shirt",
       "slug": "polo-neck-t-shirt",
-      "updatedAt": "2026-11-13T20:32:13.332Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_down_shoulder",
@@ -5770,7 +5427,7 @@
       "itemCount": 4,
       "name": "Down Shoulder T-Shirt",
       "slug": "down-shoulder-t-shirt",
-      "updatedAt": "2026-11-13T20:32:13.401Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_customise",
@@ -5780,7 +5437,7 @@
       "itemCount": 4,
       "name": "Customise T-Shirt",
       "slug": "customise-t-shirt",
-      "updatedAt": "2026-11-13T20:32:13.467Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_laazy_designs",
@@ -5790,7 +5447,7 @@
       "itemCount": 4,
       "name": "Laazy Designs",
       "slug": "laazy-designs",
-      "updatedAt": "2026-11-13T20:32:13.538Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     },
     {
       "id": "cat_limited_design",
@@ -5800,7 +5457,7 @@
       "itemCount": 4,
       "name": "Limited Design",
       "slug": "limited-design",
-      "updatedAt": "2026-11-13T20:32:13.605Z"
+      "updatedAt": "2026-11-13T20:41:56.780Z"
     }
   ],
   "orders": [
@@ -5889,7 +5546,7 @@
         "trackingUrl": "https://www.bluedart.com/tracking?trackNumber=BLUEDART-847291038",
         "estimatedDeliveryDate": "2026-03-05"
       },
-      "updatedAt": "Fri Nov 13 2026 20:32:15 GMT+0000 (Coordinated Universal Time)",
+      "updatedAt": "Fri Nov 13 2026 20:41:56 GMT+0000 (Coordinated Universal Time)",
       "userId": "usr_cust_001"
     },
     {
@@ -5986,7 +5643,7 @@
         "trackingUrl": "https://www.delhivery.com",
         "estimatedDeliveryDate": "2026-03-05"
       },
-      "updatedAt": "Sat Nov 07 2026 19:48:47 GMT+0000 (Coordinated Universal Time)",
+      "updatedAt": "Fri Nov 13 2026 20:41:56 GMT+0000 (Coordinated Universal Time)",
       "userId": "usr_cust_002"
     },
     {
@@ -6050,7 +5707,7 @@
       "subtotal": 5499,
       "tax": 249.95,
       "total": 5248.95,
-      "updatedAt": "Sat Nov 07 2026 19:48:47 GMT+0000 (Coordinated Universal Time)",
+      "updatedAt": "Fri Nov 13 2026 20:41:56 GMT+0000 (Coordinated Universal Time)",
       "userId": "usr_cust_003"
     }
   ],
@@ -6079,7 +5736,7 @@
       "reason": "Size Exchange",
       "refundAmount": 1699,
       "status": "Pickup Scheduled",
-      "updatedAt": "Fri Nov 13 2026 20:32:15 GMT+0000 (Coordinated Universal Time)",
+      "updatedAt": "Fri Nov 13 2026 20:41:56 GMT+0000 (Coordinated Universal Time)",
       "notes": "Reverse pickup scheduled via Blue Dart reverse logistics."
     }
   ],
@@ -6093,7 +5750,7 @@
       "maxDiscount": 1000,
       "minOrderValue": 1499,
       "type": "percent",
-      "updatedAt": "2026-11-13T20:32:15.460Z",
+      "updatedAt": "2026-11-13T20:41:56.847Z",
       "usageLimit": 1000,
       "usedCount": 84,
       "value": 10
@@ -6106,7 +5763,7 @@
       "isActive": true,
       "minOrderValue": 2499,
       "type": "fixed",
-      "updatedAt": "2026-11-13T20:32:15.530Z",
+      "updatedAt": "2026-11-13T20:41:56.847Z",
       "usageLimit": 500,
       "usedCount": 132,
       "value": 500
@@ -6120,7 +5777,7 @@
       "maxDiscount": 1500,
       "minOrderValue": 3999,
       "type": "percent",
-      "updatedAt": "2026-11-13T20:32:15.598Z",
+      "updatedAt": "2026-11-13T20:41:56.847Z",
       "usageLimit": 200,
       "usedCount": 47,
       "value": 20
@@ -6208,6 +5865,20 @@
     }
   ],
   "adminLogs": [
+    {
+      "id": "log_1794602700413",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "PRODUCT_DELETED",
+      "details": "Deleted product \"Test Serverless Delete Check\" (prod_1794602699809).",
+      "timestamp": "2026-11-13T20:45:00.413Z"
+    },
+    {
+      "id": "log_1794602699809",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "PRODUCT_CREATED",
+      "details": "Created product \"Test Serverless Delete Check\" with 1 variants.",
+      "timestamp": "2026-11-13T20:44:59.809Z"
+    },
     {
       "id": "log_1794602334378",
       "adminEmail": "admin@4lazyfashion.com",
@@ -6472,7 +6143,7 @@
       }
     ],
     "createdAt": "2026-11-07T19:48:29.058Z",
-    "updatedAt": "2026-11-13T20:32:15.734Z"
+    "updatedAt": "2026-11-13T20:41:56.849Z"
   },
   "carts": {},
   "wishlists": {},

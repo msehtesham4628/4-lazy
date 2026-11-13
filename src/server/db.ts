@@ -62,6 +62,20 @@ export function getPendingMongoSync(): Promise<any> | null {
   return pendingMongoSync;
 }
 
+export function trackMongoOp(op: Promise<any>) {
+  const prev = pendingMongoSync;
+  const chained = (prev ? prev.catch(() => {}).then(() => op) : op)
+    .catch(err => {
+      console.warn('MongoDB sync operation warning:', err?.message || err);
+    })
+    .finally(() => {
+      if (pendingMongoSync === chained) {
+        pendingMongoSync = null;
+      }
+    });
+  pendingMongoSync = chained;
+}
+
 function ensureDataDir() {
   try {
     if (!fs.existsSync(activeDataDir)) {
@@ -682,15 +696,6 @@ export function saveDB() {
 
   // If MongoDB Atlas is connected, replicate changes and expose promise for serverless flushing
   if (isMongoConnected()) {
-    const currentSync = syncLocalToMongo(db)
-      .catch(err => {
-        console.warn('MongoDB background synchronization warning:', err?.message || err);
-      })
-      .finally(() => {
-        if (pendingMongoSync === currentSync) {
-          pendingMongoSync = null;
-        }
-      });
-    pendingMongoSync = currentSync;
+    trackMongoOp(syncLocalToMongo(db));
   }
 }
