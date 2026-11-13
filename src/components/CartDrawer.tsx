@@ -171,7 +171,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                             <p className="text-neutral-400 truncate italic">"{item.customPrint.customText}" ({item.customPrint.fontStyle})</p>
                           )}
                           {item.customPrint.uploadedGraphicUrl && (
-                            <p className="text-emerald-400 text-[9px]">Custom Graphic Uploaded</p>
+                            <div className="flex items-center gap-1.5 pt-0.5">
+                              {(item.customPrint.uploadedGraphicUrl.startsWith('data:') ||
+                                item.customPrint.uploadedGraphicUrl.startsWith('/') ||
+                                item.customPrint.uploadedGraphicUrl.startsWith('http')) && (
+                                <img
+                                  src={item.customPrint.uploadedGraphicUrl}
+                                  alt="Custom graphic"
+                                  className="w-6 h-6 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
+                                />
+                              )}
+                              <span className="text-emerald-400 text-[9px]">Custom Graphic Uploaded</span>
+                            </div>
                           )}
                         </div>
                       )}

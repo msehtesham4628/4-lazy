@@ -760,6 +760,30 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                   <p className="text-[11px] text-neutral-400 mt-0.5">
                     {item.colorName} · Size {item.size} · Qty {item.quantity}
                   </p>
+                  {item.customPrint && (
+                    <div className="mt-1 p-1.5 bg-neutral-950/80 border border-[#E5A914]/30 rounded flex items-center gap-2 text-[10px]">
+                      {item.customPrint.uploadedGraphicUrl &&
+                        (item.customPrint.uploadedGraphicUrl.startsWith('data:') ||
+                          item.customPrint.uploadedGraphicUrl.startsWith('/') ||
+                          item.customPrint.uploadedGraphicUrl.startsWith('http')) && (
+                          <img
+                            src={item.customPrint.uploadedGraphicUrl}
+                            alt="Custom graphic"
+                            className="w-7 h-7 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
+                          />
+                        )}
+                      <div className="min-w-0">
+                        <span className="text-[#E5A914] font-mono block truncate">
+                          {item.customPrint.placement.replace('-', ' ')} · {item.customPrint.printTechnique}
+                        </span>
+                        {item.customPrint.customText && (
+                          <span className="text-neutral-300 italic truncate block">
+                            &ldquo;{item.customPrint.customText}&rdquo;
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <p className="font-mono text-white font-bold mt-1 tabular-nums">
                     ₹{(item.price * item.quantity).toLocaleString()}
                   </p>

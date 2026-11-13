@@ -11,6 +11,16 @@
       "createdAt": "2026-01-01T00:00:00Z"
     },
     {
+      "id": "usr_admin_002",
+      "name": "Vikram Singhania (Store Manager)",
+      "email": "manager@4lazyfashion.com",
+      "phone": "+919876500000",
+      "role": "admin",
+      "isEmailVerified": true,
+      "addresses": [],
+      "createdAt": "2026-01-15T00:00:00Z"
+    },
+    {
       "id": "usr_cust_001",
       "name": "Aryan Verma",
       "email": "aryan@example.com",
@@ -32,11 +42,84 @@
         }
       ],
       "createdAt": "2026-02-10T12:00:00Z"
+    },
+    {
+      "id": "usr_cust_002",
+      "name": "Riya Sharma",
+      "email": "riya.sharma@example.com",
+      "phone": "+919822334455",
+      "role": "customer",
+      "isEmailVerified": true,
+      "addresses": [
+        {
+          "id": "addr_02",
+          "fullName": "Riya Sharma",
+          "phone": "+919822334455",
+          "street": "Villa 12, Gulmohar Enclave, Hauz Khas",
+          "apartment": "Block C",
+          "city": "New Delhi",
+          "state": "Delhi",
+          "pinCode": "110016",
+          "country": "India",
+          "isDefault": true
+        }
+      ],
+      "createdAt": "2026-02-14T09:30:00Z"
+    },
+    {
+      "id": "usr_cust_003",
+      "name": "Kabir Mehta",
+      "email": "kabir.mehta@example.com",
+      "phone": "+919833445566",
+      "role": "customer",
+      "isEmailVerified": true,
+      "addresses": [
+        {
+          "id": "addr_03",
+          "fullName": "Kabir Mehta",
+          "phone": "+919833445566",
+          "street": "Penthouse 8B, Brigade Heights, Indiranagar",
+          "apartment": "100 Feet Road",
+          "city": "Bengaluru",
+          "state": "Karnataka",
+          "pinCode": "560038",
+          "country": "India",
+          "isDefault": true
+        }
+      ],
+      "createdAt": "2026-02-18T16:15:00Z"
+    },
+    {
+      "id": "usr_cust_004",
+      "name": "Ananya Sen",
+      "email": "ananya.sen@example.com",
+      "phone": "+919844556677",
+      "role": "customer",
+      "isEmailVerified": true,
+      "addresses": [
+        {
+          "id": "addr_04",
+          "fullName": "Ananya Sen",
+          "phone": "+919844556677",
+          "street": "Plot 45, Sector 3, Salt Lake City",
+          "apartment": "Near City Centre 1",
+          "city": "Kolkata",
+          "state": "West Bengal",
+          "pinCode": "700091",
+          "country": "India",
+          "isDefault": true
+        }
+      ],
+      "createdAt": "2026-03-01T11:00:00Z"
     }
   ],
   "passwords": {
     "usr_admin_001": "$2b$10$WSE/KZtknVogHmEhNvo11OX9y8cTI/CLy4cVxZBF/nDdgQh0fGQUa",
-    "usr_cust_001": "$2b$10$WSE/KZtknVogHmEhNvo11OF89FFR6fvGarDrQoGgy3P.dExoQkhU2"
+    "usr_admin_002": "$2b$10$VtzBnM.BMYGs5.53DVNCLOVANJypu7SM0mvNAKsHjr0JrnJMi2kcC",
+    "usr_cust_001": "$2b$10$WSE/KZtknVogHmEhNvo11OF89FFR6fvGarDrQoGgy3P.dExoQkhU2",
+    "usr_cust_002": "$2b$10$VtzBnM.BMYGs5.53DVNCLOy60hiXqpviITKR7u/n81IOWkUX5/t/2",
+    "usr_cust_003": "$2b$10$VtzBnM.BMYGs5.53DVNCLOy60hiXqpviITKR7u/n81IOWkUX5/t/2",
+    "usr_cust_004": "$2b$10$VtzBnM.BMYGs5.53DVNCLOy60hiXqpviITKR7u/n81IOWkUX5/t/2"
   },
   "otps": {},
   "products": [
@@ -3729,6 +3812,20 @@
     }
   ],
   "adminLogs": [
+    {
+      "id": "log_1794600468086",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "PRODUCT_DELETED",
+      "details": "Deleted product \"Verification Custom Img Tee\" (prod_1794600468065).",
+      "timestamp": "2026-11-13T20:07:48.086Z"
+    },
+    {
+      "id": "log_1794600468065",
+      "adminEmail": "admin@4lazyfashion.com",
+      "action": "PRODUCT_CREATED",
+      "details": "Created product \"Verification Custom Img Tee\" with 1 variants.",
+      "timestamp": "2026-11-13T20:07:48.065Z"
+    },
     {
       "id": "log_1794599951621",
       "adminEmail": "admin@4lazyfashion.com",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Heart,
   ShoppingBag,
@@ -12,14 +12,42 @@ import {
   Plus,
   Minus,
   Check,
-  Sparkles
+  Upload,
+  Trash2,
+  Type,
+  Palette
 } from 'lucide-react';
-import type { Product, ProductVariant, Review } from '../types/index.ts';
+import type { Product, ProductVariant, Review, CustomPrintDetails } from '../types/index.ts';
 import { fallbackProducts } from '../data/fallbackCatalog.ts';
 import { useCart } from '../context/CartContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';
 import { SizeGuideModal } from '../components/SizeGuideModal.tsx';
 import { ProductCard } from '../components/ProductCard.tsx';
+import { compressUploadImage } from '../utils/imageUtils.ts';
+
+const CUSTOM_INK_COLORS = [
+  { name: 'Pure White', hex: '#FFFFFF' },
+  { name: 'Luxury Gold', hex: '#E5A914' },
+  { name: 'Pitch Black', hex: '#141416' },
+  { name: 'Crimson Red', hex: '#D92638' },
+  { name: 'Raw Silver', hex: '#A1A1AA' }
+];
+
+const CUSTOM_PLACEMENTS: { id: CustomPrintDetails['placement']; label: string; extra: number }[] = [
+  { id: 'center-chest', label: 'Center Chest', extra: 0 },
+  { id: 'left-chest', label: 'Left Chest', extra: 0 },
+  { id: 'full-back', label: 'Full Back', extra: 200 },
+  { id: 'sleeve', label: 'Sleeve', extra: 100 }
+];
+
+const CUSTOM_TECHNIQUES: { id: string; label: string; extra: number }[] = [
+  { id: 'HD DTG Print', label: 'HD DTG Print', extra: 0 },
+  { id: 'High-Density Screen Print', label: 'Screen Print', extra: 100 },
+  { id: '3D Silicone Puff Ink', label: '3D Puff Ink', extra: 250 },
+  { id: 'Metallic Gold Foil', label: 'Gold Foil', extra: 300 }
+];
+
+const CUSTOM_FONT_STYLES = ['Bold Sans', 'Technical Mono', 'Editorial Serif', 'Condensed'] as const;
 
 interface ProductDetailPageProps {
   slug: string;
@@ -47,6 +75,27 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  // Inline Customization Controls for Customise T-Shirt products
+  const [placement, setPlacement] = useState<CustomPrintDetails['placement']>('center-chest');
+  const [printTechnique, setPrintTechnique] = useState<string>('HD DTG Print');
+  const [customText, setCustomText] = useState('');
+  const [fontStyle, setFontStyle] = useState<string>('Bold Sans');
+  const [textColor, setTextColor] = useState(CUSTOM_INK_COLORS[0]);
+  const [uploadedGraphicUrl, setUploadedGraphicUrl] = useState<string | null>(null);
+  const [uploadingGraphic, setUploadingGraphic] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const customGraphicInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setPlacement('center-chest');
+    setPrintTechnique('HD DTG Print');
+    setCustomText('');
+    setFontStyle('Bold Sans');
+    setTextColor(CUSTOM_INK_COLORS[0]);
+    setUploadedGraphicUrl(null);
+    setUploadError(null);
+  }, [slug]);
 
   useEffect(() => {
     setLoading(true);
@@ -134,9 +183,41 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
 
   const isCurrentVariantAvailable = activeVariant ? activeVariant.stock > 0 : false;
   const currentStock = activeVariant?.stock || 0;
-  const price = product.discountPrice || product.basePrice;
+  const isCustomizable =
+    product.category.toLowerCase().includes('customis') ||
+    product.category.toLowerCase().includes('customiz') ||
+    Boolean(product.tags?.some(t => t.toLowerCase().includes('customis') || t.toLowerCase().includes('customiz')));
+
+  const placementExtra = isCustomizable ? (CUSTOM_PLACEMENTS.find(p => p.id === placement)?.extra || 0) : 0;
+  const techniqueExtra = isCustomizable ? (CUSTOM_TECHNIQUES.find(t => t.id === printTechnique)?.extra || 0) : 0;
+  const customizationSurcharge = placementExtra + techniqueExtra;
+
+  const baseSalePrice = product.discountPrice || product.basePrice;
+  const price = baseSalePrice + customizationSurcharge;
   const hasDiscount = product.discountPrice && product.discountPrice < product.basePrice;
   const isWishlisted = isInWishlist(product.id);
+
+  const handleCustomGraphicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please upload a PNG, JPG, WEBP, or SVG image.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadError(null);
+    setUploadingGraphic(true);
+    try {
+      const compressed = await compressUploadImage(file, 720, 0.85);
+      setUploadedGraphicUrl(compressed);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Unable to process image.');
+    } finally {
+      setUploadingGraphic(false);
+      e.target.value = '';
+    }
+  };
 
   const handleColorChange = (index: number) => {
     setSelectedColorIndex(index);
@@ -155,6 +236,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
   const handleAddToCart = () => {
     if (!activeVariant || !isCurrentVariantAvailable) return;
 
+    const customPrint: CustomPrintDetails | undefined = isCustomizable
+      ? {
+          uploadedGraphicUrl: uploadedGraphicUrl || undefined,
+          customText: customText.trim() || undefined,
+          fontStyle: customText.trim() ? fontStyle : undefined,
+          textColor: customText.trim() ? textColor.name : undefined,
+          placement,
+          printTechnique
+        }
+      : undefined;
+
     addToCart({
       productId: product.id,
       variantId: activeVariant.id,
@@ -163,15 +255,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
       colorHex: activeVariant.colorHex,
       size: activeVariant.size,
       sku: activeVariant.sku,
-      price: product.discountPrice || product.basePrice,
-      originalPrice: product.basePrice,
+      price,
+      originalPrice: product.basePrice + customizationSurcharge,
       image: galleryImages[0] || '',
       quantity,
-      maxStock: activeVariant.stock
+      maxStock: activeVariant.stock,
+      customPrint
     });
   };
 
   const handleBuyNow = () => {
+    if (!activeVariant || !isCurrentVariantAvailable) return;
     handleAddToCart();
     setIsCartOpen(false);
     onNavigate('checkout');
@@ -244,6 +338,53 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
                 TRENDING DROP
               </span>
             )}
+
+            {/* Live 2D Custom Print Overlay Preview for Customise T-Shirt */}
+            {isCustomizable && (uploadedGraphicUrl || customText.trim()) && (
+              <div
+                className={`pointer-events-none absolute flex flex-col items-center justify-center text-center transition-all duration-300 ${
+                  placement === 'left-chest'
+                    ? 'top-[28%] right-[27%] w-[20%]'
+                    : placement === 'sleeve'
+                    ? 'top-[40%] left-[13%] w-[18%]'
+                    : placement === 'full-back'
+                    ? 'top-[28%] left-1/2 -translate-x-1/2 w-[44%]'
+                    : 'top-[29%] left-1/2 -translate-x-1/2 w-[36%]'
+                }`}
+              >
+                <div className="bg-black/25 backdrop-blur-[1px] border border-dashed border-[#E5A914]/60 rounded-lg p-2 flex flex-col items-center gap-1.5 w-full">
+                  {uploadedGraphicUrl && (
+                    <img
+                      src={uploadedGraphicUrl}
+                      alt="Custom artwork preview"
+                      className="max-h-28 w-auto object-contain drop-shadow-md"
+                    />
+                  )}
+                  {customText.trim() && (
+                    <span
+                      style={{ color: textColor.hex }}
+                      className={`leading-tight break-words w-full drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ${
+                        fontStyle === 'Technical Mono'
+                          ? 'font-mono tracking-wider text-xs sm:text-sm font-bold'
+                          : fontStyle === 'Editorial Serif'
+                          ? 'font-serif italic text-sm sm:text-base font-bold'
+                          : fontStyle === 'Condensed'
+                          ? 'font-display tracking-tighter uppercase text-sm sm:text-base font-black'
+                          : 'font-sans uppercase tracking-wide text-xs sm:text-sm font-extrabold'
+                      }`}
+                    >
+                      {customText}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isCustomizable && (
+              <span className="absolute bottom-3 left-3 bg-black/80 border border-neutral-700 text-neutral-200 text-[10px] font-mono px-2.5 py-1 rounded uppercase tracking-wider">
+                Preview: {CUSTOM_PLACEMENTS.find(p => p.id === placement)?.label} · {printTechnique}
+              </span>
+            )}
           </div>
 
           {galleryImages.length > 1 && (
@@ -281,12 +422,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
               </span>
               {hasDiscount && (
                 <span className="text-sm text-neutral-400 line-through tabular-nums">
-                  ₹{product.basePrice.toLocaleString()}
+                  ₹{(product.basePrice + customizationSurcharge).toLocaleString()}
                 </span>
               )}
               {hasDiscount && (
                 <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded tabular-nums">
-                  SAVE ₹{(product.basePrice - price).toLocaleString()}
+                  SAVE ₹{(product.basePrice - baseSalePrice).toLocaleString()}
+                </span>
+              )}
+              {customizationSurcharge > 0 && (
+                <span className="text-[11px] text-[#E5A914] font-semibold tabular-nums">
+                  (Includes +₹{customizationSurcharge} custom print)
                 </span>
               )}
             </div>
@@ -378,6 +524,197 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
             </div>
           </div>
 
+          {/* Inline Product Customization Panel for Customise T-Shirt */}
+          {isCustomizable && (
+            <div className="p-4 bg-neutral-900/70 border border-[#E5A914]/35 rounded-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#E5A914] block">
+                    Customize Your T-Shirt
+                  </span>
+                  <p className="text-[11px] text-neutral-400">
+                    Upload your graphic or add custom typography before ordering.
+                  </p>
+                </div>
+                {(uploadedGraphicUrl || customText.trim() || customizationSurcharge > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlacement('center-chest');
+                      setPrintTechnique('HD DTG Print');
+                      setCustomText('');
+                      setUploadedGraphicUrl(null);
+                      setUploadError(null);
+                    }}
+                    className="text-[11px] text-neutral-400 hover:text-white underline shrink-0"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+
+              {/* Upload Custom Artwork */}
+              <div className="space-y-2">
+                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5 text-[#E5A914]" />
+                  Upload Artwork / Logo (Optional)
+                </label>
+                <input
+                  ref={customGraphicInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleCustomGraphicUpload}
+                  className="hidden"
+                />
+
+                {uploadedGraphicUrl ? (
+                  <div className="flex items-center justify-between gap-3 p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={uploadedGraphicUrl}
+                        alt="Uploaded artwork"
+                        className="w-11 h-11 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-emerald-400 truncate">Artwork Ready for Print</p>
+                        <button
+                          type="button"
+                          onClick={() => customGraphicInputRef.current?.click()}
+                          className="text-[11px] text-neutral-400 hover:text-white underline"
+                        >
+                          Replace file
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUploadedGraphicUrl(null)}
+                      className="p-1.5 text-neutral-400 hover:text-red-400 rounded hover:bg-neutral-900 shrink-0"
+                      title="Remove graphic"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => customGraphicInputRef.current?.click()}
+                    disabled={uploadingGraphic}
+                    className="w-full py-3 px-4 border border-dashed border-neutral-700 hover:border-[#E5A914] bg-neutral-950 rounded-lg text-xs text-neutral-300 hover:text-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    <Upload className="w-4 h-4 text-[#E5A914]" />
+                    <span>{uploadingGraphic ? 'Compressing artwork...' : 'Choose PNG / JPG / SVG Graphic'}</span>
+                  </button>
+                )}
+                {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
+              </div>
+
+              {/* Print Placement */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold block">
+                  Print Placement
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CUSTOM_PLACEMENTS.map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setPlacement(opt.id)}
+                      className={`px-3 py-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
+                        placement === opt.id
+                          ? 'border-[#E5A914] bg-neutral-950 text-white ring-1 ring-[#E5A914]'
+                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="font-semibold">{opt.label}</span>
+                      <span className="text-[10px] font-mono text-[#E5A914]">
+                        {opt.extra > 0 ? `+₹${opt.extra}` : 'Free'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Print Technique */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold block">
+                  Print Technique
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CUSTOM_TECHNIQUES.map(tech => (
+                    <button
+                      key={tech.id}
+                      type="button"
+                      onClick={() => setPrintTechnique(tech.id)}
+                      className={`px-3 py-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
+                        printTechnique === tech.id
+                          ? 'border-[#E5A914] bg-neutral-950 text-white ring-1 ring-[#E5A914]'
+                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="font-semibold truncate pr-1">{tech.label}</span>
+                      <span className="text-[10px] font-mono text-[#E5A914] shrink-0">
+                        {tech.extra > 0 ? `+₹${tech.extra}` : 'Free'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Text & Typography */}
+              <div className="space-y-2.5">
+                <label className="text-[11px] uppercase tracking-wider text-neutral-300 font-semibold flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-[#E5A914]" />
+                  Custom Text / Slogan (Optional)
+                </label>
+                <input
+                  type="text"
+                  maxLength={32}
+                  value={customText}
+                  onChange={e => setCustomText(e.target.value)}
+                  placeholder="Enter custom print text (max 32 chars)..."
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914]"
+                />
+
+                {customText.trim() && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <span className="block text-[10px] uppercase text-neutral-400 mb-1">Font Style</span>
+                      <select
+                        value={fontStyle}
+                        onChange={e => setFontStyle(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 px-2.5 py-2 text-xs text-white rounded-lg cursor-pointer"
+                      >
+                        {CUSTOM_FONT_STYLES.map(f => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-neutral-400 mb-1 flex items-center gap-1">
+                        <Palette className="w-3 h-3" /> Ink Color ({textColor.name})
+                      </span>
+                      <div className="flex items-center gap-2 pt-1">
+                        {CUSTOM_INK_COLORS.map(c => (
+                          <button
+                            key={c.name}
+                            type="button"
+                            onClick={() => setTextColor(c)}
+                            title={c.name}
+                            className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                              textColor.name === c.name ? 'border-[#E5A914] scale-110' : 'border-neutral-700'
+                            }`}
+                            style={{ backgroundColor: c.hex }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <span className="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Quantity:</span>
             <div className="flex items-center border border-neutral-700 rounded bg-neutral-950">
@@ -409,7 +746,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
                 className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-extrabold py-4 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-[0.99] shadow-lg"
               >
                 <ShoppingBag className="w-4 h-4" />
-                {isCurrentVariantAvailable ? 'Add To Bag' : 'Out of Stock'}
+                {isCurrentVariantAvailable ? `Add To Bag · ₹${(price * quantity).toLocaleString()}` : 'Out of Stock'}
               </button>
 
               <button
@@ -434,19 +771,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, cate
                 Buy Now with Cashfree
               </button>
             )}
-
-            <div className="p-3 bg-neutral-900/60 border border-[#E5A914]/30 rounded-lg flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#E5A914] shrink-0" />
-                <span className="text-neutral-300">Customize this silhouette with your own 3D print?</span>
-              </div>
-              <button
-                onClick={() => onNavigate('customize')}
-                className="text-[#E5A914] hover:underline font-bold uppercase tracking-wider shrink-0"
-              >
-                3D Studio →
-              </button>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-neutral-800/80 text-xs text-neutral-400">

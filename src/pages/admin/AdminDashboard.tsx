@@ -36,6 +36,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { compressUploadImage } from '../../utils/imageUtils.ts';
 import {
   Order,
   Product,
@@ -100,6 +101,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkCsvText, setBulkCsvText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const productImageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
 
   // Product Form State (for Add / Edit)
   const [productForm, setProductForm] = useState({
@@ -561,6 +564,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       stockXXL: stockMap['XXL'] || 10
     });
     setShowProductModal(true);
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotice('error', 'Please select a valid image file (PNG, JPG, WEBP, or SVG).');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingProductImage(true);
+    try {
+      const compressedDataUrl = await compressUploadImage(file, 960, 0.85);
+      setProductForm(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+      showNotice('success', 'Product image uploaded and optimized.');
+    } catch (err: any) {
+      showNotice('error', 'Failed to process image: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setUploadingProductImage(false);
+      e.target.value = '';
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -1711,10 +1736,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                               <div key={idx} className="text-[11px] text-neutral-300">
                                 <p>{it.quantity}x {it.productTitle} <span className="text-neutral-500">({it.colorName}/{it.size})</span></p>
                                 {it.customPrint && (
-                                  <p className="text-[10px] text-[#E5A914] font-mono mt-0.5">
-                                    Custom: {it.customPrint.placement} · {it.customPrint.printTechnique}
-                                    {it.customPrint.customText ? ` · "${it.customPrint.customText}"` : ''}
-                                  </p>
+                                  <div className="mt-1 p-1.5 bg-neutral-950/70 border border-[#E5A914]/30 rounded flex items-center gap-2">
+                                    {it.customPrint.uploadedGraphicUrl &&
+                                      (it.customPrint.uploadedGraphicUrl.startsWith('data:') ||
+                                        it.customPrint.uploadedGraphicUrl.startsWith('/') ||
+                                        it.customPrint.uploadedGraphicUrl.startsWith('http')) && (
+                                        <img
+                                          src={it.customPrint.uploadedGraphicUrl}
+                                          alt="Custom print graphic"
+                                          className="w-8 h-8 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
+                                        />
+                                      )}
+                                    <div className="text-[10px] text-[#E5A914] font-mono leading-snug">
+                                      <span>
+                                        Custom: {it.customPrint.placement} · {it.customPrint.printTechnique}
+                                      </span>
+                                      {it.customPrint.customText && (
+                                        <span className="block text-neutral-300">
+                                          &ldquo;{it.customPrint.customText}&rdquo; ({it.customPrint.fontStyle || 'Bold Sans'}, {it.customPrint.textColor || 'Default Ink'})
+                                        </span>
+                                      )}
+                                      {it.customPrint.uploadedGraphicUrl && (
+                                        <span className="block text-emerald-400">Custom Artwork Attached</span>
+                                      )}
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             ))}
@@ -2635,178 +2681,242 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
       {/* PRODUCT ADD / EDIT MODAL */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-3xl w-full p-6 text-neutral-100 space-y-4 shadow-2xl my-8">
-            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
-              <h3 className="font-display text-base font-bold text-white uppercase">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-3xl w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden text-neutral-100 shadow-2xl">
+            <div className="flex justify-between items-center px-5 sm:px-6 py-4 border-b border-neutral-800 shrink-0 bg-neutral-900">
+              <h3 className="font-display text-base font-bold text-white uppercase truncate pr-3">
                 {editingProduct ? `Edit Piece: ${editingProduct.title}` : 'Add New Streetwear Piece'}
               </h3>
-              <button onClick={() => setShowProductModal(false)}><X className="w-4 h-4" /></button>
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 shrink-0"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Product Title</label>
-                  <input
-                    type="text"
-                    value={productForm.title}
-                    onChange={e => setProductForm({ ...productForm, title: e.target.value })}
-                    placeholder="e.g. 500 GSM Oversized Zip Hoodie"
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-bold rounded"
-                    required
-                  />
+            <form onSubmit={handleSaveProduct} className="flex flex-col flex-1 min-h-0 text-xs">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Product Title</label>
+                    <input
+                      type="text"
+                      value={productForm.title}
+                      onChange={e => setProductForm({ ...productForm, title: e.target.value })}
+                      placeholder="e.g. Heavyweight Boxy Tee"
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-bold rounded"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Subtitle / Key Highlight</label>
+                    <input
+                      type="text"
+                      value={productForm.subtitle}
+                      onChange={e => setProductForm({ ...productForm, subtitle: e.target.value })}
+                      placeholder="e.g. 280 GSM Combed Cotton · Boxy Fit"
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Subtitle / Key Highlight</label>
-                  <input
-                    type="text"
-                    value={productForm.subtitle}
-                    onChange={e => setProductForm({ ...productForm, subtitle: e.target.value })}
-                    placeholder="e.g. 500 GSM French Terry · Minimalist Neckline"
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Category</label>
-                  <select
-                    value={productForm.category}
-                    onChange={e => setProductForm({ ...productForm, category: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
-                  >
-                    {categories.map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Base Price (₹)</label>
-                  <input
-                    type="number"
-                    value={productForm.basePrice}
-                    onChange={e => setProductForm({ ...productForm, basePrice: Number(e.target.value) })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block uppercase text-neutral-400 mb-1">Sale Discounted Price (₹)</label>
-                  <input
-                    type="number"
-                    value={productForm.discountPrice}
-                    onChange={e => setProductForm({ ...productForm, discountPrice: Number(e.target.value) })}
-                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                  />
-                </div>
-              </div>
-
-              {/* Color & Photo Config */}
-              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-3">
-                <span className="font-bold text-white uppercase text-[11px] block">Primary Colorway &amp; Imagery</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block uppercase text-neutral-400 mb-1">Color Name</label>
+                    <label className="block uppercase text-neutral-400 mb-1">Category</label>
+                    <select
+                      value={productForm.category}
+                      onChange={e => setProductForm({ ...productForm, category: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded cursor-pointer"
+                    >
+                      {categories.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block uppercase text-neutral-400 mb-1">Base Price (₹)</label>
                     <input
-                      type="text"
-                      value={productForm.colorName}
-                      onChange={e => setProductForm({ ...productForm, colorName: e.target.value })}
-                      placeholder="Washed Black"
-                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                      type="number"
+                      value={productForm.basePrice}
+                      onChange={e => setProductForm({ ...productForm, basePrice: Number(e.target.value) })}
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                      required
                     />
                   </div>
                   <div>
-                    <label className="block uppercase text-neutral-400 mb-1">Hex Color</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={productForm.colorHex}
-                        onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
-                        className="h-8 w-10 bg-transparent cursor-pointer rounded"
-                      />
-                      <input
-                        type="text"
-                        value={productForm.colorHex}
-                        onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
-                        className="w-full bg-neutral-900 border border-neutral-800 px-2 py-1 text-xs text-white font-mono rounded"
-                      />
+                    <label className="block uppercase text-neutral-400 mb-1">Sale Discounted Price (₹)</label>
+                    <input
+                      type="number"
+                      value={productForm.discountPrice}
+                      onChange={e => setProductForm({ ...productForm, discountPrice: Number(e.target.value) })}
+                      className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                    />
+                  </div>
+                </div>
+
+                {/* Color & Photo Config */}
+                <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-white uppercase text-[11px]">Primary Colorway &amp; Imagery</span>
+                    <input
+                      ref={productImageInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={handleProductImageUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => productImageInputRef.current?.click()}
+                      disabled={uploadingProductImage}
+                      className="inline-flex items-center gap-1.5 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-3 py-1.5 rounded text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      {uploadingProductImage ? 'Processing...' : 'Upload Image'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 items-start">
+                    <div className="w-20 h-24 rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden shrink-0 flex items-center justify-center">
+                      {productForm.imageUrl ? (
+                        <img
+                          src={productForm.imageUrl}
+                          alt="Product preview"
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <ImageIcon className="w-5 h-5 text-neutral-600" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block uppercase text-neutral-400 mb-1">Color Name</label>
+                        <input
+                          type="text"
+                          value={productForm.colorName}
+                          onChange={e => setProductForm({ ...productForm, colorName: e.target.value })}
+                          placeholder="Washed Black"
+                          className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block uppercase text-neutral-400 mb-1">Hex Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={productForm.colorHex}
+                            onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
+                            className="h-8 w-10 bg-transparent cursor-pointer rounded"
+                          />
+                          <input
+                            type="text"
+                            value={productForm.colorHex}
+                            onChange={e => setProductForm({ ...productForm, colorHex: e.target.value })}
+                            className="w-full bg-neutral-900 border border-neutral-800 px-2 py-1 text-xs text-white font-mono rounded"
+                          />
+                        </div>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block uppercase text-neutral-400 mb-1">
+                          Image URL or Uploaded Data Image
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={productForm.imageUrl.startsWith('data:') ? '[Uploaded Device Image]' : productForm.imageUrl}
+                            onChange={e => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                            readOnly={productForm.imageUrl.startsWith('data:')}
+                            placeholder="/assets/images/... or https://..."
+                            className="flex-1 bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                          />
+                          {productForm.imageUrl.startsWith('data:') && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  imageUrl: '/assets/images/product_oversized_heavy_tee_1794056020516.jpg'
+                                }))
+                              }
+                              className="px-2.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded text-[11px] font-semibold shrink-0"
+                              title="Reset to default image URL"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block uppercase text-neutral-400 mb-1">Image URL</label>
+                </div>
+
+                {/* Variant Stock Allocations */}
+                <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
+                  <span className="font-bold text-white uppercase text-[11px] block">Size Stock Quantities</span>
+                  <div className="grid grid-cols-5 gap-2 font-mono">
+                    <div>
+                      <label className="block text-center text-neutral-400 mb-1">Size S</label>
+                      <input type="number" value={productForm.stockS} onChange={e => setProductForm({ ...productForm, stockS: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-center text-neutral-400 mb-1">Size M</label>
+                      <input type="number" value={productForm.stockM} onChange={e => setProductForm({ ...productForm, stockM: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-center text-neutral-400 mb-1">Size L</label>
+                      <input type="number" value={productForm.stockL} onChange={e => setProductForm({ ...productForm, stockL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-center text-neutral-400 mb-1">Size XL</label>
+                      <input type="number" value={productForm.stockXL} onChange={e => setProductForm({ ...productForm, stockXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-center text-neutral-400 mb-1">Size XXL</label>
+                      <input type="number" value={productForm.stockXXL} onChange={e => setProductForm({ ...productForm, stockXXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block uppercase text-neutral-400 mb-1">Full Description</label>
+                  <textarea
+                    rows={3}
+                    value={productForm.description}
+                    onChange={e => setProductForm({ ...productForm, description: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-6 p-3 bg-neutral-950 border border-neutral-800 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-white font-semibold">
                     <input
-                      type="text"
-                      value={productForm.imageUrl}
-                      onChange={e => setProductForm({ ...productForm, imageUrl: e.target.value })}
-                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
+                      type="checkbox"
+                      checked={productForm.isPublished}
+                      onChange={e => setProductForm({ ...productForm, isPublished: e.target.checked })}
+                      className="accent-[#E5A914] w-4 h-4"
                     />
-                  </div>
+                    <span>Publish Live on Storefront</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-white font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={productForm.isFeatured}
+                      onChange={e => setProductForm({ ...productForm, isFeatured: e.target.checked })}
+                      className="accent-[#E5A914] w-4 h-4"
+                    />
+                    <span>Feature in Trending Products</span>
+                  </label>
                 </div>
               </div>
 
-              {/* Variant Stock Allocations */}
-              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
-                <span className="font-bold text-white uppercase text-[11px] block">Size Stock Quantities</span>
-                <div className="grid grid-cols-5 gap-2 font-mono">
-                  <div>
-                    <label className="block text-center text-neutral-400 mb-1">Size S</label>
-                    <input type="number" value={productForm.stockS} onChange={e => setProductForm({ ...productForm, stockS: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-center text-neutral-400 mb-1">Size M</label>
-                    <input type="number" value={productForm.stockM} onChange={e => setProductForm({ ...productForm, stockM: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-center text-neutral-400 mb-1">Size L</label>
-                    <input type="number" value={productForm.stockL} onChange={e => setProductForm({ ...productForm, stockL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-center text-neutral-400 mb-1">Size XL</label>
-                    <input type="number" value={productForm.stockXL} onChange={e => setProductForm({ ...productForm, stockXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-center text-neutral-400 mb-1">Size XXL</label>
-                    <input type="number" value={productForm.stockXXL} onChange={e => setProductForm({ ...productForm, stockXXL: Number(e.target.value) })} className="w-full bg-neutral-900 border border-neutral-800 p-2 text-center rounded text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block uppercase text-neutral-400 mb-1">Full Description</label>
-                <textarea
-                  rows={3}
-                  value={productForm.description}
-                  onChange={e => setProductForm({ ...productForm, description: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-6 p-3 bg-neutral-950 border border-neutral-800 rounded-lg">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-white font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={productForm.isPublished}
-                    onChange={e => setProductForm({ ...productForm, isPublished: e.target.checked })}
-                    className="accent-[#E5A914] w-4 h-4"
-                  />
-                  <span>Publish Live on Storefront</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-white font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={productForm.isFeatured}
-                    onChange={e => setProductForm({ ...productForm, isFeatured: e.target.checked })}
-                    className="accent-[#E5A914] w-4 h-4"
-                  />
-                  <span>Feature in Trending Products</span>
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setShowProductModal(false)} className="text-xs text-neutral-400 px-4">Cancel</button>
+              <div className="flex justify-end gap-3 px-5 sm:px-6 py-4 border-t border-neutral-800 bg-neutral-900 shrink-0">
+                <button type="button" onClick={() => setShowProductModal(false)} className="text-xs text-neutral-400 hover:text-white px-4 py-2">Cancel</button>
                 <button
                   type="submit"
                   disabled={savingProduct}
@@ -2822,8 +2932,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
       {/* EXCEL / CSV BULK IMPORT MODAL */}
       {showBulkModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-2xl w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-2xl w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 text-neutral-100 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
               <h3 className="font-display text-sm font-bold text-white uppercase flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-[#E5A914]" /> Bulk Excel / CSV Product Upload
@@ -3197,8 +3307,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
       {/* PRINTABLE GST INVOICE MODAL */}
       {viewInvoiceOrder && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white text-neutral-950 max-w-2xl w-full p-8 rounded-xl shadow-2xl space-y-6 my-8 font-sans">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white text-neutral-950 max-w-2xl w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 rounded-xl shadow-2xl space-y-6 font-sans">
             <div className="flex justify-between items-start border-b border-neutral-300 pb-5">
               <div>
                 <h2 className="text-2xl font-black tracking-tight">4LAAZY</h2>
