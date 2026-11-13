@@ -494,6 +494,11 @@ adminRouter.put('/categories/:id', (req: AuthenticatedRequest, res: Response) =>
 adminRouter.delete('/categories/:id', (req: AuthenticatedRequest, res: Response) => {
   const db = getDB();
   db.categories = db.categories.filter(c => c.id !== req.params.id);
+  if (isMongoConnected()) {
+    CategoryModel.deleteOne({ id: req.params.id }).catch(err => {
+      console.warn('Mongo category delete warning:', err?.message || err);
+    });
+  }
   saveDB();
   return res.json({ success: true });
 });

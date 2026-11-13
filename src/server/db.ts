@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import { syncLocalToMongo, isMongoConnected } from './mongodb.ts';
@@ -19,8 +20,20 @@ import type {
   StockNotificationRequest
 } from '../types/index.ts';
 
-const DATA_DIR = path.resolve(process.cwd(), '.data');
-const DB_FILE = path.resolve(DATA_DIR, 'db.json');
+const BUNDLED_DATA_DIR = path.resolve(process.cwd(), '.data');
+const BUNDLED_DB_FILE = path.resolve(BUNDLED_DATA_DIR, 'db.json');
+const TMP_DATA_DIR = path.join(os.tmpdir(), '4laazy-data');
+const IS_SERVERLESS_RO = Boolean(
+  process.env.VERCEL ||
+  process.env.NOW_REGION ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.NETLIFY
+);
+
+let activeDataDir = IS_SERVERLESS_RO ? TMP_DATA_DIR : BUNDLED_DATA_DIR;
+function getDbFilePath() {
+  return path.resolve(activeDataDir, 'db.json');
+}
 
 export interface DatabaseSchema {
   users: User[];
@@ -43,10 +56,26 @@ export interface DatabaseSchema {
 
 // In-memory cache synced with disk
 let db: DatabaseSchema | null = null;
+let pendingMongoSync: Promise<any> | null = null;
+
+export function getPendingMongoSync(): Promise<any> | null {
+  return pendingMongoSync;
+}
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(activeDataDir)) {
+      fs.mkdirSync(activeDataDir, { recursive: true });
+    }
+  } catch (err: any) {
+    if (err?.code === 'EROFS' || err?.code === 'EACCES' || err?.code === 'EPERM') {
+      activeDataDir = TMP_DATA_DIR;
+      if (!fs.existsSync(activeDataDir)) {
+        fs.mkdirSync(activeDataDir, { recursive: true });
+      }
+    } else {
+      throw err;
+    }
   }
 }
 
@@ -421,9 +450,16 @@ export function getDB(): DatabaseSchema {
   if (db) return db;
 
   ensureDataDir();
-  if (fs.existsSync(DB_FILE)) {
+  const dbFile = getDbFilePath();
+  const sourceFile = fs.existsSync(dbFile)
+    ? dbFile
+    : fs.existsSync(BUNDLED_DB_FILE)
+      ? BUNDLED_DB_FILE
+      : null;
+
+  if (sourceFile) {
     try {
-      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const raw = fs.readFileSync(sourceFile, 'utf-8');
       db = JSON.parse(raw);
       if (db) {
         const fullSeed = getFullSeedData() as any;
@@ -571,21 +607,90 @@ export function setDB(updatedDB: Partial<DatabaseSchema>): DatabaseSchema {
   return db;
 }
 
-export function saveDB() {
+function writeLocalSnapshot() {
   if (!db) return;
+  const serialized = JSON.stringify(db, null, 2);
   try {
     ensureDataDir();
-    const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
-    fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), 'utf-8');
-    fs.renameSync(tempFile, DB_FILE);
-
-    // If MongoDB Atlas is connected, asynchronously replicate changes
-    if (isMongoConnected()) {
-      syncLocalToMongo(db).catch(err => {
-        console.warn('MongoDB background synchronization warning:', err?.message || err);
-      });
+    const dbFile = getDbFilePath();
+    const tempFile = `${dbFile}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempFile, serialized, 'utf-8');
+    fs.renameSync(tempFile, dbFile);
+  } catch (err: any) {
+    if (err?.code === 'EROFS' || err?.code === 'EACCES' || err?.code === 'EPERM') {
+      if (activeDataDir !== TMP_DATA_DIR) {
+        activeDataDir = TMP_DATA_DIR;
+        try {
+          if (!fs.existsSync(activeDataDir)) {
+            fs.mkdirSync(activeDataDir, { recursive: true });
+          }
+          const dbFile = getDbFilePath();
+          const tempFile = `${dbFile}.tmp.${Date.now()}`;
+          fs.writeFileSync(tempFile, serialized, 'utf-8');
+          fs.renameSync(tempFile, dbFile);
+          return;
+        } catch (retryErr) {
+          console.warn('Warning writing temp snapshot:', retryErr);
+        }
+      }
+    } else {
+      console.error('Error saving db.json:', err);
     }
-  } catch (err) {
-    console.error('Error saving db.json:', err);
+  }
+}
+
+export function hydrateDbFromMongo(mongoData: Partial<DatabaseSchema>) {
+  if (!db) {
+    db = getDB();
+  }
+  if (Array.isArray(mongoData.products) && mongoData.products.length > 0) {
+    db.products = mongoData.products;
+  }
+  if (Array.isArray(mongoData.categories) && mongoData.categories.length > 0) {
+    db.categories = mongoData.categories;
+  }
+  if (Array.isArray(mongoData.users) && mongoData.users.length > 0) {
+    db.users = mongoData.users;
+  }
+  if (mongoData.passwords && Object.keys(mongoData.passwords).length > 0) {
+    db.passwords = { ...db.passwords, ...mongoData.passwords };
+  }
+  if (Array.isArray(mongoData.orders)) {
+    db.orders = mongoData.orders;
+  }
+  if (Array.isArray(mongoData.coupons)) {
+    db.coupons = mongoData.coupons;
+  }
+  if (Array.isArray(mongoData.returnRequests)) {
+    db.returnRequests = mongoData.returnRequests;
+  }
+  if (Array.isArray(mongoData.reviews)) {
+    db.reviews = mongoData.reviews;
+  }
+  if (Array.isArray(mongoData.stockNotifications)) {
+    db.stockNotifications = mongoData.stockNotifications;
+  }
+  if (mongoData.settings) {
+    db.settings = { ...db.settings, ...mongoData.settings };
+  }
+  writeLocalSnapshot();
+}
+
+export function saveDB() {
+  if (!db) return;
+  writeLocalSnapshot();
+
+  // If MongoDB Atlas is connected, replicate changes and expose promise for serverless flushing
+  if (isMongoConnected()) {
+    const currentSync = syncLocalToMongo(db)
+      .catch(err => {
+        console.warn('MongoDB background synchronization warning:', err?.message || err);
+      })
+      .finally(() => {
+        if (pendingMongoSync === currentSync) {
+          pendingMongoSync = null;
+        }
+      });
+    pendingMongoSync = currentSync;
   }
 }

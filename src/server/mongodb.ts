@@ -320,6 +320,26 @@ const EmailLogSchema = new Schema(
   { timestamps: true, collection: 'email_logs' }
 );
 
+// 12. Stock Notification Request Schema
+const StockNotificationSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    productId: { type: String, required: true },
+    productSlug: { type: String },
+    productTitle: { type: String, required: true },
+    variantId: { type: String },
+    colorName: { type: String },
+    size: { type: String },
+    customerName: { type: String },
+    customerEmail: { type: String },
+    customerPhone: { type: String },
+    status: { type: String, enum: ['Pending', 'Notified'], default: 'Pending' },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+    notifiedAt: { type: String }
+  },
+  { timestamps: true, collection: 'stock_notifications' }
+);
+
 // Export Mongoose Models (preventing OverwriteModelError on hot reloads)
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 export const ProductModel = mongoose.models.Product || mongoose.model('Product', ProductSchema);
@@ -332,17 +352,24 @@ export const InventoryTxModel = mongoose.models.InventoryTx || mongoose.model('I
 export const StoreSettingsModel = mongoose.models.StoreSettings || mongoose.model('StoreSettings', StoreSettingsSchema);
 export const AdminActivityLogModel = mongoose.models.AdminActivityLog || mongoose.model('AdminActivityLog', AdminActivityLogSchema);
 export const EmailLogModel = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
+export const StockNotificationModel = mongoose.models.StockNotification || mongoose.model('StockNotification', StockNotificationSchema);
 
 // ----------------------------------------------------
 // MONGOOSE CONNECTION MANAGER & SYNC ENGINE
 // ----------------------------------------------------
+
+const g = globalThis as typeof globalThis & {
+  __4laazyMongoConnectPromise?: Promise<any> | null;
+  __4laazyMongoInitPromise?: Promise<void> | null;
+  __4laazyMongoLastFailAt?: number;
+};
 
 let mongoConnected = false;
 let currentMongoUri = process.env.MONGODB_URI || '';
 let lastError: string | null = null;
 
 export function isMongoConnected(): boolean {
-  return mongoConnected && mongoose.connection.readyState === 1;
+  return (mongoConnected || mongoose.connection.readyState === 1) && mongoose.connection.readyState === 1;
 }
 
 export function getCurrentMongoUri(): string {
@@ -380,8 +407,34 @@ export async function connectMongoDB(uri?: string): Promise<{
     return { connected: false, error: 'No MongoDB URI provided. Set MONGODB_URI or enter a connection string.' };
   }
 
+  let cleanUri = targetUri;
+  if (/^mongodb(\+srv)?:\/\/[^/]+\/?$/.test(cleanUri)) {
+    cleanUri = cleanUri.replace(/\/?$/, '/4lazy?retryWrites=true&w=majority');
+  } else if (/^mongodb(\+srv)?:\/\/[^/]+\/\?/.test(cleanUri)) {
+    cleanUri = cleanUri.replace(/\/\?/, '/4lazy?');
+  }
+
+  // Reuse active connection if same URI (or no explicit new URI passed)
+  if (mongoose.connection.readyState === 1 && (!uri || cleanUri === currentMongoUri)) {
+    mongoConnected = true;
+    return { connected: true, host: mongoose.connection.host };
+  }
+
+  // If a connection attempt is already in flight for the same URI, await it cleanly
+  if (g.__4laazyMongoConnectPromise && (!uri || cleanUri === currentMongoUri)) {
+    try {
+      await g.__4laazyMongoConnectPromise;
+      if (mongoose.connection.readyState === 1) {
+        mongoConnected = true;
+        return { connected: true, host: mongoose.connection.host };
+      }
+    } catch {
+      // fall through to error return or fresh attempt if explicit URI
+    }
+  }
+
   try {
-    if (mongoose.connection.readyState !== 0) {
+    if (mongoose.connection.readyState !== 0 && uri && cleanUri !== currentMongoUri) {
       try {
         await mongoose.disconnect();
       } catch {
@@ -389,22 +442,16 @@ export async function connectMongoDB(uri?: string): Promise<{
       }
     }
 
-    let cleanUri = targetUri;
-    // If the URI ends without a database name, add 4lazy
-    if (/^mongodb(\+srv)?:\/\/[^/]+\/?$/.test(cleanUri)) {
-      cleanUri = cleanUri.replace(/\/?$/, '/4lazy?retryWrites=true&w=majority');
-    } else if (/^mongodb(\+srv)?:\/\/[^/]+\/\?/.test(cleanUri)) {
-      cleanUri = cleanUri.replace(/\/\?/, '/4lazy?');
-    }
-
     currentMongoUri = cleanUri;
     lastError = null;
 
     console.log(`Connecting to MongoDB...`);
-    await mongoose.connect(cleanUri, {
+    g.__4laazyMongoConnectPromise = mongoose.connect(cleanUri, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 6000
     });
+    await g.__4laazyMongoConnectPromise;
+    g.__4laazyMongoConnectPromise = null;
 
     mongoConnected = true;
     console.log(`MongoDB connected successfully to host: ${mongoose.connection.host}, database: ${mongoose.connection.name}`);
@@ -413,6 +460,7 @@ export async function connectMongoDB(uri?: string): Promise<{
       host: mongoose.connection.host
     };
   } catch (err: any) {
+    g.__4laazyMongoConnectPromise = null;
     mongoConnected = false;
     const rawMsg = err?.message || String(err);
     const isWhitelistError =
@@ -445,7 +493,7 @@ export async function connectMongoDB(uri?: string): Promise<{
 }
 
 /**
- * Sync entire in-memory/JSON DB to MongoDB Atlas collections
+ * Sync entire in-memory/JSON DB to MongoDB Atlas collections using parallel bulkWrites
  */
 export async function syncLocalToMongo(dbData: any): Promise<{ success: boolean; syncedCounts: Record<string, number>; error?: string }> {
   if (!isMongoConnected()) {
@@ -454,67 +502,143 @@ export async function syncLocalToMongo(dbData: any): Promise<{ success: boolean;
 
   try {
     const counts: Record<string, number> = {};
+    const ops: Promise<any>[] = [];
 
-    // 1. Users
-    if (dbData.users && dbData.users.length > 0) {
-      for (const u of dbData.users) {
-        const passwordHash = dbData.passwords?.[u.id];
-        await UserModel.findOneAndUpdate(
-          { id: u.id },
-          { ...u, passwordHash },
-          { upsert: true, new: true }
-        );
-      }
+    if (Array.isArray(dbData.users) && dbData.users.length > 0) {
       counts.users = dbData.users.length;
+      ops.push(
+        UserModel.bulkWrite(
+          dbData.users.map((u: any) => ({
+            updateOne: {
+              filter: { id: u.id },
+              update: { $set: { ...u, passwordHash: dbData.passwords?.[u.id] } },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
     }
 
-    // 2. Categories
-    if (dbData.categories && dbData.categories.length > 0) {
-      for (const cat of dbData.categories) {
-        await CategoryModel.findOneAndUpdate({ id: cat.id }, cat, { upsert: true, new: true });
-      }
+    if (Array.isArray(dbData.categories) && dbData.categories.length > 0) {
       counts.categories = dbData.categories.length;
+      ops.push(
+        CategoryModel.bulkWrite(
+          dbData.categories.map((cat: any) => ({
+            updateOne: {
+              filter: { id: cat.id },
+              update: { $set: cat },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
     }
 
-    // 3. Products
-    if (dbData.products && dbData.products.length > 0) {
-      for (const prod of dbData.products) {
-        await ProductModel.findOneAndUpdate({ id: prod.id }, prod, { upsert: true, new: true });
-      }
+    if (Array.isArray(dbData.products) && dbData.products.length > 0) {
       counts.products = dbData.products.length;
+      ops.push(
+        ProductModel.bulkWrite(
+          dbData.products.map((prod: any) => ({
+            updateOne: {
+              filter: { id: prod.id },
+              update: { $set: prod },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
     }
 
-    // 4. Orders
-    if (dbData.orders && dbData.orders.length > 0) {
-      for (const ord of dbData.orders) {
-        await OrderModel.findOneAndUpdate({ id: ord.id }, ord, { upsert: true, new: true });
-      }
+    if (Array.isArray(dbData.orders) && dbData.orders.length > 0) {
       counts.orders = dbData.orders.length;
+      ops.push(
+        OrderModel.bulkWrite(
+          dbData.orders.map((ord: any) => ({
+            updateOne: {
+              filter: { id: ord.id },
+              update: { $set: ord },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
     }
 
-    // 5. Coupons
-    if (dbData.coupons && dbData.coupons.length > 0) {
-      for (const cpn of dbData.coupons) {
-        await CouponModel.findOneAndUpdate({ id: cpn.id }, cpn, { upsert: true, new: true });
-      }
+    if (Array.isArray(dbData.coupons) && dbData.coupons.length > 0) {
       counts.coupons = dbData.coupons.length;
+      ops.push(
+        CouponModel.bulkWrite(
+          dbData.coupons.map((cpn: any) => ({
+            updateOne: {
+              filter: { id: cpn.id },
+              update: { $set: cpn },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
     }
 
-    // 6. Returns
-    if (dbData.returnRequests && dbData.returnRequests.length > 0) {
-      for (const ret of dbData.returnRequests) {
-        await ReturnRequestModel.findOneAndUpdate({ id: ret.id }, ret, { upsert: true, new: true });
-      }
+    if (Array.isArray(dbData.returnRequests) && dbData.returnRequests.length > 0) {
       counts.returns = dbData.returnRequests.length;
+      ops.push(
+        ReturnRequestModel.bulkWrite(
+          dbData.returnRequests.map((ret: any) => ({
+            updateOne: {
+              filter: { id: ret.id },
+              update: { $set: ret },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
     }
 
-    // 7. Settings
+    if (Array.isArray(dbData.reviews) && dbData.reviews.length > 0) {
+      counts.reviews = dbData.reviews.length;
+      ops.push(
+        ReviewModel.bulkWrite(
+          dbData.reviews.map((rev: any) => ({
+            updateOne: {
+              filter: { id: rev.id },
+              update: { $set: rev },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
+    }
+
+    if (Array.isArray(dbData.stockNotifications) && dbData.stockNotifications.length > 0) {
+      counts.stockNotifications = dbData.stockNotifications.length;
+      ops.push(
+        StockNotificationModel.bulkWrite(
+          dbData.stockNotifications.map((sn: any) => ({
+            updateOne: {
+              filter: { id: sn.id },
+              update: { $set: sn },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
+    }
+
     if (dbData.settings) {
-      await StoreSettingsModel.findOneAndUpdate({}, dbData.settings, { upsert: true, new: true });
       counts.settings = 1;
+      ops.push(StoreSettingsModel.findOneAndUpdate({}, dbData.settings, { upsert: true, new: true }));
     }
 
-    console.log('Synced local store to MongoDB Atlas:', counts);
+    await Promise.all(ops);
+
     return { success: true, syncedCounts: counts };
   } catch (err: any) {
     console.error('Error syncing local store to MongoDB:', err);
@@ -536,13 +660,15 @@ export async function syncMongoToLocal(): Promise<{
   }
 
   try {
-    const [products, categories, users, orders, coupons, returnRequests, settings] = await Promise.all([
+    const [products, categories, users, orders, coupons, returnRequests, reviews, stockNotifications, settings] = await Promise.all([
       ProductModel.find().lean(),
       CategoryModel.find().lean(),
       UserModel.find().lean(),
       OrderModel.find().lean(),
       CouponModel.find().lean(),
       ReturnRequestModel.find().lean(),
+      ReviewModel.find().lean(),
+      StockNotificationModel.find().lean(),
       StoreSettingsModel.findOne().lean()
     ]);
 
@@ -580,6 +706,16 @@ export async function syncMongoToLocal(): Promise<{
       return cleanRet;
     });
 
+    const cleanReviews = reviews.map((rv: any) => {
+      const { _id, __v, ...cleanRev } = rv;
+      return cleanRev;
+    });
+
+    const cleanNotifications = stockNotifications.map((sn: any) => {
+      const { _id, __v, ...cleanSn } = sn;
+      return cleanSn;
+    });
+
     let cleanSettings = settings;
     if (cleanSettings) {
       const { _id, __v, ...cs } = cleanSettings as any;
@@ -592,7 +728,9 @@ export async function syncMongoToLocal(): Promise<{
       users: sanitizedUsers.length,
       orders: cleanOrders.length,
       coupons: cleanCoupons.length,
-      returns: cleanReturns.length
+      returns: cleanReturns.length,
+      reviews: cleanReviews.length,
+      stockNotifications: cleanNotifications.length
     };
 
     return {
@@ -606,6 +744,8 @@ export async function syncMongoToLocal(): Promise<{
         orders: cleanOrders,
         coupons: cleanCoupons,
         returnRequests: cleanReturns,
+        reviews: cleanReviews,
+        stockNotifications: cleanNotifications,
         settings: cleanSettings || undefined
       }
     };
@@ -616,27 +756,50 @@ export async function syncMongoToLocal(): Promise<{
 }
 
 /**
- * Initialize MongoDB on boot if MONGODB_URI is provided
+ * Initialize MongoDB on boot / cold-start if MONGODB_URI is provided.
+ * Automatically caches initialization and pulls remote collections into memory.
  */
-export async function initMongoDB(initialDbData?: any) {
+export async function initMongoDB(initialDbData?: any, onPull?: (data: any) => void): Promise<void> {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.log('MongoDB: No MONGODB_URI provided in environment. Running with local persistent database.');
     return;
   }
 
-  const res = await connectMongoDB(uri);
-  if (res.connected) {
-    try {
-      const count = await ProductModel.countDocuments();
-      if (count === 0 && initialDbData) {
-        console.log('MongoDB is empty. Seeding initial products, categories, and users into MongoDB...');
-        await syncLocalToMongo(initialDbData);
-      } else {
-        console.log(`Connected to MongoDB Atlas with ${count} existing products.`);
-      }
-    } catch (e) {
-      console.error('Failed to check or seed MongoDB:', e);
-    }
+  if (isMongoConnected()) {
+    return;
   }
+
+  // Avoid hammering blocked MongoDB Atlas on every request within a 30s window
+  if (g.__4laazyMongoLastFailAt && Date.now() - g.__4laazyMongoLastFailAt < 30000) {
+    return;
+  }
+
+  if (!g.__4laazyMongoInitPromise) {
+    g.__4laazyMongoInitPromise = (async () => {
+      const res = await connectMongoDB(uri);
+      if (res.connected) {
+        g.__4laazyMongoLastFailAt = undefined;
+        try {
+          const count = await ProductModel.countDocuments();
+          if (count === 0 && initialDbData) {
+            console.log('MongoDB is empty. Seeding initial store data into MongoDB...');
+            await syncLocalToMongo(initialDbData);
+          } else {
+            const pulled = await syncMongoToLocal();
+            if (pulled.success && pulled.data && onPull) {
+              onPull(pulled.data);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to check or hydrate MongoDB:', e);
+        }
+      } else {
+        g.__4laazyMongoLastFailAt = Date.now();
+      }
+    })().finally(() => {
+      g.__4laazyMongoInitPromise = null;
+    });
+  }
+
+  await g.__4laazyMongoInitPromise;
 }

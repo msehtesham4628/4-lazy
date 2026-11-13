@@ -4,8 +4,8 @@ import { productsRouter } from './routes/products.ts';
 import { ordersRouter } from './routes/orders.ts';
 import { adminRouter } from './routes/admin.ts';
 import { paymentsRouter } from './routes/payments.ts';
-import { getDB } from './db.ts';
-import { initMongoDB } from './mongodb.ts';
+import { getDB, getPendingMongoSync, hydrateDbFromMongo } from './db.ts';
+import { getMongoStats, initMongoDB } from './mongodb.ts';
 
 export const app = express();
 
@@ -23,21 +23,51 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize DB and bootstrap MongoDB Atlas if configured
+// Initialize local/tmp DB synchronously and prepare MongoDB hydration
+let initialData: ReturnType<typeof getDB> | undefined;
 try {
-  const initialData = getDB();
-  initMongoDB(initialData).catch(err => {
-    console.warn('MongoDB initialization notice:', err?.message || err);
-  });
+  initialData = getDB();
 } catch (e) {
   console.warn('Local DB initialization notice:', e);
 }
+
+// Kick off background init on Node servers, and await once per cold-start in serverless
+function ensureMongoReady() {
+  return initMongoDB(initialData || getDB(), hydrateDbFromMongo).catch(err => {
+    console.warn('MongoDB initialization notice:', err?.message || err);
+  });
+}
+ensureMongoReady();
+
+app.use('/api', async (req, res, next) => {
+  await ensureMongoReady();
+
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+    const origJson = res.json.bind(res);
+    res.json = ((body: any) => {
+      const pending = getPendingMongoSync();
+      if (pending) {
+        pending.finally(() => {
+          if (!res.headersSent) {
+            origJson(body);
+          }
+        });
+        return res;
+      }
+      return origJson(body);
+    }) as any;
+  }
+
+  next();
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: '4LAAZY E-Commerce API',
+    runtime: process.env.VERCEL ? 'vercel' : 'node',
+    mongodb: getMongoStats(),
     timestamp: new Date().toISOString()
   });
 });
