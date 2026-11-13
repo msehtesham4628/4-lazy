@@ -13,7 +13,21 @@ productsRouter.get('/products', (req, res) => {
   const { category, search, size, color, minPrice, maxPrice, sort, featured } = req.query;
 
   if (category && typeof category === 'string' && category !== 'all') {
-    list = list.filter(p => p.category.toLowerCase() === category.toLowerCase() || p.slug.includes(category.toLowerCase()));
+    const cleanCat = category.toLowerCase().trim();
+    if (cleanCat === 'trending') {
+      list = list.filter(p => p.isFeatured || p.tags.some(t => t.toLowerCase() === 'trending'));
+    } else {
+      const catMeta = db.categories.find(
+        c => c.slug.toLowerCase() === cleanCat || c.name.toLowerCase() === cleanCat
+      );
+      const targetName = (catMeta?.name || cleanCat).toLowerCase();
+      list = list.filter(
+        p =>
+          p.category.toLowerCase() === targetName ||
+          p.category.toLowerCase().includes(cleanCat.replace(/-/g, ' ')) ||
+          p.slug.includes(cleanCat)
+      );
+    }
   }
 
   if (featured === 'true') {
@@ -245,7 +259,7 @@ productsRouter.post('/admin/products/bulk-import', requireAdmin, (req: Authentic
       title: item.title,
       subtitle: item.subtitle || '',
       description: item.description || 'Premium 4 LAZY streetwear silhouette.',
-      category: item.category || 'Oversized T-Shirts',
+      category: item.category || 'Round Neck T-Shirt',
       tags: Array.isArray(item.tags) ? item.tags : ['New Arrival'],
       basePrice: Number(item.basePrice),
       discountPrice: item.discountPrice ? Number(item.discountPrice) : undefined,

@@ -73,6 +73,7 @@ export interface Category {
   name: string;
   description: string;
   image?: string;
+  heroImage?: string;
   itemCount?: number;
 }
 
@@ -110,6 +111,15 @@ export interface ReturnRequest {
   updatedAt: string;
 }
 
+export interface CustomPrintDetails {
+  customText?: string;
+  textColor?: string;
+  fontStyle?: string;
+  placement: 'center-chest' | 'left-chest' | 'full-back' | 'sleeve';
+  printTechnique: string;
+  uploadedGraphicUrl?: string;
+}
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -124,6 +134,7 @@ export interface CartItem {
   image: string;
   quantity: number;
   maxStock: number;
+  customPrint?: CustomPrintDetails;
 }
 
 export interface Cart {
@@ -148,7 +159,7 @@ export type OrderStatus =
   | 'Returned';
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
-export type PaymentMethod = 'razorpay' | 'stripe' | 'upi' | 'card' | 'cod';
+export type PaymentMethod = 'cashfree' | 'razorpay' | 'stripe' | 'upi' | 'card' | 'cod';
 
 export interface PaymentInfo {
   provider: PaymentMethod;
@@ -157,6 +168,8 @@ export interface PaymentInfo {
   paidAt?: string;
   amount: number;
   currency: string;
+  cashfreeOrderId?: string;
+  paymentSessionId?: string;
 }
 
 export interface TrackingInfo {
@@ -178,6 +191,7 @@ export interface OrderItem {
   price: number;
   quantity: number;
   image: string;
+  customPrint?: CustomPrintDetails;
 }
 
 export interface Order {
@@ -286,5 +300,7 @@ export interface StoreSettings {
   campaignImageUrl: string;
   razorpayKeyId: string;
   stripePublicKey: string;
+  cashfreeAppId?: string;
+  cashfreeEnvironment?: 'sandbox' | 'production';
   isTestMode: boolean;
 }

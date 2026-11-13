@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
-
-
 import type { DatabaseSchema } from "./db.ts";
+import { fallbackCategories, fallbackProducts } from "../data/fallbackCatalog.ts";
 
 
 
@@ -13,6 +12,10 @@ const adminHash = bcrypt.hashSync('admin123', salt);
 const managerHash = bcrypt.hashSync('manager123', salt);
 const customerHash = bcrypt.hashSync('lazy123', salt);
 
+const poloImg = '/assets/images/tshirt_polo_neck_1794456301588.jpg';
+const customPrintImg = '/assets/images/tshirt_custom_print_1794456303137.jpg';
+const roundNeckImg = '/assets/images/tshirt_round_neck_1794456303307.jpg';
+const acidWashImg = '/assets/images/tshirt_acid_wash_1794456303446.jpg';
 const heroImg = '/assets/images/hero_streetwear_campaign_1794056018871.jpg';
 const teeImg = '/assets/images/product_oversized_heavy_tee_1794056020516.jpg';
 const hoodieImg = '/assets/images/product_streetwear_hoodie_1794056020931.jpg';
@@ -22,16 +25,7 @@ const joggersImg = '/assets/images/streetwear_sweatpants_joggers_1794058915788.j
 const overshirtImg = '/assets/images/minimalist_overshirt_jacket_1794058915149.jpg';
 const logoImg = '/assets/aistudio/Picsart_25-05-26_04-50-01-827_3ef209bd.png';
 
-const categories = [
-  { id: 'cat_oversized_tees', slug: 'oversized-t-shirts', name: 'Oversized T-Shirts', description: '280–300 GSM combed luxury cotton with exaggerated drop-shoulder drape.', image: teeImg, itemCount: 18 },
-  { id: 'cat_hoodies', slug: 'hoodies-sweatshirts', name: 'Hoodies & Sweatshirts', description: '500 GSM custom-knit French Terry boxy hoodies engineered for structure.', image: hoodieImg, itemCount: 12 },
-  { id: 'cat_trousers', slug: 'trousers-cargo', name: 'Trousers & Cargo', description: 'Tailored utilitarian cargos and relaxed wide-leg trousers.', image: cargoImg, itemCount: 10 },
-  { id: 'cat_jackets', slug: 'jackets-outerwear', name: 'Jackets & Outerwear', description: 'Brutalist minimalist zip jackets, chore coats, and overshirts.', image: overshirtImg, itemCount: 8 },
-  { id: 'cat_joggers', slug: 'joggers-sweatpants', name: 'Joggers & Sweatpants', description: 'Heavyweight cuffed sweatpants with custom ribbed hems and deep pockets.', image: joggersImg, itemCount: 7 },
-  { id: 'cat_shirts', slug: 'shirts', name: 'Shirts', description: 'Heavyweight architectural utility shackets and boxy overshirts.', image: overshirtImg, itemCount: 6 },
-  { id: 'cat_coords', slug: 'co-ord-sets', name: 'Co-ord Sets', description: 'Monochrome two-piece streetwear silhouettes crafted from matched yarn.', image: lookbookImg, itemCount: 5 },
-  { id: 'cat_accessories', slug: 'accessories', name: 'Accessories', description: 'Tactical crossbody pouches, beanies, and solid brass accessories.', image: logoImg, itemCount: 4 }
-];
+const categories = fallbackCategories;
 
 const users = [
   {
@@ -157,360 +151,7 @@ const passwords = {
   usr_cust_004: customerHash
 };
 
-const products = [
-  {
-    id: 'prod_heavy_tee_01',
-    slug: 'heavyweight-oversized-box-tee',
-    title: 'Heavyweight Oversized Box Tee',
-    subtitle: '280 GSM Combed Cotton · Drop-Shoulder Silhouette',
-    description: 'The definitive everyday streetwear silhouette. Crafted from custom-knit 280 GSM combed cotton jersey, pre-shrunk with a vintage garment wash. Features an exaggerated drop-shoulder cut, structured rib collar that retains its shape, and clean double-needle hems.',
-    category: 'Oversized T-Shirts',
-    tags: ['Bestseller', 'Heavyweight', 'Oversized', 'Streetwear'],
-    basePrice: 1999,
-    discountPrice: 1699,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Washed Black', colorHex: '#1c1b1f', images: [teeImg, heroImg] },
-      { colorName: 'Vintage Bone', colorHex: '#ebe7df', images: [cargoImg, heroImg] },
-      { colorName: 'Charcoal Grey', colorHex: '#3b3b40', images: [hoodieImg, teeImg] }
-    ],
-    variants: [
-      { id: 'var_tee_wb_s', colorName: 'Washed Black', colorHex: '#1c1b1f', size: 'S', sku: '4L-TEE-WB-S', stock: 24, images: [teeImg, heroImg] },
-      { id: 'var_tee_wb_m', colorName: 'Washed Black', colorHex: '#1c1b1f', size: 'M', sku: '4L-TEE-WB-M', stock: 38, images: [teeImg, heroImg] },
-      { id: 'var_tee_wb_l', colorName: 'Washed Black', colorHex: '#1c1b1f', size: 'L', sku: '4L-TEE-WB-L', stock: 42, images: [teeImg, heroImg] },
-      { id: 'var_tee_wb_xl', colorName: 'Washed Black', colorHex: '#1c1b1f', size: 'XL', sku: '4L-TEE-WB-XL', stock: 18, images: [teeImg, heroImg] },
-      { id: 'var_tee_wb_xxl', colorName: 'Washed Black', colorHex: '#1c1b1f', size: 'XXL', sku: '4L-TEE-WB-XXL', stock: 9, images: [teeImg, heroImg] },
-      { id: 'var_tee_vb_s', colorName: 'Vintage Bone', colorHex: '#ebe7df', size: 'S', sku: '4L-TEE-VB-S', stock: 15, images: [cargoImg, heroImg] },
-      { id: 'var_tee_vb_m', colorName: 'Vintage Bone', colorHex: '#ebe7df', size: 'M', sku: '4L-TEE-VB-M', stock: 28, images: [cargoImg, heroImg] },
-      { id: 'var_tee_vb_l', colorName: 'Vintage Bone', colorHex: '#ebe7df', size: 'L', sku: '4L-TEE-VB-L', stock: 30, images: [cargoImg, heroImg] },
-      { id: 'var_tee_vb_xl', colorName: 'Vintage Bone', colorHex: '#ebe7df', size: 'XL', sku: '4L-TEE-VB-XL', stock: 12, images: [cargoImg, heroImg] },
-      { id: 'var_tee_cg_m', colorName: 'Charcoal Grey', colorHex: '#3b3b40', size: 'M', sku: '4L-TEE-CG-M', stock: 20, images: [hoodieImg, teeImg] },
-      { id: 'var_tee_cg_l', colorName: 'Charcoal Grey', colorHex: '#3b3b40', size: 'L', sku: '4L-TEE-CG-L', stock: 25, images: [hoodieImg, teeImg] }
-    ],
-    details: {
-      fabric: '100% Combed Compact Cotton',
-      gsm: 280,
-      fit: 'Boxy, oversized drop-shoulder cut. True to streetwear fit.',
-      care: 'Machine wash cold inside out with like colors. Hang dry or tumble dry low.',
-      modelStats: 'Model is 6\'1" (185 cm) wearing size L.'
-    },
-    rating: 4.9,
-    reviewsCount: 38,
-    createdAt: '2026-02-15T10:00:00Z'
-  },
-  {
-    id: 'prod_hoodie_01',
-    slug: '500gsm-french-terry-boxy-hoodie',
-    title: '500 GSM French Terry Boxy Hoodie',
-    subtitle: 'Heavyweight Custom Terry · Double Layer Hood · Zero Drawstrings',
-    description: 'Engineered for sculptural presence and tactile comfort. Made with our heaviest 500 GSM custom-looped French Terry cotton. Designed without drawstrings for a pure minimalist neckline, deep kangaroo pocket, and rib-knit side gussets for mobility.',
-    category: 'Hoodies & Sweatshirts',
-    tags: ['Flagship', 'Heavyweight', 'Winter Essential'],
-    basePrice: 4299,
-    discountPrice: 3899,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Vintage Charcoal', colorHex: '#323237', images: [hoodieImg, heroImg] },
-      { colorName: 'Washed Black', colorHex: '#141416', images: [teeImg, hoodieImg] }
-    ],
-    variants: [
-      { id: 'var_hood_vc_s', colorName: 'Vintage Charcoal', colorHex: '#323237', size: 'S', sku: '4L-HD-VC-S', stock: 16, images: [hoodieImg, heroImg] },
-      { id: 'var_hood_vc_m', colorName: 'Vintage Charcoal', colorHex: '#323237', size: 'M', sku: '4L-HD-VC-M', stock: 25, images: [hoodieImg, heroImg] },
-      { id: 'var_hood_vc_l', colorName: 'Vintage Charcoal', colorHex: '#323237', size: 'L', sku: '4L-HD-VC-L', stock: 29, images: [hoodieImg, heroImg] },
-      { id: 'var_hood_vc_xl', colorName: 'Vintage Charcoal', colorHex: '#323237', size: 'XL', sku: '4L-HD-VC-XL', stock: 14, images: [hoodieImg, heroImg] },
-      { id: 'var_hood_wb_m', colorName: 'Washed Black', colorHex: '#141416', size: 'M', sku: '4L-HD-WB-M', stock: 18, images: [teeImg, hoodieImg] },
-      { id: 'var_hood_wb_l', colorName: 'Washed Black', colorHex: '#141416', size: 'L', sku: '4L-HD-WB-L', stock: 22, images: [teeImg, hoodieImg] }
-    ],
-    details: {
-      fabric: '100% Cotton 500 GSM Loopback French Terry',
-      gsm: 500,
-      fit: 'Structured oversized fit with wide chest and relaxed sleeves.',
-      care: 'Dry clean recommended or gentle cold machine wash.',
-      modelStats: 'Model is 6\'2" wearing size L.'
-    },
-    rating: 5.0,
-    reviewsCount: 52,
-    createdAt: '2026-01-20T11:00:00Z'
-  },
-  {
-    id: 'prod_cargo_01',
-    slug: 'relaxed-pleated-cargo-trousers',
-    title: 'Relaxed Pleated Cargo Trousers',
-    subtitle: 'Tailored Heavy Twill · Magnetic Pocket Flaps · Straight Wide Leg',
-    description: 'The intersection of sartorial tailoring and utilitarian functionalism. High-density cotton twill featuring tailored double-front pleats, flush-mount 3D cargo pockets with hidden magnetic closures, and adjustable cinch hems.',
-    category: 'Trousers & Cargo',
-    tags: ['Tailored', 'Utility', 'New Arrival'],
-    basePrice: 3799,
-    discountPrice: 3299,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Bone Off-White', colorHex: '#e5e1d7', images: [cargoImg, heroImg] },
-      { colorName: 'Pitch Black', colorHex: '#111112', images: [lookbookImg, cargoImg] }
-    ],
-    variants: [
-      { id: 'var_crg_bo_s', colorName: 'Bone Off-White', colorHex: '#e5e1d7', size: 'S', sku: '4L-CG-BO-S', stock: 12, images: [cargoImg, heroImg] },
-      { id: 'var_crg_bo_m', colorName: 'Bone Off-White', colorHex: '#e5e1d7', size: 'M', sku: '4L-CG-BO-M', stock: 22, images: [cargoImg, heroImg] },
-      { id: 'var_crg_bo_l', colorName: 'Bone Off-White', colorHex: '#e5e1d7', size: 'L', sku: '4L-CG-BO-L', stock: 19, images: [cargoImg, heroImg] },
-      { id: 'var_crg_bo_xl', colorName: 'Bone Off-White', colorHex: '#e5e1d7', size: 'XL', sku: '4L-CG-BO-XL', stock: 8, images: [cargoImg, heroImg] },
-      { id: 'var_crg_pb_m', colorName: 'Pitch Black', colorHex: '#111112', size: 'M', sku: '4L-CG-PB-M', stock: 17, images: [lookbookImg, cargoImg] },
-      { id: 'var_crg_pb_l', colorName: 'Pitch Black', colorHex: '#111112', size: 'L', sku: '4L-CG-PB-L', stock: 20, images: [lookbookImg, cargoImg] }
-    ],
-    details: {
-      fabric: '340 GSM High-Density Cotton Twill with Stretch',
-      gsm: 340,
-      fit: 'High-rise, relaxed through the thigh with gentle taper to hem.',
-      care: 'Cool machine wash. Warm iron on reverse.',
-      modelStats: 'Model is 6\'1" wearing waist size 32 (Size M).'
-    },
-    rating: 4.8,
-    reviewsCount: 26,
-    createdAt: '2026-02-01T15:00:00Z'
-  },
-  {
-    id: 'prod_jacket_01',
-    slug: 'brutalist-minimalist-zip-jacket',
-    title: 'Brutalist Minimalist Zip Jacket',
-    subtitle: 'Brushed Heavy Wool Blend · YKK Excella Two-Way Zip · Satin Lining',
-    description: 'A structured outerwear piece balancing architectural lines with supreme insulation. Features dropped shoulders, clean welt pockets, and a matte gunmetal two-way zipper.',
-    category: 'Jackets & Outerwear',
-    tags: ['Outerwear', 'Luxury', 'Statement Piece'],
-    basePrice: 5899,
-    discountPrice: 4899,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Dark Charcoal', colorHex: '#252528', images: [lookbookImg, heroImg] }
-    ],
-    variants: [
-      { id: 'var_jkt_dc_s', colorName: 'Dark Charcoal', colorHex: '#252528', size: 'S', sku: '4L-JKT-DC-S', stock: 8, images: [lookbookImg, heroImg] },
-      { id: 'var_jkt_dc_m', colorName: 'Dark Charcoal', colorHex: '#252528', size: 'M', sku: '4L-JKT-DC-M', stock: 14, images: [lookbookImg, heroImg] },
-      { id: 'var_jkt_dc_l', colorName: 'Dark Charcoal', colorHex: '#252528', size: 'L', sku: '4L-JKT-DC-L', stock: 12, images: [lookbookImg, heroImg] },
-      { id: 'var_jkt_dc_xl', colorName: 'Dark Charcoal', colorHex: '#252528', size: 'XL', sku: '4L-JKT-DC-XL', stock: 6, images: [lookbookImg, heroImg] }
-    ],
-    details: {
-      fabric: '60% Wool, 40% Technical Polyester, Cupro Satin Lining',
-      fit: 'Slightly cropped boxy torso with generous sleeves.',
-      care: 'Specialist dry clean only.',
-      modelStats: 'Model is 6\'2" wearing size L.'
-    },
-    rating: 5.0,
-    reviewsCount: 19,
-    createdAt: '2026-01-10T14:00:00Z'
-  },
-  {
-    id: 'prod_joggers_01',
-    slug: '500gsm-heavy-loopback-sweatpants',
-    title: '500 GSM Heavy Loopback Sweatpants',
-    subtitle: 'Custom French Terry · Relaxed Tapered Leg · Heavy Ribbed Cuffs',
-    description: 'The definitive luxury casual sweatpants. Engineered from 500 GSM custom-knit unbrushed French Terry cotton for weighted drape and shape retention. Features reinforced deep side slash pockets, back patch pocket, and thick elasticated waistband with elongated drawstrings.',
-    category: 'Joggers & Sweatpants',
-    tags: ['Bestseller', 'Heavyweight', 'Everyday Comfort'],
-    basePrice: 3299,
-    discountPrice: 2799,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Vintage Charcoal', colorHex: '#3b3b40', images: [joggersImg, hoodieImg] },
-      { colorName: 'Washed Black', colorHex: '#141416', images: [joggersImg, teeImg] }
-    ],
-    variants: [
-      { id: 'var_jog_vc_s', colorName: 'Vintage Charcoal', colorHex: '#3b3b40', size: 'S', sku: '4L-JOG-VC-S', stock: 18, images: [joggersImg, hoodieImg] },
-      { id: 'var_jog_vc_m', colorName: 'Vintage Charcoal', colorHex: '#3b3b40', size: 'M', sku: '4L-JOG-VC-M', stock: 32, images: [joggersImg, hoodieImg] },
-      { id: 'var_jog_vc_l', colorName: 'Vintage Charcoal', colorHex: '#3b3b40', size: 'L', sku: '4L-JOG-VC-L', stock: 36, images: [joggersImg, hoodieImg] },
-      { id: 'var_jog_vc_xl', colorName: 'Vintage Charcoal', colorHex: '#3b3b40', size: 'XL', sku: '4L-JOG-VC-XL', stock: 15, images: [joggersImg, hoodieImg] },
-      { id: 'var_jog_wb_m', colorName: 'Washed Black', colorHex: '#141416', size: 'M', sku: '4L-JOG-WB-M', stock: 22, images: [joggersImg, teeImg] },
-      { id: 'var_jog_wb_l', colorName: 'Washed Black', colorHex: '#141416', size: 'L', sku: '4L-JOG-WB-L', stock: 26, images: [joggersImg, teeImg] }
-    ],
-    details: {
-      fabric: '100% Cotton 500 GSM Loopback Terry',
-      gsm: 500,
-      fit: 'Relaxed through seat and thigh, slight taper to heavy ribbed cuff.',
-      care: 'Machine wash cold inside-out. Flat dry.',
-      modelStats: 'Model is 6\'1" wearing size M.'
-    },
-    rating: 4.9,
-    reviewsCount: 31,
-    createdAt: '2026-02-20T10:00:00Z'
-  },
-  {
-    id: 'prod_overshirt_01',
-    slug: 'architectural-boxy-utility-overshirt',
-    title: 'Architectural Boxy Utility Overshirt',
-    subtitle: '380 GSM High-Twist Twill · Matte Snap Fasteners · Chest Flap Pockets',
-    description: 'An immaculate layering anchor designed for versatile styling over our heavy tees. Crafted from 380 GSM durable compact cotton twill with dual gusseted military flap chest pockets, stand collar, and concealed snap front placket.',
-    category: 'Shirts',
-    tags: ['Layering', 'Utility', 'Architectural'],
-    basePrice: 3699,
-    discountPrice: 3199,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Earthy Olive', colorHex: '#524b3a', images: [overshirtImg, cargoImg] },
-      { colorName: 'Raw Canvas', colorHex: '#e8e4db', images: [overshirtImg, lookbookImg] }
-    ],
-    variants: [
-      { id: 'var_ovr_eo_s', colorName: 'Earthy Olive', colorHex: '#524b3a', size: 'S', sku: '4L-OVR-EO-S', stock: 10, images: [overshirtImg, cargoImg] },
-      { id: 'var_ovr_eo_m', colorName: 'Earthy Olive', colorHex: '#524b3a', size: 'M', sku: '4L-OVR-EO-M', stock: 24, images: [overshirtImg, cargoImg] },
-      { id: 'var_ovr_eo_l', colorName: 'Earthy Olive', colorHex: '#524b3a', size: 'L', sku: '4L-OVR-EO-L', stock: 28, images: [overshirtImg, cargoImg] },
-      { id: 'var_ovr_eo_xl', colorName: 'Earthy Olive', colorHex: '#524b3a', size: 'XL', sku: '4L-OVR-EO-XL', stock: 12, images: [overshirtImg, cargoImg] },
-      { id: 'var_ovr_rc_m', colorName: 'Raw Canvas', colorHex: '#e8e4db', size: 'M', sku: '4L-OVR-RC-M', stock: 18, images: [overshirtImg, lookbookImg] },
-      { id: 'var_ovr_rc_l', colorName: 'Raw Canvas', colorHex: '#e8e4db', size: 'L', sku: '4L-OVR-RC-L', stock: 20, images: [overshirtImg, lookbookImg] }
-    ],
-    details: {
-      fabric: '100% High-Density Cotton Twill 380 GSM',
-      gsm: 380,
-      fit: 'Square boxy silhouette cut intentionally broad across the shoulders.',
-      care: 'Machine wash cool. Warm iron.',
-      modelStats: 'Model is 6\'2" wearing size L.'
-    },
-    rating: 4.8,
-    reviewsCount: 22,
-    createdAt: '2026-02-22T14:30:00Z'
-  },
-  {
-    id: 'prod_acid_tee_02',
-    slug: 'vanguard-raw-hem-acid-wash-tee',
-    title: 'Vanguard Raw Hem Acid Wash Tee',
-    subtitle: '290 GSM Vintage Pigment Wash · Distressed Collar · Raw Bottom Hem',
-    description: 'Each piece undergoes a 4-stage mineral enzyme wash to achieve authentic aged micro-textures without weakening the fibers. Finished with an intentional raw edge at the hemline that subtly rolls after washing.',
-    category: 'Oversized T-Shirts',
-    tags: ['Vintage Wash', 'Drop 04', 'Limited Edition'],
-    basePrice: 2199,
-    discountPrice: 1899,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Mineral Grey', colorHex: '#48474b', images: [teeImg, heroImg] },
-      { colorName: 'Distressed Carbon', colorHex: '#242327', images: [hoodieImg, teeImg] }
-    ],
-    variants: [
-      { id: 'var_acd_mg_s', colorName: 'Mineral Grey', colorHex: '#48474b', size: 'S', sku: '4L-ACD-MG-S', stock: 14, images: [teeImg, heroImg] },
-      { id: 'var_acd_mg_m', colorName: 'Mineral Grey', colorHex: '#48474b', size: 'M', sku: '4L-ACD-MG-M', stock: 30, images: [teeImg, heroImg] },
-      { id: 'var_acd_mg_l', colorName: 'Mineral Grey', colorHex: '#48474b', size: 'L', sku: '4L-ACD-MG-L', stock: 35, images: [teeImg, heroImg] },
-      { id: 'var_acd_mg_xl', colorName: 'Mineral Grey', colorHex: '#48474b', size: 'XL', sku: '4L-ACD-MG-XL', stock: 16, images: [teeImg, heroImg] },
-      { id: 'var_acd_dc_m', colorName: 'Distressed Carbon', colorHex: '#242327', size: 'M', sku: '4L-ACD-DC-M', stock: 22, images: [hoodieImg, teeImg] },
-      { id: 'var_acd_dc_l', colorName: 'Distressed Carbon', colorHex: '#242327', size: 'L', sku: '4L-ACD-DC-L', stock: 24, images: [hoodieImg, teeImg] }
-    ],
-    details: {
-      fabric: '100% Combed Compact Cotton with Mineral Enzyme Wash',
-      gsm: 290,
-      fit: 'Extreme boxy cut with wide elbow-length sleeves.',
-      care: 'Wash cold inside-out. Do not bleach.',
-      modelStats: 'Model is 6\'1" wearing size L.'
-    },
-    rating: 4.9,
-    reviewsCount: 17,
-    createdAt: '2026-03-01T08:00:00Z'
-  },
-  {
-    id: 'prod_ziphoodie_02',
-    slug: 'dual-zipper-heavyweight-boxy-hoodie',
-    title: 'Dual-Zipper Heavyweight Boxy Hoodie',
-    subtitle: '520 GSM Brushed Cotton Fleece · Heavy Gunmetal 2-Way Zip',
-    description: 'The apex of technical casualwear. Constructed from ultra-heavy 520 GSM brushed-back fleece with a structured 3-panel hood that never sags. Features custom matte gunmetal double zippers allowing custom styling from top and bottom.',
-    category: 'Hoodies & Sweatshirts',
-    tags: ['Technical Streetwear', '520 GSM', 'Heavyweight'],
-    basePrice: 4799,
-    discountPrice: 4199,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Washed Carbon', colorHex: '#222225', images: [hoodieImg, joggersImg] },
-      { colorName: 'Bone Cream', colorHex: '#ded9cf', images: [cargoImg, lookbookImg] }
-    ],
-    variants: [
-      { id: 'var_zh_wc_s', colorName: 'Washed Carbon', colorHex: '#222225', size: 'S', sku: '4L-ZH-WC-S', stock: 11, images: [hoodieImg, joggersImg] },
-      { id: 'var_zh_wc_m', colorName: 'Washed Carbon', colorHex: '#222225', size: 'M', sku: '4L-ZH-WC-M', stock: 21, images: [hoodieImg, joggersImg] },
-      { id: 'var_zh_wc_l', colorName: 'Washed Carbon', colorHex: '#222225', size: 'L', sku: '4L-ZH-WC-L', stock: 25, images: [hoodieImg, joggersImg] },
-      { id: 'var_zh_wc_xl', colorName: 'Washed Carbon', colorHex: '#222225', size: 'XL', sku: '4L-ZH-WC-XL', stock: 9, images: [hoodieImg, joggersImg] },
-      { id: 'var_zh_bc_m', colorName: 'Bone Cream', colorHex: '#ded9cf', size: 'M', sku: '4L-ZH-BC-M', stock: 15, images: [cargoImg, lookbookImg] },
-      { id: 'var_zh_bc_l', colorName: 'Bone Cream', colorHex: '#ded9cf', size: 'L', sku: '4L-ZH-BC-L', stock: 18, images: [cargoImg, lookbookImg] }
-    ],
-    details: {
-      fabric: '100% Cotton 520 GSM Heavy Brushed Fleece',
-      gsm: 520,
-      fit: 'Exaggerated boxy cut, ribbed dropped armholes, cropped at hip.',
-      care: 'Dry clean or cold machine wash delicate.',
-      modelStats: 'Model is 6\'2" wearing size L.'
-    },
-    rating: 5.0,
-    reviewsCount: 29,
-    createdAt: '2026-02-18T12:00:00Z'
-  },
-  {
-    id: 'prod_wide_trouser_02',
-    slug: 'tailored-wide-leg-pleated-trousers',
-    title: 'Tailored Wide-Leg Pleated Trousers',
-    subtitle: '350 GSM Wool-Touch Twill · Double Forward Pleats · Full Break Drape',
-    description: 'Designed for fluid architectural movement. Tailored from a crease-resistant 350 GSM twill that drapes effortlessly over sneakers and boots. Features clean tab-fastener waistband, subtle side adjusters, and deep welt pockets.',
-    category: 'Trousers & Cargo',
-    tags: ['Tailored', 'Smart Streetwear', 'Wide Leg'],
-    basePrice: 3799,
-    discountPrice: 3299,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Deep Espresso', colorHex: '#2c2523', images: [cargoImg, lookbookImg] },
-      { colorName: 'Midnight Slate', colorHex: '#1e2025', images: [joggersImg, cargoImg] }
-    ],
-    variants: [
-      { id: 'var_wt_de_s', colorName: 'Deep Espresso', colorHex: '#2c2523', size: 'S', sku: '4L-WT-DE-S', stock: 9, images: [cargoImg, lookbookImg] },
-      { id: 'var_wt_de_m', colorName: 'Deep Espresso', colorHex: '#2c2523', size: 'M', sku: '4L-WT-DE-M', stock: 19, images: [cargoImg, lookbookImg] },
-      { id: 'var_wt_de_l', colorName: 'Deep Espresso', colorHex: '#2c2523', size: 'L', sku: '4L-WT-DE-L', stock: 22, images: [cargoImg, lookbookImg] },
-      { id: 'var_wt_de_xl', colorName: 'Deep Espresso', colorHex: '#2c2523', size: 'XL', sku: '4L-WT-DE-XL', stock: 7, images: [cargoImg, lookbookImg] },
-      { id: 'var_wt_ms_m', colorName: 'Midnight Slate', colorHex: '#1e2025', size: 'M', sku: '4L-WT-MS-M', stock: 14, images: [joggersImg, cargoImg] },
-      { id: 'var_wt_ms_l', colorName: 'Midnight Slate', colorHex: '#1e2025', size: 'L', sku: '4L-WT-MS-L', stock: 17, images: [joggersImg, cargoImg] }
-    ],
-    details: {
-      fabric: '65% Poly, 35% Rayon Heavy Suiting Twill 350 GSM',
-      gsm: 350,
-      fit: 'High-waisted, generous through the leg with fluid full break.',
-      care: 'Dry clean recommended or cool delicate wash.',
-      modelStats: 'Model is 6\'1" wearing size M.'
-    },
-    rating: 4.8,
-    reviewsCount: 14,
-    createdAt: '2026-02-28T10:00:00Z'
-  },
-  {
-    id: 'prod_coord_01',
-    slug: 'monochrome-brutalist-co-ord-set',
-    title: 'Monochrome Brutalist Co-ord Set',
-    subtitle: 'Matching 450 GSM Oversized Crewneck & Relaxed Sweatpants',
-    description: 'A comprehensive uniform for effortless styling. Combines our drop-shoulder boxy crewneck and matching tapered sweatpants, woven from matched-dye lot 450 GSM combed cotton. Includes custom silicone 4 LAZY tonal branding at the wrist and calf.',
-    category: 'Co-ord Sets',
-    tags: ['Co-ord', 'Matching Set', 'Drop 04 Exclusive'],
-    basePrice: 6299,
-    discountPrice: 5499,
-    isFeatured: true,
-    isPublished: true,
-    colorGroups: [
-      { colorName: 'Slate Monochrome', colorHex: '#2e3035', images: [lookbookImg, heroImg] },
-      { colorName: 'Vintage Bone', colorHex: '#e4dfd5', images: [overshirtImg, cargoImg] }
-    ],
-    variants: [
-      { id: 'var_cd_sm_s', colorName: 'Slate Monochrome', colorHex: '#2e3035', size: 'S', sku: '4L-CD-SM-S', stock: 7, images: [lookbookImg, heroImg] },
-      { id: 'var_cd_sm_m', colorName: 'Slate Monochrome', colorHex: '#2e3035', size: 'M', sku: '4L-CD-SM-M', stock: 15, images: [lookbookImg, heroImg] },
-      { id: 'var_cd_sm_l', colorName: 'Slate Monochrome', colorHex: '#2e3035', size: 'L', sku: '4L-CD-SM-L', stock: 18, images: [lookbookImg, heroImg] },
-      { id: 'var_cd_sm_xl', colorName: 'Slate Monochrome', colorHex: '#2e3035', size: 'XL', sku: '4L-CD-SM-XL', stock: 6, images: [lookbookImg, heroImg] },
-      { id: 'var_cd_vb_m', colorName: 'Vintage Bone', colorHex: '#e4dfd5', size: 'M', sku: '4L-CD-VB-M', stock: 12, images: [overshirtImg, cargoImg] },
-      { id: 'var_cd_vb_l', colorName: 'Vintage Bone', colorHex: '#e4dfd5', size: 'L', sku: '4L-CD-VB-L', stock: 14, images: [overshirtImg, cargoImg] }
-    ],
-    details: {
-      fabric: '100% Combed Cotton Heavyweight Terry 450 GSM',
-      gsm: 450,
-      fit: 'Matching relaxed oversized geometry.',
-      care: 'Machine wash cool. Dry flat in shade.',
-      modelStats: 'Model is 6\'2" wearing size L.'
-    },
-    rating: 5.0,
-    reviewsCount: 21,
-    createdAt: '2026-03-02T11:00:00Z'
-  }
-];
+const products = fallbackProducts;
 
 const coupons = [
   {
@@ -876,6 +517,8 @@ const settings = {
   campaignImageUrl: lookbookImg,
   razorpayKeyId: 'rzp_test_4LAZYStoreDemo',
   stripePublicKey: 'pk_test_4LAZYStoreDemo',
+  cashfreeAppId: 'TEST1029384756CF',
+  cashfreeEnvironment: 'sandbox',
   isTestMode: true
 };
 

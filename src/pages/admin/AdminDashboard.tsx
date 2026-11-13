@@ -51,6 +51,8 @@ import {
 
 interface AdminDashboardProps {
   onNavigate: (page: string, params?: any) => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 type AdminTab =
@@ -66,11 +68,22 @@ type AdminTab =
   | 'settings'
   | 'emails';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, initialTab, onTabChange }) => {
   const { user, token, isAdmin, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'overview');
   const [adminNavMenuOpen, setAdminNavMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialTab && initialTab !== activeTab) {
+      setActiveTab(initialTab as AdminTab);
+    }
+  }, [initialTab]);
+
+  const selectTab = (tab: AdminTab) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   // Overview Data
   const [metrics, setMetrics] = useState<any>(null);
@@ -92,7 +105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [productForm, setProductForm] = useState({
     title: '',
     subtitle: '',
-    category: 'Oversized T-Shirts',
+    category: 'Round Neck T-Shirt',
     basePrice: 1999,
     discountPrice: 1699,
     description: '',
@@ -470,7 +483,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     setProductForm({
       title: '',
       subtitle: '',
-      category: categories[0]?.name || 'Oversized T-Shirts',
+      category: categories[0]?.name || 'Round Neck T-Shirt',
       basePrice: 1999,
       discountPrice: 1699,
       description: 'Custom heavyweight luxury streetwear piece.',
@@ -633,7 +646,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
         productsToImport.push({
           title: row['title'] || row['name'] || `4 LAZY Drop Piece ${i}`,
-          category: row['category'] || 'Oversized T-Shirts',
+          category: row['category'] || 'Round Neck T-Shirt',
           basePrice: Number(row['price']) || 1999,
           discountPrice: row['saleprice'] ? Number(row['saleprice']) : undefined,
           description: row['description'] || 'Imported via bulk CSV upload.',
@@ -677,9 +690,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   const downloadSampleTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8,title,category,price,saleprice,color,size,sku,stock,description\n" +
-      "Heavyweight Boxy Drop Tee,Oversized T-Shirts,1999,1699,Washed Black,L,4L-TEE-WB-L,30,280 GSM combed cotton luxury oversized tee\n" +
-      "500 GSM French Terry Hoodie,Hoodies & Sweatshirts,4299,3899,Vintage Charcoal,XL,4L-HD-VC-XL,20,500 GSM heavyweight boxy hoodie\n" +
-      "Tailored Utility Cargos,Trousers & Cargo,3799,3299,Bone Off-White,M,4L-CG-BO-M,25,Pleated cotton twill cargo trousers with magnetic flaps";
+      "Architectural Down Shoulder Box Tee,Down Shoulder T-Shirt,1999,1699,Washed Black,L,4L-DS-WB-L,30,280 GSM combed cotton down shoulder tee\n" +
+      "Brutalist Boxy Knit Polo,Polo Neck T-Shirt,2499,2199,Washed Black,XL,4L-PL-WB-XL,20,290 GSM interlock knit polo t-shirt\n" +
+      "Signature Heavy Combed Round Neck T-Shirt,Round Neck T-Shirt,1799,1499,Pure White,M,4L-RN-PW-M,25,280 GSM pure cotton crewneck t-shirt";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -880,13 +893,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         {/* Nav Header Main Row */}
         <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
-          {/* Brand & Monogram & Mobile Drawer Toggle */}
+          {/* Brand & Monogram & Module Drawer Toggle */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               type="button"
               onClick={() => setAdminNavMenuOpen(!adminNavMenuOpen)}
-              className="xl:hidden p-2 text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors"
-              aria-label="Toggle navigation menu"
+              className="p-2 text-neutral-300 hover:text-white hover:bg-neutral-900 rounded-lg transition-colors flex items-center gap-1.5"
+              aria-label="Toggle dashboard navigation menu"
             >
               {adminNavMenuOpen ? <X className="w-5 h-5 text-[#E5A914]" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -966,50 +979,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
         </div>
 
-        {/* The Menu Bar in Nav – Horizontal Sliding Module Bar */}
-        <div className="border-t border-neutral-900 bg-neutral-950/90">
-          <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar" aria-label="Admin Navigation Tabs">
-              {navTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setAdminNavMenuOpen(false);
-                    }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all shrink-0 ${
-                      isActive
-                        ? 'bg-[#E5A914] text-black font-extrabold shadow-sm'
-                        : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{tab.label}</span>
-                    {tab.badge !== undefined && (
-                      <span
-                        className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
-                          isActive
-                            ? 'bg-black/20 text-black'
-                            : tab.badgeColor || 'bg-neutral-800 text-neutral-300'
-                        }`}
-                      >
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-
-        {/* Mobile / Compact Menu Drawer Overlay */}
+        {/* Navigation Drawer Overlay (accessed via Menu icon without second bar below header) */}
         {adminNavMenuOpen && (
-          <div className="xl:hidden border-t border-neutral-800 bg-neutral-950/98 backdrop-blur-xl px-4 py-4 space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="border-t border-neutral-800 bg-neutral-950/98 backdrop-blur-xl px-4 py-4 space-y-4">
+            <div className="max-w-[1700px] mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {navTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -1017,7 +990,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   <button
                     key={tab.id}
                     onClick={() => {
-                      setActiveTab(tab.id);
+                      selectTab(tab.id);
                       setAdminNavMenuOpen(false);
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-left transition-all ${
@@ -1073,7 +1046,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setActiveTab('orders')}
+                  onClick={() => selectTab('orders')}
                   className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-1.5 rounded text-xs uppercase tracking-wider"
                 >
                   Manage Orders ({orders.length})
@@ -1125,7 +1098,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
             {/* Quick Actions Shortcuts */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <button
-                onClick={() => setActiveTab('products')}
+                onClick={() => selectTab('products')}
                 className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
               >
                 <Package className="w-4 h-4 text-[#E5A914] mb-1.5" />
@@ -1133,7 +1106,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <p className="text-[10px] text-neutral-400">Add, edit, bulk upload</p>
               </button>
               <button
-                onClick={() => setActiveTab('inventory')}
+                onClick={() => selectTab('inventory')}
                 className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
               >
                 <Boxes className="w-4 h-4 text-[#E5A914] mb-1.5" />
@@ -1141,7 +1114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <p className="text-[10px] text-neutral-400">Variant stock &amp; audit</p>
               </button>
               <button
-                onClick={() => setActiveTab('returns')}
+                onClick={() => selectTab('returns')}
                 className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
               >
                 <RotateCcw className="w-4 h-4 text-[#E5A914] mb-1.5" />
@@ -1149,7 +1122,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <p className="text-[10px] text-neutral-400">{returns.length} active return cases</p>
               </button>
               <button
-                onClick={() => setActiveTab('tally')}
+                onClick={() => selectTab('tally')}
                 className="p-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-lg text-left"
               >
                 <FileSpreadsheet className="w-4 h-4 text-[#E5A914] mb-1.5" />
@@ -1162,7 +1135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
             <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="font-display text-sm font-bold uppercase tracking-wider text-white">Recent Orders Overview</h2>
-                <button onClick={() => setActiveTab('orders')} className="text-xs text-[#E5A914] hover:underline font-bold">
+                <button onClick={() => selectTab('orders')} className="text-xs text-[#E5A914] hover:underline font-bold">
                   View All Orders &rarr;
                 </button>
               </div>
@@ -1476,9 +1449,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                         <td className="p-3.5 align-top font-sans">
                           <div className="space-y-1">
                             {order.items.map((it, idx) => (
-                              <p key={idx} className="text-[11px] text-neutral-300">
-                                {it.quantity}x {it.productTitle} <span className="text-neutral-500">({it.colorName}/{it.size})</span>
-                              </p>
+                              <div key={idx} className="text-[11px] text-neutral-300">
+                                <p>{it.quantity}x {it.productTitle} <span className="text-neutral-500">({it.colorName}/{it.size})</span></p>
+                                {it.customPrint && (
+                                  <p className="text-[10px] text-[#E5A914] font-mono mt-0.5">
+                                    Custom: {it.customPrint.placement} · {it.customPrint.printTechnique}
+                                    {it.customPrint.customText ? ` · "${it.customPrint.customText}"` : ''}
+                                  </p>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </td>
@@ -1958,7 +1937,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               </div>
 
               <div className="pt-4 border-t border-neutral-800 space-y-3">
-                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">Payment Gateway Configuration</h3>
+                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-white">Payment Gateway Configuration (Cashfree Primary)</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Cashfree App ID</label>
+                    <input
+                      type="text"
+                      value={storeSettings.cashfreeAppId || 'TEST1029384756CF'}
+                      onChange={e => setStoreSettings({ ...storeSettings, cashfreeAppId: e.target.value })}
+                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Cashfree Environment</label>
+                    <select
+                      value={storeSettings.cashfreeEnvironment || 'sandbox'}
+                      onChange={e => setStoreSettings({ ...storeSettings, cashfreeEnvironment: e.target.value as 'sandbox' | 'production' })}
+                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white rounded"
+                    >
+                      <option value="sandbox">Sandbox (Test Mode)</option>
+                      <option value="production">Production (Live Settlement)</option>
+                    </select>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Razorpay Key ID</label>
                   <input
@@ -2388,7 +2389,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   rows={8}
                   value={bulkCsvText}
                   onChange={e => setBulkCsvText(e.target.value)}
-                  placeholder={"title,category,price,saleprice,color,size,sku,stock,description\nDrop Tee,Oversized T-Shirts,1999,1699,Washed Black,L,4L-IMP-01,30,Heavy combed cotton tee"}
+                  placeholder={"title,category,price,saleprice,color,size,sku,stock,description\nDown Shoulder Box Tee,Down Shoulder,1999,1699,Washed Black,L,4L-IMP-01,30,Heavy combed cotton tee"}
                   className="w-full bg-neutral-950 border border-neutral-800 p-3 font-mono text-xs text-white rounded focus:outline-none"
                 />
               </div>

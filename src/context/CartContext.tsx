@@ -55,11 +55,46 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Helper to sanitize items before saving to localStorage to prevent QuotaExceededError
+  const sanitizeForStorage = (cartItems: CartItem[]): CartItem[] => {
+    return cartItems.map(item => {
+      let sanitizedImage = item.image;
+      // If image is a heavy data URL, store a lightweight static fallback
+      if (sanitizedImage && sanitizedImage.startsWith('data:') && sanitizedImage.length > 5000) {
+        sanitizedImage = '/assets/images/tshirt_custom_print_1794456303137.jpg';
+      }
+
+      let sanitizedCustomPrint = item.customPrint;
+      if (sanitizedCustomPrint && sanitizedCustomPrint.uploadedGraphicUrl && sanitizedCustomPrint.uploadedGraphicUrl.startsWith('data:') && sanitizedCustomPrint.uploadedGraphicUrl.length > 5000) {
+        sanitizedCustomPrint = {
+          ...sanitizedCustomPrint,
+          uploadedGraphicUrl: '[CUSTOM_GRAPHIC_UPLOADED]'
+        };
+      }
+
+      return {
+        ...item,
+        image: sanitizedImage,
+        customPrint: sanitizedCustomPrint
+      };
+    });
+  };
+
   useEffect(() => {
     try {
-      localStorage.setItem('4lazy_cart', JSON.stringify(items));
+      const sanitized = sanitizeForStorage(items);
+      localStorage.setItem('4lazy_cart', JSON.stringify(sanitized));
     } catch (e) {
-      console.error('Error saving cart:', e);
+      // Safe fallback if origin quota is constrained
+      try {
+        const minimal = items.map(({ id, productId, variantId, productTitle, colorName, colorHex, size, sku, price, originalPrice, quantity, maxStock }) => ({
+          id, productId, variantId, productTitle, colorName, colorHex, size, sku, price, originalPrice, quantity, maxStock, image: '/assets/images/tshirt_custom_print_1794456303137.jpg'
+        }));
+        localStorage.setItem('4lazy_cart', JSON.stringify(minimal));
+      } catch (innerErr) {
+        // In-memory cart continues functioning smoothly across session
+        console.warn('LocalStorage quota reached, maintaining cart in session memory.');
+      }
     }
   }, [items]);
 
@@ -77,9 +112,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = (newItem: Omit<CartItem, 'id'>) => {
     setItems(prevItems => {
-      const existingIndex = prevItems.findIndex(
-        i => i.productId === newItem.productId && i.variantId === newItem.variantId && i.size === newItem.size
-      );
+      // Only merge if not a custom print or if identical custom print specs
+      const existingIndex = prevItems.findIndex(i => {
+        const isSameBase = i.productId === newItem.productId && i.variantId === newItem.variantId && i.size === newItem.size;
+        if (!isSameBase) return false;
+        if (!i.customPrint && !newItem.customPrint) return true;
+        if (i.customPrint && newItem.customPrint) {
+          return (
+            i.customPrint.placement === newItem.customPrint.placement &&
+            i.customPrint.printTechnique === newItem.customPrint.printTechnique &&
+            i.customPrint.customText === newItem.customPrint.customText &&
+            i.customPrint.fontStyle === newItem.customPrint.fontStyle &&
+            i.customPrint.textColor === newItem.customPrint.textColor &&
+            i.customPrint.uploadedGraphicUrl === newItem.customPrint.uploadedGraphicUrl
+          );
+        }
+        return false;
+      });
 
       if (existingIndex > -1) {
         const updated = [...prevItems];

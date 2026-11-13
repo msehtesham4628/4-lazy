@@ -11,7 +11,8 @@ import {
   RotateCcw,
   Plus,
   Minus,
-  Check
+  Check,
+  Sparkles
 } from 'lucide-react';
 import type { Product, ProductVariant, Review } from '../types/index.ts';
 import { fallbackProducts } from '../data/fallbackCatalog.ts';
@@ -22,10 +23,11 @@ import { ProductCard } from '../components/ProductCard.tsx';
 
 interface ProductDetailPageProps {
   slug: string;
+  categoryHint?: string;
   onNavigate: (page: string, params?: any) => void;
 }
 
-export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNavigate }) => {
+export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, categoryHint, onNavigate }) => {
   const { addToCart, setIsCartOpen } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
@@ -34,14 +36,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Variant Selection State
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string>('L');
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
-  // Review Form
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewName, setReviewName] = useState('');
   const [reviewComment, setReviewComment] = useState('');
@@ -57,11 +57,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
         if (prod) {
           setProduct(prod);
           setReviews(data.reviews || []);
-          setRelatedProducts(data.relatedProducts && data.relatedProducts.length > 0 ? data.relatedProducts : fallbackProducts.filter(p => p.id !== prod.id).slice(0, 4));
+          setRelatedProducts(
+            data.relatedProducts && data.relatedProducts.length > 0
+              ? data.relatedProducts
+              : fallbackProducts.filter(p => p.id !== prod.id && p.category === prod.category).slice(0, 4)
+          );
           setSelectedColorIndex(0);
           setActiveImageIndex(0);
 
-          // Find first available size
           const firstColorVariants = prod.variants.filter(
             (v: ProductVariant) => v.colorName.toLowerCase() === prod.colorGroups[0]?.colorName.toLowerCase()
           );
@@ -91,9 +94,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-pulse">
-          <div className="h-[550px] bg-neutral-900 rounded-lg" />
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-pulse">
+          <div className="aspect-[3/4] bg-neutral-900 rounded-lg" />
           <div className="space-y-4">
             <div className="h-8 bg-neutral-900 rounded w-3/4" />
             <div className="h-6 bg-neutral-900 rounded w-1/4" />
@@ -110,22 +113,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
         <h2 className="text-xl font-bold text-white uppercase">Product Not Found</h2>
         <p className="text-xs text-neutral-400 mt-2">The requested piece may have been archived.</p>
         <button
-          onClick={() => onNavigate('shop')}
+          onClick={() => onNavigate('shop', { category: categoryHint || 'all' })}
           className="mt-6 bg-[#E5A914] text-black font-extrabold px-6 py-2.5 text-xs uppercase tracking-widest rounded"
         >
-          Return to All Drops
+          Return to Category
         </button>
       </div>
     );
   }
 
-  // Active color group & color-specific images
   const activeColorGroup = product.colorGroups[selectedColorIndex] || product.colorGroups[0];
-  const galleryImages = activeColorGroup?.images && activeColorGroup.images.length > 0
-    ? activeColorGroup.images
-    : product.variants[0]?.images || [];
+  const galleryImages =
+    activeColorGroup?.images && activeColorGroup.images.length > 0
+      ? activeColorGroup.images
+      : product.variants[0]?.images || [];
 
-  // Active variant based on color and size
   const activeVariant = product.variants.find(
     v => v.colorName.toLowerCase() === activeColorGroup?.colorName.toLowerCase() && v.size === selectedSize
   );
@@ -138,9 +140,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
 
   const handleColorChange = (index: number) => {
     setSelectedColorIndex(index);
-    setActiveImageIndex(0); // Switch gallery image immediately
+    setActiveImageIndex(0);
     const newColor = product.colorGroups[index];
-    // Check if current selected size exists in this new color, otherwise switch to first available
     const newColorVariants = product.variants.filter(
       v => v.colorName.toLowerCase() === newColor.colorName.toLowerCase()
     );
@@ -211,49 +212,47 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16">
-      
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-xs text-neutral-400">
-        <button onClick={() => onNavigate('home')} className="hover:text-white transition-colors">Home</button>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-600" />
-        <button onClick={() => onNavigate('shop')} className="hover:text-white transition-colors">Shop</button>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-600" />
-        <button onClick={() => onNavigate('shop', { category: product.category })} className="hover:text-white transition-colors">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-12 sm:space-y-16">
+      {/* Nested Breadcrumb matching /home/category/product */}
+      <nav className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-neutral-400 overflow-x-auto whitespace-nowrap no-scrollbar">
+        <button onClick={() => onNavigate('home')} className="hover:text-white transition-colors shrink-0">
+          Home
+        </button>
+        <ChevronRight className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
+        <button
+          onClick={() => onNavigate('shop', { category: product.category })}
+          className="hover:text-white transition-colors shrink-0"
+        >
           {product.category}
         </button>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-600" />
+        <ChevronRight className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
         <span className="text-neutral-200 truncate">{product.title}</span>
       </nav>
 
-      {/* Main PDP Grid: Left Sticky Gallery + Right Contiguous Purchase Module */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
-        
-        {/* Left Column: Image Gallery with Interactive Thumbnails */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Main Large Display with Subtle Zoom */}
-          <div className="relative aspect-[4/5] bg-neutral-950 rounded-lg overflow-hidden border border-neutral-800 flex items-center justify-center">
+      {/* Main PDP Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start">
+        <div className="lg:col-span-7 space-y-3 sm:space-y-4">
+          <div className="relative aspect-[3/4] sm:aspect-[4/5] bg-neutral-950 rounded-lg overflow-hidden border border-neutral-800 flex items-center justify-center">
             <img
               src={galleryImages[activeImageIndex] || galleryImages[0]}
               alt={`${product.title} - ${activeColorGroup?.colorName}`}
-              className="w-full h-full object-cover object-center cursor-zoom-in"
+              className="w-full h-full object-cover object-center"
               referrerPolicy="no-referrer"
             />
             {product.isFeatured && (
-              <span className="absolute top-4 left-4 bg-black/80 border border-[#E5A914]/40 text-[#E5A914] text-[10px] font-bold tracking-widest px-2.5 py-1 uppercase">
-                DROP 04 FLAGSHIP
+              <span className="absolute top-3 left-3 bg-black/80 border border-[#E5A914]/40 text-[#E5A914] text-[10px] font-bold tracking-widest px-2.5 py-1 uppercase">
+                TRENDING DROP
               </span>
             )}
           </div>
 
-          {/* Color-specific Thumbnails */}
           {galleryImages.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex gap-2.5 overflow-x-auto pb-1">
               {galleryImages.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImageIndex(idx)}
-                  className={`relative w-20 h-24 rounded overflow-hidden border-2 transition-all shrink-0 ${
+                  className={`relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 transition-all shrink-0 ${
                     activeImageIndex === idx ? 'border-[#E5A914]' : 'border-neutral-800 opacity-60 hover:opacity-100'
                   }`}
                 >
@@ -264,8 +263,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
           )}
         </div>
 
-        {/* Right Column: Contiguous Purchase Module */}
-        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-28">
+        <div className="lg:col-span-5 space-y-5 sm:space-y-6 lg:sticky lg:top-24">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-widest text-[#E5A914]">
               {product.category}
@@ -277,8 +275,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
               <p className="text-xs text-neutral-400 mt-1 font-medium">{product.subtitle}</p>
             )}
 
-            {/* Price with Tabular Numerals */}
-            <div className="mt-4 flex items-baseline gap-3 font-mono">
+            <div className="mt-4 flex flex-wrap items-baseline gap-3 font-mono">
               <span className="text-2xl font-bold text-white tabular-nums">
                 ₹{price.toLocaleString()}
               </span>
@@ -288,22 +285,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
                 </span>
               )}
               {hasDiscount && (
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded">
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded tabular-nums">
                   SAVE ₹{(product.basePrice - price).toLocaleString()}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-neutral-400 mt-1">Inclusive of all taxes. Free express shipping on this piece.</p>
+            <p className="text-[11px] text-neutral-400 mt-1">Inclusive of all taxes. Cashfree instant checkout enabled.</p>
           </div>
 
-          {/* Color Selector Requirement: Selecting color switches gallery images automatically */}
           <div className="pt-4 border-t border-neutral-800 space-y-2.5">
-            <div className="flex justify-between items-center text-xs">
+            <div className="text-xs">
               <span className="text-neutral-400 uppercase tracking-wider font-semibold">
                 Color: <strong className="text-white">{activeColorGroup?.colorName}</strong>
               </span>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               {product.colorGroups.map((cg, idx) => (
                 <button
                   key={cg.colorName}
@@ -315,7 +311,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
                   }`}
                 >
                   <span
-                    className="w-3.5 h-3.5 rounded-full border border-neutral-700"
+                    className="w-3.5 h-3.5 rounded-full border border-neutral-700 shrink-0"
                     style={{ backgroundColor: cg.colorHex }}
                   />
                   <span>{cg.colorName}</span>
@@ -324,11 +320,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
             </div>
           </div>
 
-          {/* Size Selector with Live Stock Indication */}
           <div className="space-y-2.5">
             <div className="flex justify-between items-center text-xs">
               <span className="text-neutral-400 uppercase tracking-wider font-semibold">
-                Select Size (Oversized Boxy Cut)
+                Select Size
               </span>
               <button
                 onClick={() => setSizeGuideOpen(true)}
@@ -364,29 +359,26 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
               })}
             </div>
 
-            {/* Live Stock Availability Feedback */}
             <div className="text-xs pt-1">
               {isCurrentVariantAvailable ? (
                 currentStock < 10 ? (
-                  <span className="text-[#E5A914] font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#E5A914]" />
-                    Architectural Edition: Only {currentStock} left in stock for size {selectedSize} ({activeColorGroup?.colorName})
+                  <span className="text-[#E5A914] font-medium">
+                    Low stock: only {currentStock} left in {selectedSize} ({activeColorGroup?.colorName})
                   </span>
                 ) : (
                   <span className="text-emerald-400 font-medium flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5" /> In Stock & Ready to Dispatch via Blue Dart
+                    <Check className="w-3.5 h-3.5" /> In Stock &amp; Ready to Dispatch
                   </span>
                 )
               ) : (
                 <span className="text-red-400 font-medium">
-                  Sold out for this size/color combination. Please select another size or color.
+                  Sold out for this size/color combination.
                 </span>
               )}
             </div>
           </div>
 
-          {/* Quantity Selector */}
-          <div className="flex items-center gap-4 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <span className="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Quantity:</span>
             <div className="flex items-center border border-neutral-700 rounded bg-neutral-950">
               <button
@@ -395,7 +387,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
               >
                 <Minus className="w-3 h-3" />
               </button>
-              <span className="px-3 text-xs font-mono text-white font-bold">{quantity}</span>
+              <span className="px-3 text-xs font-mono text-white font-bold tabular-nums">{quantity}</span>
               <button
                 onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
                 disabled={quantity >= currentStock}
@@ -409,8 +401,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
             )}
           </div>
 
-          {/* Action CTAs: Add to Cart + Buy Now + Wishlist */}
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-1">
             <div className="flex gap-3">
               <button
                 onClick={handleAddToCart}
@@ -440,79 +431,82 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
                 className="w-full bg-white hover:bg-neutral-200 text-black font-black py-3.5 px-6 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
               >
                 <Zap className="w-4 h-4 fill-current" />
-                Instant Buy Now
+                Buy Now with Cashfree
               </button>
             )}
+
+            <div className="p-3 bg-neutral-900/60 border border-[#E5A914]/30 rounded-lg flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#E5A914] shrink-0" />
+                <span className="text-neutral-300">Customize this silhouette with your own 3D print?</span>
+              </div>
+              <button
+                onClick={() => onNavigate('customize')}
+                className="text-[#E5A914] hover:underline font-bold uppercase tracking-wider shrink-0"
+              >
+                3D Studio →
+              </button>
+            </div>
           </div>
 
-          {/* Value Highlights */}
           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-neutral-800/80 text-xs text-neutral-400">
             <div className="flex items-center gap-2">
-              <Truck className="w-4 h-4 text-[#E5A914]" />
-              <span>Dispatches in 24 Hours</span>
+              <Truck className="w-4 h-4 text-[#E5A914] shrink-0" />
+              <span>Dispatches in 24h</span>
             </div>
             <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-[#E5A914]" />
-              <span>7-Day Return / Exchange</span>
+              <RotateCcw className="w-4 h-4 text-[#E5A914] shrink-0" />
+              <span>7-Day Exchanges</span>
             </div>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#E5A914]" />
-              <span>Pre-Shrunk 100% Cotton</span>
+              <ShieldCheck className="w-4 h-4 text-[#E5A914] shrink-0" />
+              <span>Pre-Shrunk Cotton</span>
             </div>
             <div className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-[#E5A914]" />
-              <span>{product.rating} / 5.0 ({product.reviewsCount} reviews)</span>
+              <Star className="w-4 h-4 text-[#E5A914] shrink-0" />
+              <span className="tabular-nums">{product.rating} / 5 ({product.reviewsCount})</span>
             </div>
           </div>
 
-          {/* Product Specifications & Craftsmanship */}
           <div className="pt-4 border-t border-neutral-800/80 space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-              Specifications & Materiality
+              Specifications &amp; Materiality
             </h3>
-            <p className="text-xs text-neutral-300 leading-relaxed">
-              {product.description}
-            </p>
-            <div className="space-y-1.5 text-xs text-neutral-400 pt-2 font-mono">
+            <p className="text-xs text-neutral-300 leading-relaxed">{product.description}</p>
+            <div className="space-y-1.5 text-xs text-neutral-400 pt-1 font-mono">
               <p><strong className="text-neutral-200 font-sans">Fabric:</strong> {product.details.fabric}</p>
               {product.details.gsm && (
-                <p><strong className="text-neutral-200 font-sans">Weight:</strong> {product.details.gsm} GSM Custom Weave</p>
+                <p><strong className="text-neutral-200 font-sans">Weight:</strong> {product.details.gsm} GSM</p>
               )}
               <p><strong className="text-neutral-200 font-sans">Fit:</strong> {product.details.fit}</p>
               <p><strong className="text-neutral-200 font-sans">Care:</strong> {product.details.care}</p>
-              {product.details.modelStats && (
-                <p><strong className="text-neutral-200 font-sans">Model:</strong> {product.details.modelStats}</p>
-              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Customer Reviews Section */}
-      <section className="border-t border-neutral-800 pt-12 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-neutral-800 pb-5">
+      {/* Customer Reviews */}
+      <section className="border-t border-neutral-800 pt-10 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-800 pb-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-[#E5A914]">
               COMMUNITY FEEDBACK
             </span>
-            <h2 className="font-display text-2xl font-black text-white uppercase tracking-tight mt-1">
+            <h2 className="font-display text-xl sm:text-2xl font-black text-white uppercase tracking-tight mt-1">
               Verified Buyer Reviews ({reviews.length})
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold font-mono text-white">{product.rating}</span>
-            <div className="flex text-[#E5A914] text-sm">
+            <span className="text-2xl font-bold font-mono text-white tabular-nums">{product.rating}</span>
+            <div className="flex text-[#E5A914]">
               {[...Array(5)].map((_, i) => (
                 <Star key={i} className="w-4 h-4 fill-current" />
               ))}
             </div>
-            <span className="text-xs text-neutral-400">({product.reviewsCount} total ratings)</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Reviews List */}
           <div className="lg:col-span-7 space-y-4">
             {reviews.length === 0 ? (
               <p className="text-xs text-neutral-400">Be the first to review this piece.</p>
@@ -521,7 +515,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
                 <div key={rev.id} className="p-4 bg-neutral-900/50 border border-neutral-800 rounded-lg space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="flex text-[#E5A914] text-xs">
+                      <div className="flex text-[#E5A914]">
                         {[...Array(rev.rating)].map((_, i) => (
                           <Star key={i} className="w-3.5 h-3.5 fill-current" />
                         ))}
@@ -543,7 +537,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
             )}
           </div>
 
-          {/* Write a Review Form */}
           <div className="lg:col-span-5 bg-neutral-900/40 border border-neutral-800 rounded-lg p-5 space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-white">
               Write an Editorial Review
@@ -556,7 +549,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
               <form onSubmit={handleReviewSubmit} className="space-y-3">
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">
-                    Rating (1 to 5 Stars)
+                    Rating
                   </label>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map(star => (
@@ -564,9 +557,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
                         type="button"
                         key={star}
                         onClick={() => setReviewRating(star)}
-                        className={`p-1.5 rounded ${
-                          star <= reviewRating ? 'text-[#E5A914]' : 'text-neutral-600'
-                        }`}
+                        className={`p-1.5 rounded ${star <= reviewRating ? 'text-[#E5A914]' : 'text-neutral-600'}`}
                       >
                         <Star className="w-5 h-5 fill-current" />
                       </button>
@@ -589,13 +580,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
 
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">
-                    Your Experience with Fit & Fabric
+                    Your Experience
                   </label>
                   <textarea
                     rows={3}
                     value={reviewComment}
                     onChange={e => setReviewComment(e.target.value)}
-                    placeholder="Describe the drape, collar stiffness, fabric weight..."
+                    placeholder="Describe fit, collar stiffness, fabric weight..."
                     className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-white rounded focus:outline-none focus:border-neutral-600"
                     required
                   />
@@ -614,34 +605,26 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, onNa
         </div>
       </section>
 
-      {/* Related Pieces Grid */}
+      {/* Related Pieces Vertical Grid */}
       {relatedProducts.length > 0 && (
-        <section className="border-t border-neutral-800 pt-12">
+        <section className="border-t border-neutral-800 pt-10">
           <div className="mb-6">
             <span className="text-xs font-bold uppercase tracking-widest text-[#E5A914]">
-              COMPLETE THE LOOK
+              MORE IN {product.category}
             </span>
-            <h2 className="font-display text-2xl font-black text-white uppercase tracking-tight mt-1">
+            <h2 className="font-display text-xl sm:text-2xl font-black text-white uppercase tracking-tight mt-1">
               Recommended Pairings
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {relatedProducts.map(p => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onNavigate={onNavigate}
-              />
+              <ProductCard key={p.id} product={p} onNavigate={onNavigate} />
             ))}
           </div>
         </section>
       )}
 
-      {/* Sizing Modal */}
-      <SizeGuideModal
-        isOpen={sizeGuideOpen}
-        onClose={() => setSizeGuideOpen(false)}
-      />
+      <SizeGuideModal isOpen={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
     </div>
   );
 };

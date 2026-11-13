@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { CartProvider } from './context/CartContext.tsx';
 import { WishlistProvider } from './context/WishlistContext.tsx';
@@ -15,55 +15,157 @@ import { TrackOrderPage } from './pages/TrackOrderPage.tsx';
 import { AccountPage } from './pages/AccountPage.tsx';
 import { AuthPages } from './pages/AuthPages.tsx';
 import { PolicyPages } from './pages/PolicyPages.tsx';
+import { CustomizeStudioPage } from './pages/CustomizeStudioPage.tsx';
 import { AdminDashboard } from './pages/admin/AdminDashboard.tsx';
 import { AdminSignInPage } from './pages/admin/AdminSignInPage.tsx';
+import {
+  VALID_DASHBOARD_TABS,
+  categoryToSlug,
+  resolveCategoryFromSlugOrName
+} from './utils/routes.ts';
+
+function parseRouteFromPath(pathname: string): { page: string; params: Record<string, any> } {
+  const clean = (pathname || '/').replace(/\/+$/, '') || '/';
+  const segments = clean.split('/').filter(Boolean);
+
+  if (clean === '/' || clean === '/home') {
+    return { page: 'home', params: {} };
+  }
+
+  // Dashboard nested routes: /dashbord/:tab, /dashboard/:tab, /admin/:tab
+  if (segments[0] === 'dashbord' || segments[0] === 'dashboard' || segments[0] === 'admin') {
+    if (segments[1] === 'login') {
+      return { page: 'admin-login', params: {} };
+    }
+    const rawTab = (segments[1] || 'overview').toLowerCase();
+    const validTab = (VALID_DASHBOARD_TABS as readonly string[]).includes(rawTab)
+      ? rawTab
+      : 'overview';
+    return { page: 'admin', params: { tab: validTab } };
+  }
+
+  if (clean === '/admin-login') {
+    return { page: 'admin-login', params: {} };
+  }
+
+  // 3D Studio shortcuts
+  if (
+    clean === '/customize' ||
+    clean === '/customise' ||
+    clean === '/custom' ||
+    clean === '/home/customise-t-shirt/studio' ||
+    clean === '/home/customise/studio'
+  ) {
+    return { page: 'customize', params: {} };
+  }
+
+  // Nested /home/:categorySlug and /home/:categorySlug/:productSlug
+  if (segments[0] === 'home' && segments.length >= 2) {
+    const resolvedCategory = resolveCategoryFromSlugOrName(segments[1]);
+    if (segments.length >= 3) {
+      return {
+        page: 'product-detail',
+        params: { category: resolvedCategory, slug: segments[2] }
+      };
+    }
+    return {
+      page: 'shop',
+      params: { category: resolvedCategory }
+    };
+  }
+
+  if (segments[0] === 'products' && segments[1]) {
+    return { page: 'product-detail', params: { slug: segments[1] } };
+  }
+
+  if (segments[0] === 'shop') {
+    const searchParams = new URLSearchParams(window.location.search);
+    return {
+      page: 'shop',
+      params: {
+        category: searchParams.get('category')
+          ? resolveCategoryFromSlugOrName(searchParams.get('category') || undefined)
+          : 'all',
+        search: searchParams.get('search') || ''
+      }
+    };
+  }
+
+  if (
+    ['checkout', 'account', 'wishlist', 'track-order', 'login', 'register', 'forgot-password', 'about', 'contact', 'shipping-returns', 'privacy-policy', 'terms', 'size-guide'].includes(
+      segments[0]
+    )
+  ) {
+    return { page: segments[0], params: {} };
+  }
+
+  return { page: 'home', params: {} };
+}
+
+function buildPathForRoute(page: string, params: Record<string, any> = {}): string {
+  switch (page) {
+    case 'home':
+      return '/home';
+    case 'shop': {
+      const catSlug = categoryToSlug(params.category || 'all');
+      const query = params.search ? `?search=${encodeURIComponent(params.search)}` : '';
+      return `/home/${catSlug}${query}`;
+    }
+    case 'product-detail': {
+      const catSlug = categoryToSlug(params.category || 'round-neck-t-shirt');
+      return `/home/${catSlug}/${params.slug || ''}`;
+    }
+    case 'customize':
+      return '/home/customise-t-shirt/studio';
+    case 'admin': {
+      const tab = (VALID_DASHBOARD_TABS as readonly string[]).includes(params.tab)
+        ? params.tab
+        : 'overview';
+      return `/dashbord/${tab}`;
+    }
+    case 'admin-login':
+      return '/admin-login';
+    case 'order-success':
+      return '/order-success';
+    default:
+      return `/${page}`;
+  }
+}
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<string>('home');
-  const [pageParams, setPageParams] = useState<any>({});
+  const initialRoute = parseRouteFromPath(window.location.pathname);
+  const [currentPage, setCurrentPage] = useState<string>(initialRoute.page);
+  const [pageParams, setPageParams] = useState<any>(initialRoute.params);
 
-  // Sync with browser URL pathname on initial load
   useEffect(() => {
-    const path = window.location.pathname;
-    if (path.startsWith('/products/')) {
-      const slug = path.replace('/products/', '');
-      setCurrentPage('product-detail');
-      setPageParams({ slug });
-    } else if (path === '/shop') {
-      setCurrentPage('shop');
-    } else if (path === '/checkout') {
-      setCurrentPage('checkout');
-    } else if (path === '/account') {
-      setCurrentPage('account');
-    } else if (path === '/track-order') {
-      setCurrentPage('track-order');
-    } else if (path === '/admin') {
-      setCurrentPage('admin');
-    } else if (path === '/admin/login' || path === '/admin-login') {
-      setCurrentPage('admin-login');
-    } else if (path === '/login') {
-      setCurrentPage('login');
-    } else if (path === '/register') {
-      setCurrentPage('register');
-    } else if (['/about', '/contact', '/privacy-policy', '/terms', '/shipping-returns'].includes(path)) {
-      setCurrentPage(path.replace('/', ''));
-    }
+    const onPopState = () => {
+      const next = parseRouteFromPath(window.location.pathname);
+      setCurrentPage(next.page);
+      setPageParams(next.params);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const handleNavigate = (page: string, params: any = {}) => {
+  const handleNavigate = useCallback((page: string, params: any = {}) => {
     setCurrentPage(page);
     setPageParams(params);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Update browser URL silently
-    let newPath = '/';
-    if (page === 'product-detail' && params.slug) {
-      newPath = `/products/${params.slug}`;
-    } else if (page !== 'home') {
-      newPath = `/${page}`;
+    const newPath = buildPathForRoute(page, params);
+    if (window.location.pathname + window.location.search !== newPath) {
+      window.history.pushState({}, '', newPath);
     }
-    window.history.pushState({}, '', newPath);
-  };
+  }, []);
+
+  const handleDashboardTabChange = useCallback((tab: string) => {
+    const validTab = (VALID_DASHBOARD_TABS as readonly string[]).includes(tab) ? tab : 'overview';
+    setPageParams((prev: any) => ({ ...prev, tab: validTab }));
+    const targetPath = `/dashbord/${validTab}`;
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
+  }, []);
 
   const renderCurrentView = () => {
     switch (currentPage) {
@@ -71,8 +173,16 @@ export default function App() {
         return <HomePage onNavigate={handleNavigate} />;
       case 'shop':
         return <ShopPage onNavigate={handleNavigate} initialParams={pageParams} />;
+      case 'customize':
+        return <CustomizeStudioPage onNavigate={handleNavigate} />;
       case 'product-detail':
-        return <ProductDetailPage slug={pageParams.slug || 'heavyweight-oversized-box-tee'} onNavigate={handleNavigate} />;
+        return (
+          <ProductDetailPage
+            slug={pageParams.slug || 'signature-heavy-combed-round-neck-t-shirt'}
+            categoryHint={pageParams.category}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'checkout':
         return <CheckoutPage onNavigate={handleNavigate} />;
       case 'order-success':
@@ -80,7 +190,6 @@ export default function App() {
       case 'track-order':
         return <TrackOrderPage onNavigate={handleNavigate} initialParams={pageParams} />;
       case 'account':
-        return <AccountPage onNavigate={handleNavigate} />;
       case 'wishlist':
         return <AccountPage onNavigate={handleNavigate} />;
       case 'login':
@@ -97,7 +206,13 @@ export default function App() {
       case 'size-guide':
         return <PolicyPages page={currentPage as any} onNavigate={handleNavigate} />;
       case 'admin':
-        return <AdminDashboard onNavigate={handleNavigate} />;
+        return (
+          <AdminDashboard
+            onNavigate={handleNavigate}
+            initialTab={pageParams.tab}
+            onTabChange={handleDashboardTabChange}
+          />
+        );
       case 'admin-login':
         return <AdminSignInPage onNavigate={handleNavigate} />;
       default:
@@ -111,12 +226,12 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <WishlistProvider>
-          <div className="min-h-screen flex flex-col bg-[#0c0c0e] text-[#f4f4f5]">
+          <div className="min-h-screen flex flex-col bg-[#0c0c0e] text-[#f4f4f5] overflow-x-clip">
             {!isAdminView && (
               <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
             )}
 
-            <main className="flex-1">
+            <main className="flex-1 min-w-0">
               {renderCurrentView()}
             </main>
 
