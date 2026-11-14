@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   User as UserIcon,
   Package,
@@ -8,12 +8,15 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';
 import { Order, Product } from '../types/index.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
+import { getPaymentBadgeMeta } from '../utils/paymentTimer.ts';
 
 interface AccountPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -25,8 +28,10 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
 
   const [activeTab, setActiveTab] = useState<'orders' | 'addresses' | 'wishlist' | 'profile'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderFilter, setOrderFilter] = useState<'all' | 'confirmed' | 'pending' | 'cancelled'>('all');
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
 
   // New Address modal state
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -41,18 +46,40 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
     country: 'India'
   });
 
+  const fetchMyOrders = useCallback(
+    async (silent = false) => {
+      if (!token) return;
+      if (!silent) setLoadingOrders(true);
+      else setRefreshingOrders(true);
+      try {
+        const res = await fetch('/api/orders/my-orders', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setOrders(data.orders || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingOrders(false);
+        setRefreshingOrders(false);
+      }
+    },
+    [token]
+  );
+
   useEffect(() => {
-    if (token) {
-      setLoadingOrders(true);
-      fetch('/api/orders/my-orders', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => setOrders(data.orders || []))
-        .catch(err => console.error(err))
-        .finally(() => setLoadingOrders(false));
-    }
-  }, [token]);
+    if (!token) return;
+    fetchMyOrders(false);
+  }, [token, fetchMyOrders]);
+
+  // Live poll customer orders every 8s while on Orders tab
+  useEffect(() => {
+    if (!token || activeTab !== 'orders') return;
+    const intervalId = window.setInterval(() => {
+      fetchMyOrders(true);
+    }, 8000);
+    return () => window.clearInterval(intervalId);
+  }, [token, activeTab, fetchMyOrders]);
 
   useEffect(() => {
     if (activeTab === 'wishlist' && wishlistIds.length > 0) {
@@ -176,6 +203,51 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
       {/* ORDERS TAB */}
       {activeTab === 'orders' && (
         <div className="space-y-4">
+          {!loadingOrders && orders.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: `All (${orders.length})` },
+                  {
+                    id: 'confirmed',
+                    label: `Order Placed (${orders.filter(o => o.payment.status === 'completed' || (o.payment.provider === 'cod' && o.status !== 'Cancelled')).length})`
+                  },
+                  {
+                    id: 'pending',
+                    label: `Pending (${orders.filter(o => o.payment.status === 'pending' && o.payment.provider !== 'cod').length})`
+                  },
+                  {
+                    id: 'cancelled',
+                    label: `Cancelled (${orders.filter(o => o.payment.status === 'cancelled' || o.payment.status === 'failed' || o.status === 'Cancelled').length})`
+                  }
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setOrderFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      orderFilter === f.id
+                        ? 'bg-[#E5A914] text-black'
+                        : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => fetchMyOrders(true)}
+                disabled={refreshingOrders}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-[11px] font-bold uppercase tracking-wider text-neutral-200 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-[#E5A914] ${refreshingOrders ? 'animate-spin' : ''}`} />
+                <span>Refresh Status</span>
+              </button>
+            </div>
+          )}
+
           {loadingOrders ? (
             <div className="space-y-3">
               {[1, 2].map(n => <div key={n} className="h-28 bg-neutral-900 rounded-lg animate-pulse" />)}
@@ -193,47 +265,109 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
               </button>
             </div>
           ) : (
-            orders.map(order => (
-              <div key={order.id} className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-3 border-b border-neutral-800/80">
-                  <div>
-                    <span className="font-mono text-xs font-bold text-[#E5A914]">{order.orderNumber}</span>
-                    <span className="text-xs text-neutral-400 ml-3">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-white uppercase px-2.5 py-1 bg-neutral-800 rounded">
-                      {order.status}
-                    </span>
-                    <button
-                      onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
-                      className="text-xs text-[#E5A914] hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      Track <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+            orders
+              .filter(order => {
+                if (orderFilter === 'confirmed') {
+                  return order.payment.status === 'completed' || (order.payment.provider === 'cod' && order.status !== 'Cancelled');
+                }
+                if (orderFilter === 'pending') {
+                  return order.payment.status === 'pending' && order.payment.provider !== 'cod';
+                }
+                if (orderFilter === 'cancelled') {
+                  return order.payment.status === 'cancelled' || order.payment.status === 'failed' || order.status === 'Cancelled';
+                }
+                return true;
+              })
+              .map(order => {
+                const payBadge = getPaymentBadgeMeta(order.payment.status, order.payment.gatewayStatus);
+                const payToneClass =
+                  payBadge.tone === 'success'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : payBadge.tone === 'pending'
+                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                    : payBadge.tone === 'refunded'
+                    ? 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+                    : 'bg-red-500/15 text-red-400 border-red-500/30';
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {order.items.map((item, i) => (
-                    <div key={i} className="flex gap-3 text-xs bg-neutral-950 p-2.5 rounded border border-neutral-800/60">
-                      <img src={item.image} alt={item.productTitle} className="w-12 h-14 object-cover rounded bg-neutral-900" />
-                      <div className="truncate">
-                        <p className="font-semibold text-white truncate">{item.productTitle}</p>
-                        <p className="text-[11px] text-neutral-400">{item.colorName} · {item.size}</p>
-                        <p className="font-mono font-bold text-white mt-1">₹{item.price.toLocaleString()} × {item.quantity}</p>
+                const orderToneClass =
+                  order.status === 'Cancelled'
+                    ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                    : order.status === 'Delivered' || order.status === 'Confirmed'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'bg-neutral-800 text-white border-neutral-700';
+
+                return (
+                  <div key={order.id} className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-3 border-b border-neutral-800/80">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-[#E5A914]">{order.orderNumber}</span>
+                        <span className="text-xs text-neutral-400 ml-3">
+                          {new Date(order.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded border ${payToneClass}`}>
+                          {payBadge.label}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded border ${orderToneClass}`}>
+                          {order.status}
+                        </span>
+                        {order.payment.status === 'pending' &&
+                          order.payment.provider !== 'cod' &&
+                          order.payment.cashfreeOrderId && (
+                            <button
+                              onClick={() => onNavigate('payment-status', { orderId: order.payment.cashfreeOrderId })}
+                              className="text-[11px] bg-[#E5A914] text-black font-extrabold px-2.5 py-1 rounded uppercase tracking-wider hover:bg-[#d49b10]"
+                            >
+                              Verify Payment
+                            </button>
+                          )}
+                        <button
+                          onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
+                          className="text-xs text-[#E5A914] hover:underline flex items-center gap-1 font-semibold ml-1"
+                        >
+                          Track <ExternalLink className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="pt-2 flex justify-between items-center text-xs border-t border-neutral-800/60">
-                  <span className="text-neutral-400">Total: <strong className="font-mono text-white">₹{order.total.toLocaleString()}</strong></span>
-                  <span className="text-neutral-400">{order.shippingAddress.city}, {order.shippingAddress.state}</span>
-                </div>
-              </div>
-            ))
+                    {order.payment.cancellationReason && (order.payment.status === 'cancelled' || order.status === 'Cancelled') && (
+                      <div className="p-2.5 bg-red-950/40 border border-red-500/30 rounded text-[11px] text-red-300">
+                        {order.payment.cancellationReason}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {order.items.map((item, i) => (
+                        <div key={i} className="flex gap-3 text-xs bg-neutral-950 p-2.5 rounded border border-neutral-800/60">
+                          <img src={item.image} alt={item.productTitle} className="w-12 h-14 object-cover rounded bg-neutral-900" />
+                          <div className="truncate">
+                            <p className="font-semibold text-white truncate">{item.productTitle}</p>
+                            <p className="text-[11px] text-neutral-400">{item.colorName} · {item.size}</p>
+                            <p className="font-mono font-bold text-white mt-1">₹{item.price.toLocaleString()} × {item.quantity}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 flex flex-wrap justify-between items-center gap-2 text-xs border-t border-neutral-800/60">
+                      <div className="flex flex-wrap items-center gap-3 text-neutral-400">
+                        <span>Total: <strong className="font-mono text-white">₹{order.total.toLocaleString()}</strong></span>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-neutral-300">
+                          <CreditCard className="w-3 h-3 text-[#E5A914]" />
+                          {order.payment.paymentMethodDetail || order.payment.provider.toUpperCase()}
+                        </span>
+                        {order.payment.cashfreePaymentId && (
+                          <span className="font-mono text-[10px] text-neutral-500">
+                            Ref: {order.payment.cashfreePaymentId}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-neutral-400">{order.shippingAddress.city}, {order.shippingAddress.state}</span>
+                    </div>
+                  </div>
+                );
+              })
           )}
         </div>
       )}

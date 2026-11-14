@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle2, Truck, ArrowRight, Package } from 'lucide-react';
+import { CheckCircle2, Truck, ArrowRight, Package, LayoutList } from 'lucide-react';
 import { Order } from '../types/index.ts';
 
 interface OrderSuccessPageProps {
@@ -42,13 +42,13 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ order, onNav
           <CheckCircle2 className="w-8 h-8" />
         </div>
         <span className="text-[11px] font-mono tracking-widest text-[#E5A914] uppercase">
-          PAYMENT VERIFIED & CONFIRMED
+          ORDER PLACED · PAYMENT VERIFIED &amp; CONFIRMED
         </span>
         <h1 className="font-display text-3xl sm:text-4xl font-black text-white uppercase tracking-tight">
-          Thank you, {order.customer.name}
+          Order Placed! Thank you, {order.customer.name}
         </h1>
         <p className="text-xs text-neutral-400 max-w-md mx-auto">
-          We have received your order. A digital invoice and confirmation email has been dispatched to <strong>{order.customer.email}</strong>.
+          Your payment has been confirmed and your order is now updated in your Customer Dashboard. A confirmation invoice has been sent to <strong>{order.customer.email}</strong>.
         </p>
       </div>
 
@@ -145,6 +145,13 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ order, onNav
 
         {/* Buttons */}
         <div className="pt-4 flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => onNavigate('account')}
+            className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+          >
+            <LayoutList className="w-4 h-4 text-[#E5A914]" />
+            View in My Orders
+          </button>
           <button
             onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
             className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"

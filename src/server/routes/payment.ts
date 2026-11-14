@@ -11,10 +11,20 @@ import type {
   PaymentTransactionStatus,
   PaymentMethod
 } from '../../types/index.ts';
+import {
+  DEFAULT_PAYMENT_TIMEOUT_SECONDS,
+  computeExpiresAtIso,
+  isPaymentExpired
+} from '../../utils/paymentTimer.ts';
 
 export const paymentRouter = Router();
 
 const CASHFREE_API_VERSION = process.env.CASHFREE_API_VERSION || '2025-01-01';
+export const PAYMENT_TIMEOUT_SECONDS = Math.max(
+  30,
+  Number(process.env.PAYMENT_TIMEOUT_SECONDS) || DEFAULT_PAYMENT_TIMEOUT_SECONDS
+);
+const lastReconcileCheckMap = new Map<string, number>();
 
 export function getCashfreeServerConfig() {
   const db = getDB();
@@ -380,14 +390,287 @@ export async function verifyAndSyncCashfreeOrder(orderIdOrCfId: string): Promise
       }
     }
   } else {
-    targetTx.paymentStatus = 'PENDING';
-    if (order && order.payment.status !== 'completed') {
-      order.payment.gatewayStatus = gatewayOrderStatus || 'ACTIVE';
+    const expiryRef = targetTx.expiresAt || order?.payment.expiresAt;
+    if (expiryRef && isPaymentExpired(expiryRef)) {
+      const cancelNote = 'Payment confirmation timer expired — moved to Cancelled Payment.';
+      targetTx.paymentStatus = 'CANCELLED';
+      targetTx.rawGatewayStatus = 'TIMEOUT_CANCELLED';
+      targetTx.cancellationReason = cancelNote;
+      targetTx.errorMessage = cancelNote;
+      if (order && order.payment.status !== 'completed') {
+        order.payment.status = 'cancelled';
+        order.payment.gatewayStatus = 'CANCELLED';
+        order.payment.cancellationReason = cancelNote;
+        order.status = 'Cancelled';
+        if (order.tracking) {
+          order.tracking.statusNotes = 'Order cancelled — payment not confirmed in time';
+        }
+        if (!order.statusHistory.some(h => h.status === 'Cancelled')) {
+          order.statusHistory.push({
+            status: 'Cancelled',
+            timestamp: new Date().toISOString(),
+            note: cancelNote
+          });
+        }
+      }
+    } else {
+      targetTx.paymentStatus = 'PENDING';
+      if (order && order.payment.status !== 'completed') {
+        order.payment.gatewayStatus = gatewayOrderStatus || 'ACTIVE';
+      }
     }
   }
 
   saveDB();
   return { found: true, order, transaction: targetTx };
+}
+
+export async function cancelUnconfirmedPayment(
+  orderIdOrCfId: string,
+  reason?: string
+): Promise<{
+  found: boolean;
+  statusCode?: number;
+  error?: string;
+  alreadyPaid?: boolean;
+  cancelled?: boolean;
+  order?: Order;
+  transaction?: PaymentTransaction;
+}> {
+  const db = getDB();
+  let tx = db.transactions.find(
+    t =>
+      t.cashfreeOrderId === orderIdOrCfId ||
+      t.orderId === orderIdOrCfId ||
+      t.orderNumber === orderIdOrCfId
+  );
+  let order = db.orders.find(
+    o =>
+      o.payment.cashfreeOrderId === orderIdOrCfId ||
+      o.id === orderIdOrCfId ||
+      o.orderNumber === orderIdOrCfId ||
+      (tx && o.id === tx.orderId)
+  );
+
+  if (!order && !tx) {
+    return { found: false, statusCode: 404, error: 'Order or payment transaction not found.' };
+  }
+
+  if (tx?.paymentStatus === 'SUCCESS' || order?.payment.status === 'completed') {
+    return { found: true, alreadyPaid: true, cancelled: false, order, transaction: tx };
+  }
+
+  // Always check Cashfree once before cancelling so a just-settled payment isn't lost
+  const cfg = getCashfreeServerConfig();
+  const cfId = tx?.cashfreeOrderId || order?.payment.cashfreeOrderId;
+  if (cfg.configured && cfId && (tx?.paymentMethod !== 'COD' && order?.payment.provider !== 'cod')) {
+    try {
+      const checkRes = await verifyAndSyncCashfreeOrder(cfId);
+      if (checkRes.transaction?.paymentStatus === 'SUCCESS' || checkRes.order?.payment.status === 'completed') {
+        return {
+          found: true,
+          alreadyPaid: true,
+          cancelled: false,
+          order: checkRes.order || order,
+          transaction: checkRes.transaction || tx
+        };
+      }
+    } catch {
+      // Proceed to cancel locally if gateway check failed while unconfirmed
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  const cancelNote =
+    reason?.trim() ||
+    'Payment cancelled — confirmation was not received within the checkout timer.';
+
+  if (!tx && order) {
+    tx = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      cashfreeOrderId: order.payment.cashfreeOrderId || order.orderNumber,
+      cashfreePaymentId: order.payment.cashfreePaymentId || order.payment.transactionId,
+      paymentSessionId: order.payment.paymentSessionId,
+      customerId: order.userId || `cust_${order.customer.phone.replace(/\D/g, '').slice(-10) || 'guest'}`,
+      customerDetails: order.customer,
+      amount: order.total,
+      currency: order.payment.currency || 'INR',
+      paymentStatus: 'CANCELLED',
+      paymentMethod: order.payment.paymentMethodDetail || 'Cashfree',
+      environment: cfg.environment,
+      transactionDate: order.createdAt,
+      updatedAt: nowIso,
+      expiresAt: order.payment.expiresAt,
+      cancellationReason: cancelNote,
+      errorMessage: cancelNote,
+      rawGatewayStatus: 'CANCELLED',
+      processedWebhooks: []
+    };
+    db.transactions.unshift(tx);
+  } else if (tx) {
+    tx.paymentStatus = 'CANCELLED';
+    tx.rawGatewayStatus =
+      tx.rawGatewayStatus && tx.rawGatewayStatus !== 'ACTIVE' ? tx.rawGatewayStatus : 'CANCELLED';
+    tx.cancellationReason = cancelNote;
+    tx.errorMessage = cancelNote;
+    tx.updatedAt = nowIso;
+  }
+
+  if (order) {
+    order.payment.status = 'cancelled';
+    order.payment.gatewayStatus = 'CANCELLED';
+    order.payment.cancellationReason = cancelNote;
+    order.status = 'Cancelled';
+    if (order.tracking) {
+      order.tracking.statusNotes = 'Order cancelled — payment not confirmed';
+    }
+    if (!order.statusHistory.some(h => h.status === 'Cancelled')) {
+      order.statusHistory.push({
+        status: 'Cancelled',
+        timestamp: nowIso,
+        note: cancelNote
+      });
+    }
+  }
+
+  saveDB();
+  return { found: true, alreadyPaid: false, cancelled: true, order, transaction: tx };
+}
+
+export async function reconcilePendingPayments(filterOrderIds?: string[]): Promise<void> {
+  const db = getDB();
+  db.transactions = db.transactions || [];
+  let changed = false;
+
+  // 1. Backfill missing transactions from orders & keep statuses aligned
+  for (const order of db.orders) {
+    let tx = db.transactions.find(
+      t =>
+        t.orderId === order.id ||
+        t.orderNumber === order.orderNumber ||
+        (order.payment.cashfreeOrderId && t.cashfreeOrderId === order.payment.cashfreeOrderId)
+    );
+
+    if (!tx) {
+      const derivedStatus: PaymentTransactionStatus =
+        order.payment.status === 'completed'
+          ? 'SUCCESS'
+          : order.payment.status === 'cancelled'
+          ? 'CANCELLED'
+          : order.payment.status === 'failed'
+          ? 'FAILED'
+          : order.payment.status === 'refunded'
+          ? 'REFUNDED'
+          : 'PENDING';
+
+      tx = {
+        id: `tx_${order.id}`,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        cashfreeOrderId: order.payment.cashfreeOrderId || order.orderNumber,
+        cashfreePaymentId: order.payment.cashfreePaymentId || order.payment.transactionId,
+        paymentSessionId: order.payment.paymentSessionId,
+        customerId: order.userId || `cust_${order.customer.phone.replace(/\D/g, '').slice(-10) || 'guest'}`,
+        customerDetails: order.customer,
+        amount: order.total,
+        currency: order.payment.currency || 'INR',
+        paymentStatus: derivedStatus,
+        paymentMethod:
+          order.payment.paymentMethodDetail ||
+          (order.payment.provider === 'cod'
+            ? 'COD'
+            : order.payment.provider === 'upi'
+            ? 'UPI'
+            : 'Cashfree'),
+        environment: 'sandbox',
+        transactionDate: order.payment.paidAt || order.createdAt,
+        expiresAt: order.payment.expiresAt,
+        cancellationReason: order.payment.cancellationReason,
+        processedWebhooks: [],
+        rawGatewayStatus: order.payment.gatewayStatus || (derivedStatus === 'SUCCESS' ? 'PAID' : 'ACTIVE')
+      };
+      db.transactions.unshift(tx);
+      changed = true;
+    } else {
+      // Keep order & transaction in sync if either was updated directly
+      if (tx.paymentStatus === 'SUCCESS' && order.payment.status !== 'completed') {
+        finalizePaidOrderIdempotently(
+          order,
+          tx,
+          `Payment confirmed (${tx.paymentMethod}). Reference: ${tx.cashfreePaymentId || tx.cashfreeOrderId}`
+        );
+        changed = true;
+      } else if (tx.paymentStatus === 'CANCELLED' && order.payment.status === 'pending') {
+        order.payment.status = 'cancelled';
+        order.payment.gatewayStatus = 'CANCELLED';
+        order.status = 'Cancelled';
+        changed = true;
+      } else if (order.payment.status === 'completed' && tx.paymentStatus !== 'SUCCESS') {
+        tx.paymentStatus = 'SUCCESS';
+        tx.rawGatewayStatus = 'PAID';
+        changed = true;
+      }
+    }
+  }
+
+  // 2. Sync active pending Cashfree transactions & auto-cancel expired unpaid attempts
+  const cfg = getCashfreeServerConfig();
+  const now = Date.now();
+  const pendingOnlineTxs = db.transactions.filter(t => {
+    if (t.paymentStatus !== 'PENDING') return false;
+    if (t.paymentMethod === 'COD') return false;
+    if (filterOrderIds && filterOrderIds.length > 0) {
+      return (
+        filterOrderIds.includes(t.orderId) ||
+        filterOrderIds.includes(t.orderNumber) ||
+        filterOrderIds.includes(t.cashfreeOrderId)
+      );
+    }
+    return true;
+  });
+
+  let liveChecks = 0;
+  for (const tx of pendingOnlineTxs) {
+    const linkedOrder = db.orders.find(o => o.id === tx.orderId || o.orderNumber === tx.orderNumber);
+    const expiryIso =
+      tx.expiresAt ||
+      linkedOrder?.payment.expiresAt ||
+      computeExpiresAtIso(tx.transactionDate, PAYMENT_TIMEOUT_SECONDS);
+    if (!tx.expiresAt) {
+      tx.expiresAt = expiryIso;
+      if (linkedOrder && !linkedOrder.payment.expiresAt) {
+        linkedOrder.payment.expiresAt = expiryIso;
+      }
+      changed = true;
+    }
+
+    const lastCheck = lastReconcileCheckMap.get(tx.cashfreeOrderId) || 0;
+    const isFreshPending = now - new Date(tx.transactionDate).getTime() < 24 * 60 * 60 * 1000;
+
+    if (cfg.configured && tx.cashfreeOrderId && liveChecks < 5 && now - lastCheck > 4000 && isFreshPending) {
+      lastReconcileCheckMap.set(tx.cashfreeOrderId, now);
+      liveChecks++;
+      try {
+        await verifyAndSyncCashfreeOrder(tx.cashfreeOrderId);
+      } catch {
+        // Fallback below if expired
+      }
+    }
+
+    if (tx.paymentStatus === 'PENDING' && isPaymentExpired(expiryIso, now)) {
+      await cancelUnconfirmedPayment(
+        tx.cashfreeOrderId || tx.orderId,
+        'Payment confirmation timer expired — automatically moved to Cancelled Payment.'
+      );
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    saveDB();
+  }
 }
 
 // Public: Cashfree public config (NEVER returns secret key)
@@ -399,6 +682,7 @@ paymentRouter.get('/config', (_req: Request, res: Response) => {
     configured: cfg.configured,
     currency: db.settings.currency || 'INR',
     codEnabled: db.settings.codEnabled !== false,
+    timeoutSeconds: PAYMENT_TIMEOUT_SECONDS,
     supportedMethods: [
       'UPI',
       'Credit Cards',
@@ -564,12 +848,17 @@ paymentRouter.post('/create-order', optionalAuthenticate, async (req: Authentica
 
     const cfData: any = await cfRes.json().catch(() => ({}));
     if (!cfRes.ok || !cfData.payment_session_id) {
+      const errorDetail =
+        cfRes.status === 401
+          ? `Cashfree API authentication failed (${cfData?.message || '401'}). Verify CASHFREE_APP_ID, CASHFREE_SECRET_KEY, and CASHFREE_ENV (${cfg.environment}).`
+          : cfData?.message || 'Cashfree rejected order creation. Please verify your Cashfree API keys and environment.';
       return res.status(cfRes.status >= 400 ? cfRes.status : 502).json({
-        error: cfData?.message || 'Cashfree rejected order creation. Please verify your Cashfree API keys and environment.'
+        error: errorDetail
       });
     }
 
     const nowIso = new Date().toISOString();
+    const expiresAtIso = computeExpiresAtIso(nowIso, PAYMENT_TIMEOUT_SECONDS);
 
     const newOrder: Order = {
       id: internalOrderId,
@@ -607,6 +896,7 @@ paymentRouter.post('/create-order', optionalAuthenticate, async (req: Authentica
         cashfreeOrderId: cfData.order_id || cashfreeOrderId,
         paymentSessionId: cfData.payment_session_id,
         transactionDate: nowIso,
+        expiresAt: expiresAtIso,
         gatewayStatus: cfData.order_status || 'ACTIVE'
       },
       status: 'Order Placed',
@@ -614,7 +904,7 @@ paymentRouter.post('/create-order', optionalAuthenticate, async (req: Authentica
         {
           status: 'Order Placed',
           timestamp: nowIso,
-          note: `Awaiting Cashfree payment settlement (Order ID: ${cfData.order_id || cashfreeOrderId}).`
+          note: `Awaiting Cashfree payment confirmation within ${Math.round(PAYMENT_TIMEOUT_SECONDS / 60)} minutes (Order ID: ${cfData.order_id || cashfreeOrderId}).`
         }
       ],
       tracking: {
@@ -646,6 +936,7 @@ paymentRouter.post('/create-order', optionalAuthenticate, async (req: Authentica
       environment: cfg.environment,
       transactionDate: nowIso,
       updatedAt: nowIso,
+      expiresAt: expiresAtIso,
       processedWebhooks: [],
       rawGatewayStatus: cfData.order_status || 'ACTIVE'
     };
@@ -668,11 +959,43 @@ paymentRouter.post('/create-order', optionalAuthenticate, async (req: Authentica
       checkoutUrl: cfData.payment_link || `${checkoutBase}${cfData.payment_session_id}`,
       environment: cfg.environment,
       amount: serverTotal,
-      currency
+      currency,
+      expiresAt: expiresAtIso,
+      timeoutSeconds: PAYMENT_TIMEOUT_SECONDS
     });
   } catch (err: any) {
     console.error('Cashfree create-order error:', err);
     return res.status(500).json({ error: err?.message || 'Internal error creating Cashfree payment order.' });
+  }
+});
+
+// POST /api/payment/cancel/:orderId (Auto-cancel on timer timeout or manual cancel)
+paymentRouter.post('/cancel/:orderId', async (req: Request, res: Response) => {
+  try {
+    const orderIdParam = String(req.params.orderId || '');
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+    const result = await cancelUnconfirmedPayment(orderIdParam, reason);
+
+    if (!result.found) {
+      return res.status(result.statusCode || 404).json({ error: result.error });
+    }
+
+    return res.json({
+      success: true,
+      alreadyPaid: Boolean(result.alreadyPaid),
+      cancelled: Boolean(result.cancelled),
+      orderId: result.order?.id || result.transaction?.orderId,
+      orderNumber: result.order?.orderNumber || result.transaction?.orderNumber,
+      cashfreeOrderId: result.transaction?.cashfreeOrderId,
+      paymentStatus: result.transaction?.paymentStatus || 'CANCELLED',
+      orderStatus: result.order?.status || 'Cancelled',
+      cancellationReason: result.transaction?.cancellationReason || result.order?.payment.cancellationReason,
+      order: result.order,
+      transaction: result.transaction
+    });
+  } catch (err: any) {
+    console.error('Payment cancellation error:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to cancel unconfirmed payment.' });
   }
 });
 
@@ -701,6 +1024,9 @@ paymentRouter.get('/order/:orderId', async (req: Request, res: Response) => {
       currency: result.transaction?.currency || 'INR',
       paymentMethod: result.transaction?.paymentMethod || 'Cashfree',
       transactionDate: result.transaction?.transactionDate,
+      expiresAt: result.transaction?.expiresAt || result.order?.payment.expiresAt,
+      timeoutSeconds: PAYMENT_TIMEOUT_SECONDS,
+      cancellationReason: result.transaction?.cancellationReason || result.order?.payment.cancellationReason,
       errorMessage: result.error || result.transaction?.errorMessage,
       order: result.order,
       transaction: result.transaction
@@ -710,6 +1036,24 @@ paymentRouter.get('/order/:orderId', async (req: Request, res: Response) => {
     return res.status(500).json({ error: err?.message || 'Failed to verify payment status with Cashfree.' });
   }
 });
+
+export function verifyCashfreeWebhookSignature(
+  signature: string,
+  timestamp: string,
+  rawBody: string,
+  secretKey: string
+): boolean {
+  if (!signature || !timestamp || !rawBody || !secretKey) return false;
+  const signedPayload = `${timestamp}${rawBody}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', secretKey)
+    .update(signedPayload)
+    .digest('base64');
+
+  const sigBuf = Buffer.from(signature, 'utf8');
+  const expBuf = Buffer.from(expectedSignature, 'utf8');
+  return sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+}
 
 // POST /api/payment/webhook
 paymentRouter.post('/webhook', (req: Request & { rawBody?: string }, res: Response) => {
@@ -727,15 +1071,7 @@ paymentRouter.post('/webhook', (req: Request & { rawBody?: string }, res: Respon
       return res.status(400).json({ error: 'Missing Cashfree webhook signature headers or raw body.' });
     }
 
-    const signedPayload = `${timestamp}${rawBody}`;
-    const expectedSignature = crypto
-      .createHmac('sha256', cfg.secretKey)
-      .update(signedPayload)
-      .digest('base64');
-
-    const sigBuf = Buffer.from(signature, 'utf8');
-    const expBuf = Buffer.from(expectedSignature, 'utf8');
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    if (!verifyCashfreeWebhookSignature(signature, timestamp, rawBody, cfg.secretKey)) {
       console.warn('Cashfree webhook signature verification failed.');
       return res.status(401).json({ error: 'Invalid webhook signature.' });
     }

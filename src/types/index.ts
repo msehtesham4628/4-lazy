@@ -174,6 +174,8 @@ export interface PaymentInfo {
   paymentMethodDetail?: string;
   transactionDate?: string;
   gatewayStatus?: string;
+  expiresAt?: string;
+  cancellationReason?: string;
 }
 
 export type PaymentTransactionStatus =
@@ -205,6 +207,8 @@ export interface PaymentTransaction {
   environment: 'sandbox' | 'production';
   transactionDate: string;
   updatedAt?: string;
+  expiresAt?: string;
+  cancellationReason?: string;
   processedWebhooks?: string[];
   rawGatewayStatus?: string;
   errorMessage?: string;

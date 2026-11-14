@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShieldCheck,
   CreditCard,
@@ -13,10 +14,20 @@ import {
   Wallet,
   Loader2,
   Percent,
-  Clock
+  Clock,
+  XCircle,
+  RefreshCw,
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 import { useCart } from '../context/CartContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
+import {
+  DEFAULT_PAYMENT_TIMEOUT_SECONDS,
+  computeRemainingSeconds,
+  formatCountdown
+} from '../utils/paymentTimer.ts';
+import type { Order } from '../types/index.ts';
 
 declare global {
   interface Window {
@@ -82,6 +93,33 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
   const [paymentMethod, setPaymentMethod] = useState<'cashfree' | 'cod'>('cashfree');
   const [cashfreeEnv, setCashfreeEnv] = useState<'sandbox' | 'production'>('sandbox');
   const [cashfreeConfigured, setCashfreeConfigured] = useState<boolean>(true);
+  const [paymentTimeoutSeconds, setPaymentTimeoutSeconds] = useState<number>(DEFAULT_PAYMENT_TIMEOUT_SECONDS);
+
+  // Active Checkout Payment Timer & Confirmation State
+  const [pendingPayment, setPendingPayment] = useState<{
+    orderId: string;
+    orderNumber: string;
+    cashfreeOrderId: string;
+    paymentSessionId: string;
+    checkoutUrl: string;
+    amount: number;
+    currency: string;
+    expiresAt: string;
+    timeoutSeconds: number;
+    environment: 'sandbox' | 'production';
+  } | null>(null);
+  const [paymentPhase, setPaymentPhase] = useState<'idle' | 'awaiting' | 'cancelling' | 'cancelled' | 'confirmed'>('idle');
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(DEFAULT_PAYMENT_TIMEOUT_SECONDS);
+  const [cancelledInfo, setCancelledInfo] = useState<{
+    orderNumber?: string;
+    cashfreeOrderId?: string;
+    amount?: number;
+    reason?: string;
+  } | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [verifyingNow, setVerifyingNow] = useState(false);
+  const [cashfreeModalOpen, setCashfreeModalOpen] = useState(false);
+  const timeoutCancelFiredRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     fetch('/api/payment/config')
@@ -94,6 +132,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
           if (typeof data.configured === 'boolean') {
             setCashfreeConfigured(data.configured);
           }
+          if (typeof data.timeoutSeconds === 'number' && data.timeoutSeconds > 0) {
+            setPaymentTimeoutSeconds(data.timeoutSeconds);
+          }
           if (data.codEnabled === false) {
             setCodEnabled(false);
             setPaymentMethod('cashfree');
@@ -104,6 +145,189 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
       })
       .catch(() => setCodEnabled(true));
   }, []);
+
+  const cleanupCashfreeModal = React.useCallback(() => {
+    setCashfreeModalOpen(false);
+    if (typeof document === 'undefined') return;
+    const exact = document.getElementById('cashfree-modal-container');
+    if (exact) exact.remove();
+    document
+      .querySelectorAll('[id^="cashfree-modal"], [class*="cashfree-modal"]')
+      .forEach(el => {
+        if (el.id !== 'cashfree-timer-floating-bar') {
+          el.remove();
+        }
+      });
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupCashfreeModal();
+    };
+  }, [cleanupCashfreeModal]);
+
+  // Keep Cashfree's injected modal container seated cleanly below our 52px persistent timer bar
+  useEffect(() => {
+    if (paymentPhase !== 'awaiting' && paymentPhase !== 'cancelling') return;
+    const adjustModal = () => {
+      const cfContainer = document.getElementById('cashfree-modal-container');
+      if (cfContainer) {
+        cfContainer.style.zIndex = '2147483640';
+        cfContainer.style.top = '52px';
+        cfContainer.style.height = 'calc(100vh - 52px)';
+      }
+    };
+    adjustModal();
+    const observer = new MutationObserver(adjustModal);
+    observer.observe(document.body, { childList: true, subtree: false });
+    return () => observer.disconnect();
+  }, [paymentPhase]);
+
+  const handlePaymentConfirmed = React.useCallback(
+    (order: Order) => {
+      cleanupCashfreeModal();
+      setConfirmedOrder(order);
+      setPaymentPhase('confirmed');
+      setPendingPayment(null);
+      setLoading(false);
+      sessionStorage.removeItem('4lazy_pending_cf_order');
+      clearCart();
+      onNavigate('order-success', { order });
+    },
+    [cleanupCashfreeModal, clearCart, onNavigate]
+  );
+
+  const handleCancelPendingPayment = React.useCallback(
+    async (reason?: string) => {
+      if (!pendingPayment) return;
+      cleanupCashfreeModal();
+      const targetCfId = pendingPayment.cashfreeOrderId;
+      setPaymentPhase('cancelling');
+      try {
+        const res = await fetch(`/api/payment/cancel/${encodeURIComponent(targetCfId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reason: reason || 'Payment cancelled — confirmation not received within timer.'
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.alreadyPaid && data?.order) {
+          handlePaymentConfirmed(data.order);
+          return;
+        }
+        setCancelledInfo({
+          orderNumber: data.orderNumber || pendingPayment.orderNumber,
+          cashfreeOrderId: targetCfId,
+          amount: pendingPayment.amount,
+          reason:
+            data.cancellationReason ||
+            reason ||
+            'Payment was cancelled because confirmation was not received before the timer expired.'
+        });
+        setPaymentPhase('cancelled');
+        sessionStorage.removeItem('4lazy_pending_cf_order');
+      } catch {
+        setCancelledInfo({
+          orderNumber: pendingPayment.orderNumber,
+          cashfreeOrderId: targetCfId,
+          amount: pendingPayment.amount,
+          reason: reason || 'Payment cancelled due to timeout.'
+        });
+        setPaymentPhase('cancelled');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cleanupCashfreeModal, pendingPayment, handlePaymentConfirmed]
+  );
+
+  const checkPendingPaymentStatus = React.useCallback(
+    async (manual = false) => {
+      if (!pendingPayment) return;
+      if (manual) setVerifyingNow(true);
+      try {
+        const res = await fetch(`/api/payment/order/${encodeURIComponent(pendingPayment.cashfreeOrderId)}`);
+        const data = await res.json().catch(() => ({}));
+        const st = String(data?.paymentStatus || '').toUpperCase();
+        if (st === 'SUCCESS' && data.order) {
+          handlePaymentConfirmed(data.order);
+          return;
+        }
+        if (st === 'CANCELLED' || st === 'FAILED' || st === 'USER_DROPPED') {
+          cleanupCashfreeModal();
+          setCancelledInfo({
+            orderNumber: data.orderNumber || pendingPayment.orderNumber,
+            cashfreeOrderId: pendingPayment.cashfreeOrderId,
+            amount: pendingPayment.amount,
+            reason:
+              data.cancellationReason ||
+              data.errorMessage ||
+              `Payment ${st.toLowerCase().replace('_', ' ')} at Cashfree gateway.`
+          });
+          setPaymentPhase('cancelled');
+          setLoading(false);
+          sessionStorage.removeItem('4lazy_pending_cf_order');
+        }
+      } catch {
+        // Keep polling until confirmed or timer expires
+      } finally {
+        if (manual) setVerifyingNow(false);
+      }
+    },
+    [cleanupCashfreeModal, pendingPayment, handlePaymentConfirmed]
+  );
+
+  // Live 1-second countdown + 3-second Cashfree confirmation polling
+  useEffect(() => {
+    if (paymentPhase !== 'awaiting' || !pendingPayment) return;
+
+    const tickTimer = () => {
+      const rem = computeRemainingSeconds(pendingPayment.expiresAt);
+      setRemainingSeconds(rem);
+      if (rem <= 0 && timeoutCancelFiredRef.current !== pendingPayment.cashfreeOrderId) {
+        timeoutCancelFiredRef.current = pendingPayment.cashfreeOrderId;
+        handleCancelPendingPayment('Payment confirmation timer expired (no confirmation received before 00:00).');
+      }
+    };
+
+    tickTimer();
+    const countdownId = window.setInterval(tickTimer, 1000);
+    const pollId = window.setInterval(() => {
+      checkPendingPaymentStatus(false);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(countdownId);
+      window.clearInterval(pollId);
+    };
+  }, [paymentPhase, pendingPayment, handleCancelPendingPayment, checkPendingPaymentStatus]);
+
+  const launchCashfreeModal = async (sessionId: string, mode: 'sandbox' | 'production') => {
+    if (typeof window.Cashfree !== 'function') {
+      setErrorMsg('Cashfree popup SDK is unavailable. Use the hosted Cashfree payment link below.');
+      return;
+    }
+    setCashfreeModalOpen(true);
+    try {
+      const cashfree = window.Cashfree({ mode });
+      const result = await cashfree.checkout({
+        paymentSessionId: sessionId,
+        redirectTarget: '_modal'
+      });
+      setCashfreeModalOpen(false);
+      // After modal completes or closes, check backend status immediately
+      await checkPendingPaymentStatus(true);
+      if (result?.error) {
+        setErrorMsg(result.error?.message || 'Checkout window closed before confirmation. Complete payment or cancel below.');
+      }
+    } catch (err: any) {
+      setCashfreeModalOpen(false);
+      setErrorMsg(err?.message || 'Unable to display Cashfree popup inside this frame. Use the hosted link below.');
+    }
+  };
 
   const handleApplyCouponCode = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -122,7 +346,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
     setApplyingCoupon(false);
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && paymentPhase === 'idle' && !confirmedOrder) {
     return (
       <div className="max-w-xl mx-auto px-4 py-24 text-center">
         <h2 className="font-display text-2xl font-bold text-white uppercase">Your Bag is Empty</h2>
@@ -275,27 +499,30 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
 
       const mode: 'sandbox' | 'production' =
         sessionData.environment === 'production' ? 'production' : 'sandbox';
+      const timeoutSec = Number(sessionData.timeoutSeconds) || paymentTimeoutSeconds;
+      const expiresAtIso =
+        sessionData.expiresAt || new Date(Date.now() + timeoutSec * 1000).toISOString();
 
-      if (typeof window.Cashfree === 'function') {
-        const cashfree = window.Cashfree({ mode });
-        const result = await cashfree.checkout({
-          paymentSessionId: sessionData.paymentSessionId,
-          redirectTarget: '_self'
-        });
+      timeoutCancelFiredRef.current = null;
+      setCancelledInfo(null);
+      setPendingPayment({
+        orderId: sessionData.orderId,
+        orderNumber: sessionData.orderNumber,
+        cashfreeOrderId: sessionData.cashfreeOrderId,
+        paymentSessionId: sessionData.paymentSessionId,
+        checkoutUrl: sessionData.checkoutUrl,
+        amount: Number(sessionData.amount ?? currentTotal),
+        currency: sessionData.currency || 'INR',
+        expiresAt: expiresAtIso,
+        timeoutSeconds: timeoutSec,
+        environment: mode
+      });
+      setRemainingSeconds(computeRemainingSeconds(expiresAtIso));
+      setPaymentPhase('awaiting');
+      setLoading(false);
 
-        if (result?.error) {
-          throw new Error(result.error?.message || 'Cashfree checkout encountered an error.');
-        }
-        return;
-      }
-
-      // Fallback redirect to Cashfree hosted checkout URL if SDK script is blocked
-      if (sessionData.checkoutUrl) {
-        window.location.href = sessionData.checkoutUrl;
-        return;
-      }
-
-      throw new Error('Cashfree Checkout SDK failed to load. Please refresh and try again.');
+      // Open Cashfree modal checkout while keeping the timer overlay mounted
+      await launchCashfreeModal(sessionData.paymentSessionId, mode);
     } catch (err: any) {
       setErrorMsg(err.message || 'An error occurred initializing Cashfree payment.');
       setLoading(false);
@@ -303,9 +530,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-4 gap-3">
+      <div className="flex items-center justify-between border-b border-neutral-800 pb-3 gap-3">
         <button
           onClick={() => onNavigate('shop', { category: 'all' })}
           className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors whitespace-nowrap"
@@ -357,9 +584,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
         {/* Left Form */}
-        <div className="lg:col-span-7 bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 sm:p-8 space-y-6">
+        <div className="lg:col-span-7 bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 sm:p-6 space-y-4">
           {errorMsg && (
             <div className="p-3 bg-red-950/60 border border-red-500/40 text-red-300 text-xs rounded">
               {errorMsg}
@@ -590,7 +817,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
           )}
 
           {step === 4 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-display text-lg font-bold text-white uppercase tracking-wider">
                   Step 4: Cashfree Payment Gateway
@@ -602,7 +829,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cashfree')}
-                  className={`p-3.5 rounded-lg border text-left transition-all ${
+                  className={`p-3 rounded-lg border text-left transition-all ${
                     paymentMethod === 'cashfree'
                       ? 'border-[#E5A914] bg-neutral-950 ring-1 ring-[#E5A914]'
                       : 'border-neutral-800 bg-neutral-950/40 text-neutral-400'
@@ -619,7 +846,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cod')}
-                    className={`p-3.5 rounded-lg border text-left transition-all ${
+                    className={`p-3 rounded-lg border text-left transition-all ${
                       paymentMethod === 'cod'
                         ? 'border-[#E5A914] bg-neutral-950 ring-1 ring-[#E5A914]'
                         : 'border-neutral-800 bg-neutral-950/40 text-neutral-400'
@@ -638,7 +865,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
               )}
 
               {/* Coupon Code Application on Payment Step */}
-              <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
+              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5 text-[#E5A914]" /> Apply Coupon Code
@@ -659,7 +886,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                 </div>
 
                 {coupon ? (
-                  <div className="flex items-center justify-between text-xs bg-neutral-900 border border-[#E5A914]/40 px-3 py-2 rounded">
+                  <div className="flex items-center justify-between text-xs bg-neutral-900 border border-[#E5A914]/40 px-3 py-1.5 rounded">
                     <span className="font-mono font-bold text-[#E5A914]">{coupon.code} Applied</span>
                     <span className="font-mono text-emerald-400 font-bold tabular-nums">-₹{discount.toLocaleString()}</span>
                   </div>
@@ -673,13 +900,13 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                         if (couponError) setCouponError('');
                       }}
                       placeholder="Enter code (e.g. LAZY10, FIRST4L)"
-                      className="flex-1 bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono uppercase rounded focus:outline-none focus:border-[#E5A914]"
+                      className="flex-1 bg-neutral-900 border border-neutral-800 px-3 py-1.5 text-xs text-white font-mono uppercase rounded focus:outline-none focus:border-[#E5A914]"
                     />
                     <button
                       type="button"
                       onClick={() => handleApplyCouponCode()}
                       disabled={applyingCoupon || !couponInput.trim()}
-                      className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider disabled:opacity-50 whitespace-nowrap shrink-0"
+                      className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-1.5 rounded text-xs uppercase tracking-wider disabled:opacity-50 whitespace-nowrap shrink-0"
                     >
                       {applyingCoupon ? '...' : 'Apply'}
                     </button>
@@ -691,7 +918,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
               </div>
 
               {paymentMethod === 'cashfree' && (
-                <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg space-y-3">
+                <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-[#E5A914]">
                       Supported Payment Methods
@@ -713,7 +940,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                       return (
                         <div
                           key={mode.label}
-                          className="p-2.5 rounded border border-neutral-800 bg-neutral-900/50 flex items-center gap-2"
+                          className="p-2 rounded border border-neutral-800 bg-neutral-900/50 flex items-center gap-2"
                         >
                           <Icon className="w-3.5 h-3.5 text-[#E5A914] shrink-0" />
                           <span className="truncate">{mode.label}</span>
@@ -722,22 +949,24 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                     })}
                   </div>
                   {!cashfreeConfigured && (
-                    <p className="text-[11px] text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded px-3 py-2">
+                    <p className="text-[11px] text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded px-3 py-1.5">
                       Note: Server Cashfree API keys (`CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`) are required in environment variables to open Cashfree Checkout.
                     </p>
                   )}
                   <p className="text-[11px] text-neutral-400">
-                    Clicking <strong>Pay Now</strong> redirects you to Cashfree&apos;s official encrypted checkout page to complete payment and verify settlement.
+                    Clicking <strong>Pay Now</strong> opens Cashfree&apos;s secure checkout and starts a{' '}
+                    <strong className="text-[#E5A914]">{formatCountdown(paymentTimeoutSeconds)} payment confirmation timer</strong>.
+                    If confirmation is not received before the timer ends, the payment is automatically moved to Cancelled Payment.
                   </p>
                 </div>
               )}
 
-              <div className="p-3.5 bg-neutral-950/80 border border-neutral-800 rounded-lg flex items-center gap-3 text-xs text-neutral-300">
-                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div className="p-2.5 bg-neutral-950/80 border border-neutral-800 rounded-lg flex items-center gap-2.5 text-xs text-neutral-300">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>256-bit TLS encrypted Cashfree PCI-DSS Level 1 compliant checkout.</span>
               </div>
 
-              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
+              <div className="pt-1 flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setStep(3)}
@@ -750,7 +979,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                   type="button"
                   onClick={handlePlaceOrder}
                   disabled={loading}
-                  className="w-full sm:w-auto bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-8 py-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-xl disabled:opacity-60"
+                  className="w-full sm:w-auto bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-8 py-3.5 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-xl disabled:opacity-60"
                 >
                   {loading ? (
                     <>
@@ -908,6 +1137,257 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* LIVE CHECKOUT PAYMENT TIMER & CANCEL-ON-TIMEOUT OVERLAY */}
+      {(paymentPhase === 'awaiting' || paymentPhase === 'cancelling' || paymentPhase === 'cancelled') && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="payment-timer-title"
+        >
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 sm:p-7 space-y-5 shadow-2xl">
+            {paymentPhase === 'cancelled' ? (
+              <>
+                <div className="text-center space-y-3">
+                  <div className="w-14 h-14 rounded-full bg-red-950/70 border border-red-500/40 text-red-400 flex items-center justify-center mx-auto">
+                    <XCircle className="w-7 h-7" />
+                  </div>
+                  <span className="inline-block text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30">
+                    CANCELLED PAYMENT
+                  </span>
+                  <h2 id="payment-timer-title" className="font-display text-2xl font-black text-white uppercase tracking-tight">
+                    Payment Cancelled
+                  </h2>
+                  <p className="text-xs text-neutral-300 leading-relaxed">
+                    {cancelledInfo?.reason || 'Confirmation was not received within the checkout timer. This order has been marked as Cancelled Payment.'}
+                  </p>
+                </div>
+
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-neutral-500 uppercase block">Order Reference</span>
+                    <span className="font-mono font-bold text-[#E5A914]">{cancelledInfo?.orderNumber || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-neutral-500 uppercase block">Amount</span>
+                    <span className="font-mono font-bold text-white">₹{Number(cancelledInfo?.amount || currentTotal).toLocaleString()}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-neutral-500 uppercase block">Cashfree Order ID</span>
+                    <span className="font-mono text-[11px] text-neutral-400 break-all">{cancelledInfo?.cashfreeOrderId || '—'}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentPhase('idle');
+                      setPendingPayment(null);
+                      setCancelledInfo(null);
+                      setErrorMsg('');
+                    }}
+                    className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Retry Payment</span>
+                  </button>
+                  {user && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('account')}
+                      className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2.5 rounded-lg text-xs uppercase tracking-widest"
+                    >
+                      View My Orders
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              pendingPayment && (() => {
+                const progressPct = Math.max(
+                  0,
+                  Math.min(100, Math.round((remainingSeconds / Math.max(1, pendingPayment.timeoutSeconds)) * 100))
+                );
+                const isUrgent = remainingSeconds <= 60;
+                return (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#E5A914]">
+                          AWAITING PAYMENT CONFIRMATION
+                        </span>
+                        <h2 id="payment-timer-title" className="font-display text-xl font-black text-white uppercase tracking-tight mt-0.5">
+                          Complete Your Payment
+                        </h2>
+                      </div>
+                      <div
+                        className={`px-3 py-1.5 rounded-lg border font-mono text-lg font-black tabular-nums flex items-center gap-1.5 ${
+                          isUrgent
+                            ? 'bg-red-950/70 border-red-500/50 text-red-400 animate-pulse'
+                            : 'bg-neutral-950 border-[#E5A914]/50 text-[#E5A914]'
+                        }`}
+                        aria-label="Payment confirmation countdown timer"
+                      >
+                        <Clock className="w-4 h-4 shrink-0" />
+                        <span>{formatCountdown(remainingSeconds)}</span>
+                      </div>
+                    </div>
+
+                    {/* Countdown Progress Bar */}
+                    <div className="space-y-1.5">
+                      <div className="w-full h-2 bg-neutral-950 rounded-full overflow-hidden border border-neutral-800">
+                        <div
+                          className={`h-full transition-all duration-1000 ${
+                            isUrgent ? 'bg-red-500' : 'bg-[#E5A914]'
+                          }`}
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-neutral-400">
+                        {isUrgent
+                          ? 'Hurry! Unconfirmed payments are automatically moved to Cancelled Payment when the timer hits 00:00.'
+                          : 'Listening for Cashfree bank/UPI confirmation every 3 seconds. Unconfirmed orders auto-cancel at 00:00.'}
+                      </p>
+                    </div>
+
+                    {/* Order & Amount Details */}
+                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-neutral-500 uppercase block">Order Number</span>
+                        <span className="font-mono font-bold text-[#E5A914]">{pendingPayment.orderNumber}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-neutral-500 uppercase block">Payable Amount</span>
+                        <span className="font-mono font-bold text-white tabular-nums">
+                          ₹{pendingPayment.amount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[10px] text-neutral-500 uppercase block">Cashfree Order ID</span>
+                        <span className="font-mono text-[11px] text-neutral-300 break-all">
+                          {pendingPayment.cashfreeOrderId}
+                        </span>
+                      </div>
+                    </div>
+
+                    {errorMsg && (
+                      <div className="p-2.5 bg-amber-950/50 border border-amber-500/30 rounded text-[11px] text-amber-200 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <span>{errorMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-2.5">
+                      <button
+                        type="button"
+                        onClick={() => launchCashfreeModal(pendingPayment.paymentSessionId, pendingPayment.environment)}
+                        disabled={paymentPhase === 'cancelling'}
+                        className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        <span>Open Cashfree Payment Window</span>
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => checkPendingPaymentStatus(true)}
+                          disabled={verifyingNow || paymentPhase === 'cancelling'}
+                          className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2.5 px-3 rounded-lg text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${verifyingNow ? 'animate-spin' : ''}`} />
+                          <span>{verifyingNow ? 'Checking...' : 'Check Status'}</span>
+                        </button>
+
+                        {pendingPayment.checkoutUrl && (
+                          <a
+                            href={pendingPayment.checkoutUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold py-2.5 px-3 rounded-lg text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5"
+                          >
+                            <span>Hosted Page</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCancelPendingPayment('Customer cancelled payment during checkout.')}
+                        disabled={paymentPhase === 'cancelling'}
+                        className="w-full border border-red-500/30 bg-red-950/30 hover:bg-red-950/60 text-red-300 font-bold py-2.5 rounded-lg text-xs uppercase tracking-wider disabled:opacity-50"
+                      >
+                        {paymentPhase === 'cancelling' ? 'Cancelling Payment...' : 'Cancel Payment'}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PERSISTENT TOP TIMER & CANCEL BAR (stays interactive above Cashfree SDK modal iframe) */}
+      {(paymentPhase === 'awaiting' || paymentPhase === 'cancelling') &&
+        cashfreeModalOpen &&
+        pendingPayment &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            id="cashfree-timer-floating-bar"
+            style={{ zIndex: 2147483647 }}
+            className="fixed top-0 inset-x-0 h-[52px] bg-neutral-950/95 border-b border-[#E5A914]/50 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between gap-2 shadow-2xl"
+          >
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span
+                className={`px-2.5 py-1 rounded border font-mono text-xs sm:text-sm font-black tabular-nums flex items-center gap-1.5 shrink-0 ${
+                  remainingSeconds <= 60
+                    ? 'bg-red-950/80 border-red-500/50 text-red-300 animate-pulse'
+                    : 'bg-neutral-900 border-[#E5A914]/50 text-[#E5A914]'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>{formatCountdown(remainingSeconds)}</span>
+              </span>
+              <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-300 truncate">
+                <span className="font-mono font-bold text-white">{pendingPayment.orderNumber}</span>
+                <span className="text-neutral-500">·</span>
+                <span className="font-mono font-bold text-[#E5A914]">
+                  ₹{pendingPayment.amount.toLocaleString()}
+                </span>
+                <span className="text-neutral-400 hidden md:inline">
+                  — Auto-cancels at 00:00 if unconfirmed
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => checkPendingPaymentStatus(true)}
+                disabled={verifyingNow || paymentPhase === 'cancelling'}
+                className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-2.5 sm:px-3 py-1.5 rounded text-[11px] uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${verifyingNow ? 'animate-spin' : ''}`} />
+                <span className="hidden xs:inline">{verifyingNow ? 'Checking...' : 'Check Status'}</span>
+                <span className="xs:hidden">Sync</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancelPendingPayment('Customer cancelled payment during checkout.')}
+                disabled={paymentPhase === 'cancelling'}
+                className="border border-red-500/40 bg-red-950/70 hover:bg-red-900/80 text-red-200 font-bold px-2.5 sm:px-3.5 py-1.5 rounded text-[11px] uppercase tracking-wider disabled:opacity-50"
+              >
+                {paymentPhase === 'cancelling' ? 'Cancelling...' : 'Cancel Payment'}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

@@ -2,7 +2,11 @@ import { Router, type Response } from 'express';
 import { getDB, saveDB, setDB, trackMongoOp, persistProduct } from '../db.ts';
 import { requireAdmin, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendShippingUpdateEmail } from '../emailService.ts';
-import { verifyAndSyncCashfreeOrder } from './payment.ts';
+import {
+  verifyAndSyncCashfreeOrder,
+  cancelUnconfirmedPayment,
+  reconcilePendingPayments
+} from './payment.ts';
 import type { OrderStatus, InventoryTransaction } from '../../types/index.ts';
 import {
   getMongoStats,
@@ -24,7 +28,8 @@ export const adminRouter = Router();
 adminRouter.use(requireAdmin);
 
 // Dashboard Overview Metrics
-adminRouter.get('/overview', (req: AuthenticatedRequest, res: Response) => {
+adminRouter.get('/overview', async (req: AuthenticatedRequest, res: Response) => {
+  await reconcilePendingPayments().catch(() => {});
   const db = getDB();
 
   const totalRevenue = db.orders.reduce((sum, o) => {
@@ -55,8 +60,10 @@ adminRouter.get('/overview', (req: AuthenticatedRequest, res: Response) => {
     });
   });
 
-  // Recent 10 orders
-  const recentOrders = db.orders.slice(0, 10);
+  // Recent 10 orders sorted newest first
+  const recentOrders = [...db.orders]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10);
 
   // Sales by month mock aggregation
   const salesHistory = [
@@ -85,11 +92,14 @@ adminRouter.get('/overview', (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Orders Management: List orders with filters
-adminRouter.get('/orders', (req: AuthenticatedRequest, res: Response) => {
+adminRouter.get('/orders', async (req: AuthenticatedRequest, res: Response) => {
+  await reconcilePendingPayments().catch(() => {});
   const db = getDB();
   const { status, search } = req.query;
 
-  let list = [...db.orders];
+  let list = [...db.orders].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   if (status && typeof status === 'string' && status !== 'all') {
     list = list.filter(o => o.status.toLowerCase() === status.toLowerCase());
@@ -876,7 +886,8 @@ adminRouter.delete('/stock-notifications/:id', (req: AuthenticatedRequest, res: 
 // ----------------------------------------------------
 
 // GET /api/admin/payments
-adminRouter.get('/payments', (req: AuthenticatedRequest, res: Response) => {
+adminRouter.get('/payments', async (req: AuthenticatedRequest, res: Response) => {
+  await reconcilePendingPayments().catch(() => {});
   const db = getDB();
   const { status, method, search } = req.query;
 
@@ -888,6 +899,7 @@ adminRouter.get('/payments', (req: AuthenticatedRequest, res: Response) => {
     totalCount: allTransactions.length,
     successCount: allTransactions.filter(t => t.paymentStatus === 'SUCCESS').length,
     pendingCount: allTransactions.filter(t => t.paymentStatus === 'PENDING').length,
+    cancelledCount: allTransactions.filter(t => t.paymentStatus === 'CANCELLED' || t.paymentStatus === 'USER_DROPPED').length,
     failedCount: allTransactions.filter(
       t => t.paymentStatus === 'FAILED' || t.paymentStatus === 'CANCELLED' || t.paymentStatus === 'USER_DROPPED'
     ).length,
@@ -907,6 +919,8 @@ adminRouter.get('/payments', (req: AuthenticatedRequest, res: Response) => {
       filtered = filtered.filter(
         t => t.paymentStatus === 'FAILED' || t.paymentStatus === 'CANCELLED' || t.paymentStatus === 'USER_DROPPED'
       );
+    } else if (s === 'CANCELLED') {
+      filtered = filtered.filter(t => t.paymentStatus === 'CANCELLED' || t.paymentStatus === 'USER_DROPPED');
     } else {
       filtered = filtered.filter(t => t.paymentStatus === s);
     }
@@ -959,6 +973,52 @@ adminRouter.post('/payments/:orderId/sync', async (req: AuthenticatedRequest, re
     });
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || 'Failed to sync payment status.' });
+  }
+});
+
+// POST /api/admin/payments/:orderId/cancel
+adminRouter.post('/payments/:orderId/cancel', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const orderIdParam = String(req.params.orderId || '');
+    const reason =
+      typeof req.body?.reason === 'string' && req.body.reason.trim()
+        ? req.body.reason.trim()
+        : `Cancelled by administrator (${req.user!.email}) — unconfirmed pending payment.`;
+
+    const result = await cancelUnconfirmedPayment(orderIdParam, reason);
+    if (!result.found) {
+      return res.status(result.statusCode || 404).json({ error: result.error || 'Transaction not found.' });
+    }
+
+    if (result.alreadyPaid) {
+      return res.json({
+        success: true,
+        alreadyPaid: true,
+        transaction: result.transaction,
+        order: result.order,
+        message: 'Cashfree confirmed this payment was actually paid! Marked as SUCCESS.'
+      });
+    }
+
+    const db = getDB();
+    db.adminLogs.unshift({
+      id: `log_${Date.now()}`,
+      adminEmail: req.user!.email,
+      action: 'PAYMENT_CANCELLED',
+      details: `Moved unconfirmed payment ${orderIdParam} (#${result.order?.orderNumber || ''}) to Cancelled Payment.`,
+      timestamp: new Date().toISOString()
+    });
+    saveDB();
+
+    return res.json({
+      success: true,
+      cancelled: true,
+      transaction: result.transaction,
+      order: result.order,
+      message: 'Unconfirmed payment moved to Cancelled Payment.'
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Failed to cancel pending payment.' });
   }
 });
 

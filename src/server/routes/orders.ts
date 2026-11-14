@@ -2,6 +2,7 @@ import { Router, type Response } from 'express';
 import { getDB, saveDB } from '../db.ts';
 import { optionalAuthenticate, authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendOrderConfirmationEmail } from '../emailService.ts';
+import { reconcilePendingPayments } from './payment.ts';
 import type { Order, OrderItem, UserAddress, InventoryTransaction } from '../../types/index.ts';
 
 export const ordersRouter = Router();
@@ -420,25 +421,58 @@ ordersRouter.post('/orders', optionalAuthenticate, (req: AuthenticatedRequest, r
   });
 });
 
-// Customer: Get personal orders
-ordersRouter.get('/orders/my-orders', authenticate, (req: AuthenticatedRequest, res: Response) => {
+// Customer: Get personal orders (auto-reconciles pending Cashfree statuses)
+ordersRouter.get('/orders/my-orders', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   const db = getDB();
-  const userOrders = db.orders.filter(o => o.userId === req.user!.id || o.customer.email.toLowerCase() === req.user!.email.toLowerCase());
-  return res.json({ orders: userOrders });
+  const userEmail = req.user!.email.toLowerCase();
+  const userPhoneLast10 = (req.user!.phone || '').replace(/\D/g, '').slice(-10);
+
+  const candidateOrders = db.orders.filter(o => {
+    const orderPhoneLast10 = (o.customer?.phone || '').replace(/\D/g, '').slice(-10);
+    return (
+      o.userId === req.user!.id ||
+      o.customer.email.toLowerCase() === userEmail ||
+      (userPhoneLast10.length >= 10 && orderPhoneLast10 === userPhoneLast10)
+    );
+  });
+
+  const pendingIds = candidateOrders
+    .filter(o => o.payment.status === 'pending' && o.payment.provider !== 'cod')
+    .map(o => o.id);
+  if (pendingIds.length > 0) {
+    await reconcilePendingPayments(pendingIds).catch(() => {});
+  }
+
+  const refreshed = getDB().orders
+    .filter(o => {
+      const orderPhoneLast10 = (o.customer?.phone || '').replace(/\D/g, '').slice(-10);
+      return (
+        o.userId === req.user!.id ||
+        o.customer.email.toLowerCase() === userEmail ||
+        (userPhoneLast10.length >= 10 && orderPhoneLast10 === userPhoneLast10)
+      );
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return res.json({ orders: refreshed });
 });
 
 // Public: Get single order by ID or Order Number
-ordersRouter.get('/orders/:id', (req, res) => {
+ordersRouter.get('/orders/:id', async (req, res) => {
   const db = getDB();
-  const order = db.orders.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
-  if (!order) {
+  const existing = db.orders.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
+  if (!existing) {
     return res.status(404).json({ error: 'Order not found.' });
   }
+  if (existing.payment.status === 'pending' && existing.payment.provider !== 'cod') {
+    await reconcilePendingPayments([existing.id]).catch(() => {});
+  }
+  const order = getDB().orders.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
   return res.json({ order });
 });
 
 // Public: Dedicated Order Tracking lookup
-ordersRouter.post('/orders/track', (req, res) => {
+ordersRouter.post('/orders/track', async (req, res) => {
   const { orderNumber, emailOrPhone } = req.body;
   if (!orderNumber || !emailOrPhone) {
     return res.status(400).json({ error: 'Order number and Email or Phone number are required.' });
@@ -448,7 +482,7 @@ ordersRouter.post('/orders/track', (req, res) => {
   const cleanOrder = orderNumber.trim().toUpperCase();
   const cleanQuery = emailOrPhone.trim().toLowerCase();
 
-  const order = db.orders.find(o =>
+  let order = db.orders.find(o =>
     o.orderNumber.toUpperCase() === cleanOrder &&
     (o.customer.email.toLowerCase() === cleanQuery || o.customer.phone.includes(cleanQuery))
   );
@@ -457,6 +491,11 @@ ordersRouter.post('/orders/track', (req, res) => {
     return res.status(404).json({
       error: 'No order matched these details. Please double-check your order number and contact information.'
     });
+  }
+
+  if (order.payment.status === 'pending' && order.payment.provider !== 'cod') {
+    await reconcilePendingPayments([order.id]).catch(() => {});
+    order = getDB().orders.find(o => o.id === order!.id) || order;
   }
 
   return res.json({ order });

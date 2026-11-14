@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { compressUploadImage } from '../../utils/imageUtils.ts';
+import { getPaymentBadgeMeta } from '../../utils/paymentTimer.ts';
 import {
   Order,
   Product,
@@ -167,14 +168,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     totalCount: number;
     successCount: number;
     pendingCount: number;
+    cancelledCount?: number;
     failedCount: number;
     totalSuccessVolume: number;
     pendingVolume: number;
   } | null>(null);
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'SUCCESS' | 'PENDING' | 'FAILED'>('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<
+    'all' | 'SUCCESS' | 'PENDING' | 'CANCELLED' | 'FAILED'
+  >('all');
   const [paymentSearch, setPaymentSearch] = useState('');
   const [selectedTransaction, setSelectedTransaction] = useState<PaymentTransaction | null>(null);
   const [syncingPaymentId, setSyncingPaymentId] = useState<string | null>(null);
+  const [cancellingPaymentId, setCancellingPaymentId] = useState<string | null>(null);
 
   // Returns
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
@@ -600,6 +605,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     }
   };
 
+  const handleCancelPendingPayment = async (cashfreeOrderId: string) => {
+    setCancellingPaymentId(cashfreeOrderId);
+    try {
+      const res = await fetch(`/api/admin/payments/${encodeURIComponent(cashfreeOrderId)}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          reason: 'Cancelled from Admin Dashboard — confirmation not received.'
+        })
+      });
+      const d = await res.json();
+      if (res.ok) {
+        showNotice('success', d.message || 'Unconfirmed payment moved to Cancelled Payment.');
+        await Promise.all([fetchPayments(), fetchOrdersList(), fetchOverview()]);
+        if (d.transaction && selectedTransaction?.cashfreeOrderId === cashfreeOrderId) {
+          setSelectedTransaction(d.transaction);
+        }
+      } else {
+        showNotice('error', d.error || 'Failed to cancel pending payment.');
+      }
+    } catch (e: any) {
+      showNotice('error', e?.message || 'Network error cancelling payment.');
+    } finally {
+      setCancellingPaymentId(null);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin && token) {
       setLoading(true);
@@ -621,6 +656,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
       ]).finally(() => setLoading(false));
     }
   }, [isAdmin, token]);
+
+  // Refresh dynamic order & payment views immediately on tab switches
+  useEffect(() => {
+    if (!isAdmin || !token) return;
+    if (activeTab === 'overview') {
+      fetchOverview();
+    } else if (activeTab === 'orders') {
+      fetchOrdersList();
+    } else if (activeTab === 'payments') {
+      fetchPayments();
+    } else if (activeTab === 'customers') {
+      fetchCustomers();
+    }
+  }, [activeTab, isAdmin, token]);
+
+  // Live background sync (10s) so newly placed, confirmed, and auto-cancelled payments update in real time
+  useEffect(() => {
+    if (!isAdmin || !token) return;
+    if (activeTab !== 'overview' && activeTab !== 'orders' && activeTab !== 'payments') return;
+    const timer = window.setInterval(() => {
+      if (activeTab === 'overview') {
+        fetchOverview();
+      } else if (activeTab === 'orders') {
+        fetchOrdersList();
+      } else if (activeTab === 'payments') {
+        fetchPayments();
+      }
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [activeTab, isAdmin, token]);
 
   if (!isAdmin) {
     return (
@@ -1810,46 +1875,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                       <th className="pb-2.5">Order Number</th>
                       <th className="pb-2.5">Customer</th>
                       <th className="pb-2.5">Amount</th>
-                      <th className="pb-2.5">Status</th>
+                      <th className="pb-2.5">Payment</th>
+                      <th className="pb-2.5">Order Status</th>
                       <th className="pb-2.5 text-right">Quick Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800/80">
-                    {recentOrders.map(order => (
-                      <tr key={order.id} className="hover:bg-neutral-800/30">
-                        <td className="py-2.5 font-bold text-[#E5A914]">{order.orderNumber}</td>
-                        <td className="py-2.5 font-sans text-white">{order.customer.name} ({order.shippingAddress.city})</td>
-                        <td className="py-2.5 text-white font-bold">₹{order.total.toLocaleString()}</td>
-                        <td className="py-2.5 font-sans">
-                          <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-neutral-800 text-neutral-200">
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right font-sans">
-                          <button
-                            onClick={() => setViewInvoiceOrder(order)}
-                            className="text-neutral-400 hover:text-white text-xs underline mr-3"
-                          >
-                            Invoice
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedOrderForTracking(order);
-                              setTrackingForm({
-                                courierCompany: order.tracking?.courierCompany || 'Blue Dart Express',
-                                trackingNumber: order.tracking?.trackingNumber || '',
-                                trackingUrl: order.tracking?.trackingUrl || '',
-                                estimatedDeliveryDate: order.tracking?.estimatedDeliveryDate || '',
-                                statusNotes: order.tracking?.statusNotes || ''
-                              });
-                            }}
-                            className="text-[#E5A914] hover:underline font-bold text-xs"
-                          >
-                            Logistics
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {recentOrders.map(order => {
+                      const payMeta = getPaymentBadgeMeta(order.payment.status, order.payment.gatewayStatus);
+                      const payBadgeClass =
+                        payMeta.tone === 'success'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : payMeta.tone === 'pending'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : payMeta.tone === 'refunded'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-red-500/20 text-red-400';
+                      const orderStatusClass =
+                        order.status === 'Cancelled'
+                          ? 'bg-red-500/20 text-red-400'
+                          : order.status === 'Order Placed' || order.status === 'Confirmed' || order.status === 'Delivered'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-neutral-800 text-neutral-200';
+                      return (
+                        <tr key={order.id} className="hover:bg-neutral-800/30">
+                          <td className="py-2.5 font-bold text-[#E5A914]">{order.orderNumber}</td>
+                          <td className="py-2.5 font-sans text-white">{order.customer.name} ({order.shippingAddress.city})</td>
+                          <td className="py-2.5 text-white font-bold">₹{order.total.toLocaleString()}</td>
+                          <td className="py-2.5 font-sans">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] uppercase font-bold ${payBadgeClass}`}>
+                              {payMeta.label}
+                            </span>
+                            <span className="block text-[10px] text-neutral-500 mt-0.5 uppercase">
+                              {order.payment.paymentMethodDetail || order.payment.provider}
+                            </span>
+                          </td>
+                          <td className="py-2.5 font-sans">
+                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${orderStatusClass}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right font-sans">
+                            <button
+                              onClick={() => setViewInvoiceOrder(order)}
+                              className="text-neutral-400 hover:text-white text-xs underline mr-3"
+                            >
+                              Invoice
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedOrderForTracking(order);
+                                setTrackingForm({
+                                  courierCompany: order.tracking?.courierCompany || 'Blue Dart Express',
+                                  trackingNumber: order.tracking?.trackingNumber || '',
+                                  trackingUrl: order.tracking?.trackingUrl || '',
+                                  estimatedDeliveryDate: order.tracking?.estimatedDeliveryDate || '',
+                                  statusNotes: order.tracking?.statusNotes || ''
+                                });
+                              }}
+                              className="text-[#E5A914] hover:underline font-bold text-xs"
+                            >
+                              Logistics
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2505,99 +2596,149 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 <tbody className="divide-y divide-neutral-800 font-mono">
                   {orders
                     .filter(o => !orderSearch || o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) || o.customer.name.toLowerCase().includes(orderSearch.toLowerCase()))
-                    .map(order => (
-                      <tr key={order.id} className="hover:bg-neutral-800/20">
-                        <td className="p-3.5 align-top">
-                          <span className="font-bold text-[#E5A914] block">{order.orderNumber}</span>
-                          <span className="text-[10px] text-neutral-500">{new Date(order.createdAt).toLocaleDateString()}</span>
-                        </td>
-                        <td className="p-3.5 align-top font-sans">
-                          <p className="font-bold text-white">{order.customer.name}</p>
-                          <p className="text-neutral-400 text-[11px]">{order.customer.email}</p>
-                          <p className="text-neutral-500 text-[11px]">{order.shippingAddress.city}, {order.shippingAddress.state} ({order.shippingAddress.pinCode})</p>
-                        </td>
-                        <td className="p-3.5 align-top font-sans">
-                          <div className="space-y-1">
-                            {order.items.map((it, idx) => (
-                              <div key={idx} className="text-[11px] text-neutral-300">
-                                <p>{it.quantity}x {it.productTitle} <span className="text-neutral-500">({it.colorName}/{it.size})</span></p>
-                                {it.customPrint && (
-                                  <div className="mt-1 p-1.5 bg-neutral-950/70 border border-[#E5A914]/30 rounded flex items-center gap-2">
-                                    {it.customPrint.uploadedGraphicUrl &&
-                                      (it.customPrint.uploadedGraphicUrl.startsWith('data:') ||
-                                        it.customPrint.uploadedGraphicUrl.startsWith('/') ||
-                                        it.customPrint.uploadedGraphicUrl.startsWith('http')) && (
-                                        <img
-                                          src={it.customPrint.uploadedGraphicUrl}
-                                          alt="Custom print graphic"
-                                          className="w-8 h-8 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
-                                        />
-                                      )}
-                                    <div className="text-[10px] text-[#E5A914] font-mono leading-snug">
-                                      <span>
-                                        {it.customPrint.printTechnique === 'Custom Image Print'
-                                          ? 'Custom Print Image Attached'
-                                          : `Custom: ${it.customPrint.placement} · ${it.customPrint.printTechnique}`}
-                                      </span>
-                                      {it.customPrint.customText && (
-                                        <span className="block text-neutral-300">
-                                          &ldquo;{it.customPrint.customText}&rdquo; ({it.customPrint.fontStyle || 'Bold Sans'}, {it.customPrint.textColor || 'Default Ink'})
+                    .map(order => {
+                      const payMeta = getPaymentBadgeMeta(order.payment.status, order.payment.gatewayStatus);
+                      const payBadgeClass =
+                        payMeta.tone === 'success'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : payMeta.tone === 'pending'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : payMeta.tone === 'refunded'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-red-500/20 text-red-400';
+                      const isPendingOnline =
+                        order.payment.status === 'pending' &&
+                        Boolean(order.payment.cashfreeOrderId) &&
+                        order.payment.provider !== 'cod';
+
+                      return (
+                        <tr key={order.id} className="hover:bg-neutral-800/20">
+                          <td className="p-3.5 align-top">
+                            <span className="font-bold text-[#E5A914] block">{order.orderNumber}</span>
+                            <span className="text-[10px] text-neutral-500">{new Date(order.createdAt).toLocaleDateString()}</span>
+                          </td>
+                          <td className="p-3.5 align-top font-sans">
+                            <p className="font-bold text-white">{order.customer.name}</p>
+                            <p className="text-neutral-400 text-[11px]">{order.customer.email}</p>
+                            <p className="text-neutral-500 text-[11px]">{order.shippingAddress.city}, {order.shippingAddress.state} ({order.shippingAddress.pinCode})</p>
+                          </td>
+                          <td className="p-3.5 align-top font-sans">
+                            <div className="space-y-1">
+                              {order.items.map((it, idx) => (
+                                <div key={idx} className="text-[11px] text-neutral-300">
+                                  <p>{it.quantity}x {it.productTitle} <span className="text-neutral-500">({it.colorName}/{it.size})</span></p>
+                                  {it.customPrint && (
+                                    <div className="mt-1 p-1.5 bg-neutral-950/70 border border-[#E5A914]/30 rounded flex items-center gap-2">
+                                      {it.customPrint.uploadedGraphicUrl &&
+                                        (it.customPrint.uploadedGraphicUrl.startsWith('data:') ||
+                                          it.customPrint.uploadedGraphicUrl.startsWith('/') ||
+                                          it.customPrint.uploadedGraphicUrl.startsWith('http')) && (
+                                          <img
+                                            src={it.customPrint.uploadedGraphicUrl}
+                                            alt="Custom print graphic"
+                                            className="w-8 h-8 object-contain rounded bg-neutral-900 border border-neutral-800 shrink-0"
+                                          />
+                                        )}
+                                      <div className="text-[10px] text-[#E5A914] font-mono leading-snug">
+                                        <span>
+                                          {it.customPrint.printTechnique === 'Custom Image Print'
+                                            ? 'Custom Print Image Attached'
+                                            : `Custom: ${it.customPrint.placement} · ${it.customPrint.printTechnique}`}
                                         </span>
-                                      )}
+                                        {it.customPrint.customText && (
+                                          <span className="block text-neutral-300">
+                                            &ldquo;{it.customPrint.customText}&rdquo; ({it.customPrint.fontStyle || 'Bold Sans'}, {it.customPrint.textColor || 'Default Ink'})
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-3.5 align-top">
+                            <span className="font-bold text-white block">₹{order.total.toLocaleString()}</span>
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-sans uppercase font-bold ${payBadgeClass}`}>
+                              {payMeta.label}
+                            </span>
+                            <span className="block text-[10px] text-neutral-500 font-sans mt-0.5 uppercase">
+                              {order.payment.paymentMethodDetail || order.payment.provider}
+                            </span>
+                            {order.payment.cancellationReason && (
+                              <span className="block text-[10px] text-red-400/90 font-sans mt-0.5 max-w-[180px] leading-tight">
+                                {order.payment.cancellationReason}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3.5 align-top font-sans">
+                            <select
+                              value={order.status}
+                              onChange={e => handleUpdateOrderStatus(order.id, e.target.value)}
+                              className={`bg-neutral-950 border text-xs rounded px-2.5 py-1.5 cursor-pointer font-semibold ${
+                                order.status === 'Cancelled'
+                                  ? 'border-red-500/40 text-red-300'
+                                  : 'border-neutral-700 text-white'
+                              }`}
+                            >
+                              <option value="Order Placed">Order Placed</option>
+                              <option value="Confirmed">Confirmed</option>
+                              <option value="Processing">Processing</option>
+                              <option value="Packed">Packed</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Out for Delivery">Out for Delivery</option>
+                              <option value="Delivered">Delivered</option>
+                              <option value="Cancelled">Cancelled</option>
+                              <option value="Returned">Returned</option>
+                            </select>
+                            {isPendingOnline && order.payment.cashfreeOrderId && (
+                              <div className="flex items-center gap-1.5 mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSyncPaymentStatus(order.payment.cashfreeOrderId!)}
+                                  disabled={syncingPaymentId === order.payment.cashfreeOrderId}
+                                  className="px-2 py-0.5 rounded bg-[#E5A914]/15 hover:bg-[#E5A914]/25 border border-[#E5A914]/40 text-[#E5A914] text-[10px] font-bold uppercase disabled:opacity-50"
+                                >
+                                  {syncingPaymentId === order.payment.cashfreeOrderId ? 'Syncing...' : 'Sync'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelPendingPayment(order.payment.cashfreeOrderId!)}
+                                  disabled={cancellingPaymentId === order.payment.cashfreeOrderId}
+                                  className="px-2 py-0.5 rounded bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 text-[10px] font-bold uppercase disabled:opacity-50"
+                                >
+                                  {cancellingPaymentId === order.payment.cashfreeOrderId ? '...' : 'Cancel'}
+                                </button>
                               </div>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="p-3.5 align-top">
-                          <span className="font-bold text-white block">₹{order.total.toLocaleString()}</span>
-                          <span className="text-[10px] text-emerald-400 font-sans uppercase">{order.payment.status}</span>
-                        </td>
-                        <td className="p-3.5 align-top font-sans">
-                          <select
-                            value={order.status}
-                            onChange={e => handleUpdateOrderStatus(order.id, e.target.value)}
-                            className="bg-neutral-950 border border-neutral-700 text-xs text-white rounded px-2.5 py-1.5 cursor-pointer font-semibold"
-                          >
-                            <option value="Order Placed">Order Placed</option>
-                            <option value="Confirmed">Confirmed</option>
-                            <option value="Processing">Processing</option>
-                            <option value="Packed">Packed</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Out for Delivery">Out for Delivery</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                            <option value="Returned">Returned</option>
-                          </select>
-                        </td>
-                        <td className="p-3.5 align-top text-right font-sans space-y-1.5">
-                          <button
-                            onClick={() => {
-                              setSelectedOrderForTracking(order);
-                              setTrackingForm({
-                                courierCompany: order.tracking?.courierCompany || 'Blue Dart Express',
-                                trackingNumber: order.tracking?.trackingNumber || '',
-                                trackingUrl: order.tracking?.trackingUrl || '',
-                                estimatedDeliveryDate: order.tracking?.estimatedDeliveryDate || '',
-                                statusNotes: order.tracking?.statusNotes || ''
-                              });
-                            }}
-                            className="inline-flex items-center gap-1 bg-[#E5A914] text-black font-extrabold px-2.5 py-1 rounded text-[11px] uppercase tracking-wider"
-                          >
-                            <Truck className="w-3 h-3" />
-                            {order.tracking?.trackingNumber ? 'Edit AWB' : 'Assign Courier'}
-                          </button>
-                          <button
-                            onClick={() => setViewInvoiceOrder(order)}
-                            className="block ml-auto text-xs text-neutral-400 hover:text-white underline"
-                          >
-                            Print Invoice
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                            )}
+                          </td>
+                          <td className="p-3.5 align-top text-right font-sans space-y-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedOrderForTracking(order);
+                                setTrackingForm({
+                                  courierCompany: order.tracking?.courierCompany || 'Blue Dart Express',
+                                  trackingNumber: order.tracking?.trackingNumber || '',
+                                  trackingUrl: order.tracking?.trackingUrl || '',
+                                  estimatedDeliveryDate: order.tracking?.estimatedDeliveryDate || '',
+                                  statusNotes: order.tracking?.statusNotes || ''
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 bg-[#E5A914] text-black font-extrabold px-2.5 py-1 rounded text-[11px] uppercase tracking-wider"
+                            >
+                              <Truck className="w-3 h-3" />
+                              {order.tracking?.trackingNumber ? 'Edit AWB' : 'Assign Courier'}
+                            </button>
+                            <button
+                              onClick={() => setViewInvoiceOrder(order)}
+                              className="block ml-auto text-xs text-neutral-400 hover:text-white underline"
+                            >
+                              Print Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -2663,12 +2804,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
               <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-                  Failed / Cancelled
+                  Cancelled / Failed
                 </span>
                 <p className="font-mono text-2xl font-black text-red-400 tabular-nums">
                   {paymentSummary?.failedCount ?? 0}
                 </p>
-                <p className="text-[11px] text-neutral-400">Declined or dropped</p>
+                <p className="text-[11px] text-neutral-400">
+                  {paymentSummary?.cancelledCount ?? 0} cancelled · timeout or declined
+                </p>
               </div>
             </div>
 
@@ -2679,7 +2822,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                   { id: 'all', label: 'All Transactions' },
                   { id: 'SUCCESS', label: 'Successful' },
                   { id: 'PENDING', label: 'Pending' },
-                  { id: 'FAILED', label: 'Failed / Cancelled' }
+                  { id: 'CANCELLED', label: 'Cancelled Payment' },
+                  { id: 'FAILED', label: 'Failed / Dropped' }
                 ].map(f => (
                   <button
                     key={f.id}
@@ -2709,7 +2853,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
             {/* Transactions Table */}
             <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse min-w-[820px]">
+              <table className="w-full text-left text-xs border-collapse min-w-[860px]">
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
                     <th className="p-3.5">Order ID / Date</th>
@@ -2724,6 +2868,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 <tbody className="divide-y divide-neutral-800">
                   {transactions
                     .filter(tx => {
+                      if (paymentStatusFilter === 'CANCELLED') {
+                        return (
+                          tx.paymentStatus === 'CANCELLED' ||
+                          tx.paymentStatus === 'USER_DROPPED'
+                        );
+                      }
                       if (paymentStatusFilter === 'FAILED') {
                         return (
                           tx.paymentStatus === 'FAILED' ||
@@ -2751,6 +2901,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                     .map(tx => {
                       const isSuccess = tx.paymentStatus === 'SUCCESS';
                       const isPending = tx.paymentStatus === 'PENDING';
+                      const isCancelled = tx.paymentStatus === 'CANCELLED' || tx.paymentStatus === 'USER_DROPPED';
+                      const noteReason = tx.cancellationReason || tx.errorMessage;
                       return (
                         <tr key={tx.id} className="hover:bg-neutral-800/20">
                           <td className="p-3.5 align-top">
@@ -2791,23 +2943,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                                   : 'bg-red-500/20 text-red-400'
                               }`}
                             >
-                              {tx.paymentStatus}
+                              {isCancelled ? 'CANCELLED PAYMENT' : tx.paymentStatus}
                             </span>
+                            {noteReason && !isSuccess && (
+                              <span className="block text-[10px] text-red-300/80 mt-1 max-w-[200px] leading-tight">
+                                {noteReason}
+                              </span>
+                            )}
                           </td>
                           <td className="p-3.5 align-top text-right space-x-2 whitespace-nowrap">
                             {isPending && tx.paymentMethod !== 'COD' && (
-                              <button
-                                onClick={() => handleSyncPaymentStatus(tx.cashfreeOrderId)}
-                                disabled={syncingPaymentId === tx.cashfreeOrderId}
-                                className="inline-flex items-center gap-1 bg-[#E5A914]/15 hover:bg-[#E5A914]/25 border border-[#E5A914]/40 text-[#E5A914] px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
-                              >
-                                <RefreshCw
-                                  className={`w-3 h-3 ${
-                                    syncingPaymentId === tx.cashfreeOrderId ? 'animate-spin' : ''
-                                  }`}
-                                />
-                                <span>Sync</span>
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleSyncPaymentStatus(tx.cashfreeOrderId)}
+                                  disabled={syncingPaymentId === tx.cashfreeOrderId}
+                                  className="inline-flex items-center gap-1 bg-[#E5A914]/15 hover:bg-[#E5A914]/25 border border-[#E5A914]/40 text-[#E5A914] px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
+                                >
+                                  <RefreshCw
+                                    className={`w-3 h-3 ${
+                                      syncingPaymentId === tx.cashfreeOrderId ? 'animate-spin' : ''
+                                    }`}
+                                  />
+                                  <span>Sync</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCancelPendingPayment(tx.cashfreeOrderId)}
+                                  disabled={cancellingPaymentId === tx.cashfreeOrderId}
+                                  className="inline-flex items-center gap-1 bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
+                                >
+                                  <X className="w-3 h-3" />
+                                  <span>{cancellingPaymentId === tx.cashfreeOrderId ? '...' : 'Cancel'}</span>
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => setSelectedTransaction(tx)}
@@ -4604,9 +4771,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                 <span className="text-xs font-bold text-neutral-500 uppercase block">TAX INVOICE</span>
                 <p className="text-base font-bold font-mono">{viewInvoiceOrder.orderNumber}</p>
                 <p className="text-xs text-neutral-600 mt-1">Date: {new Date(viewInvoiceOrder.createdAt).toLocaleDateString()}</p>
-                <span className="inline-block mt-2 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded uppercase">
-                  PAID ({viewInvoiceOrder.payment.provider.toUpperCase()})
-                </span>
+                {(() => {
+                  const invMeta = getPaymentBadgeMeta(
+                    viewInvoiceOrder.payment.status,
+                    viewInvoiceOrder.payment.gatewayStatus
+                  );
+                  const invBadgeStyle =
+                    invMeta.tone === 'success'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : invMeta.tone === 'pending'
+                      ? 'bg-amber-100 text-amber-800'
+                      : invMeta.tone === 'refunded'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-red-100 text-red-800';
+                  return (
+                    <span className={`inline-block mt-2 px-2 py-0.5 text-[10px] font-bold rounded uppercase ${invBadgeStyle}`}>
+                      {invMeta.label} ({(viewInvoiceOrder.payment.paymentMethodDetail || viewInvoiceOrder.payment.provider).toUpperCase()})
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
@@ -5009,13 +5192,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
               </p>
             </div>
 
-            {selectedTransaction.errorMessage && (
+            {(selectedTransaction.cancellationReason || selectedTransaction.errorMessage) && (
               <div className="p-3 bg-red-950/50 border border-red-500/40 rounded text-xs text-red-300">
-                {selectedTransaction.errorMessage}
+                {selectedTransaction.cancellationReason || selectedTransaction.errorMessage}
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              {selectedTransaction.paymentStatus === 'PENDING' && selectedTransaction.paymentMethod !== 'COD' && (
+                <button
+                  onClick={() => handleCancelPendingPayment(selectedTransaction.cashfreeOrderId)}
+                  disabled={cancellingPaymentId === selectedTransaction.cashfreeOrderId}
+                  className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 font-bold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>
+                    {cancellingPaymentId === selectedTransaction.cashfreeOrderId ? 'Cancelling...' : 'Cancel Payment'}
+                  </span>
+                </button>
+              )}
               {selectedTransaction.paymentMethod !== 'COD' && (
                 <button
                   onClick={() => handleSyncPaymentStatus(selectedTransaction.cashfreeOrderId)}

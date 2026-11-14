@@ -172,7 +172,9 @@ const OrderSchema = new Schema(
       paymentSessionId: { type: String },
       paymentMethodDetail: { type: String },
       transactionDate: { type: String },
-      gatewayStatus: { type: String }
+      gatewayStatus: { type: String },
+      expiresAt: { type: String },
+      cancellationReason: { type: String }
     },
     status: { type: String, default: 'Order Placed' },
     statusHistory: [OrderStatusHistorySchema],
@@ -376,6 +378,8 @@ const PaymentTransactionSchema = new Schema(
     environment: { type: String, enum: ['sandbox', 'production'], default: 'sandbox' },
     transactionDate: { type: String, default: () => new Date().toISOString() },
     updatedAt: { type: String },
+    expiresAt: { type: String },
+    cancellationReason: { type: String },
     processedWebhooks: [{ type: String }],
     rawGatewayStatus: { type: String },
     errorMessage: { type: String }

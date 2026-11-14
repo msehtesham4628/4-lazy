@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   CheckCircle2,
@@ -9,9 +9,16 @@ import {
   Package,
   ShieldCheck,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  LayoutList
 } from 'lucide-react';
 import { useCart } from '../context/CartContext.tsx';
+import {
+  DEFAULT_PAYMENT_TIMEOUT_SECONDS,
+  computeExpiresAtIso,
+  computeRemainingSeconds,
+  formatCountdown
+} from '../utils/paymentTimer.ts';
 import type { Order, PaymentTransaction } from '../types/index.ts';
 
 interface PaymentStatusPageProps {
@@ -24,7 +31,11 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState('');
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(DEFAULT_PAYMENT_TIMEOUT_SECONDS);
+  const timeoutCancelRef = useRef(false);
+  const confettiFiredRef = useRef(false);
   const [statusData, setStatusData] = useState<{
     orderId?: string;
     orderNumber?: string;
@@ -36,19 +47,21 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
     currency?: string;
     paymentMethod?: string;
     transactionDate?: string;
+    expiresAt?: string;
+    cancellationReason?: string;
     errorMessage?: string;
     order?: Order;
     transaction?: PaymentTransaction;
   } | null>(null);
 
-  const resolveOrderId = () => {
+  const resolveOrderId = useCallback(() => {
     if (propOrderId) return propOrderId;
     const params = new URLSearchParams(window.location.search);
     return params.get('order_id') || params.get('orderId') || sessionStorage.getItem('4lazy_pending_cf_order') || '';
-  };
+  }, [propOrderId]);
 
   const verifyPaymentStatus = useCallback(
-    async (isManualRefresh = false) => {
+    async (isManualRefresh = false, silent = false) => {
       const targetOrderId = resolveOrderId();
       if (!targetOrderId) {
         setError('No order reference found in redirect URL.');
@@ -57,8 +70,8 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
       }
 
       if (isManualRefresh) setRefreshing(true);
-      else setLoading(true);
-      setError('');
+      else if (!silent) setLoading(true);
+      if (!silent) setError('');
 
       try {
         const res = await fetch(`/api/payment/order/${encodeURIComponent(targetOrderId)}`);
@@ -73,26 +86,102 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
         if (data.paymentStatus === 'SUCCESS') {
           clearCart();
           sessionStorage.removeItem('4lazy_pending_cf_order');
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#E5A914', '#ffffff', '#10b981']
-          });
+          if (!confettiFiredRef.current) {
+            confettiFiredRef.current = true;
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ['#E5A914', '#ffffff', '#10b981']
+            });
+          }
         }
       } catch (err: any) {
-        setError(err?.message || 'Failed to confirm payment status.');
+        if (!silent) {
+          setError(err?.message || 'Failed to confirm payment status.');
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [propOrderId, clearCart]
+    [resolveOrderId, clearCart]
+  );
+
+  const handleCancelUnconfirmed = useCallback(
+    async (reason?: string) => {
+      const targetOrderId = statusData?.cashfreeOrderId || resolveOrderId();
+      if (!targetOrderId) return;
+      setCancelling(true);
+      try {
+        const res = await fetch(`/api/payment/cancel/${encodeURIComponent(targetOrderId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reason: reason || 'Payment cancelled — confirmation not received within timer.'
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setStatusData(data);
+          if (data.paymentStatus === 'SUCCESS') {
+            clearCart();
+            sessionStorage.removeItem('4lazy_pending_cf_order');
+          }
+        }
+      } catch {
+        // Fallback refresh
+        await verifyPaymentStatus(false, true);
+      } finally {
+        setCancelling(false);
+      }
+    },
+    [statusData?.cashfreeOrderId, resolveOrderId, clearCart, verifyPaymentStatus]
   );
 
   useEffect(() => {
     verifyPaymentStatus(false);
   }, [verifyPaymentStatus]);
+
+  // While PENDING, tick live countdown timer and auto-poll every 3 seconds; auto-cancel on 00:00
+  useEffect(() => {
+    const currentStatus = (statusData?.paymentStatus || '').toUpperCase();
+    if (currentStatus !== 'PENDING') return;
+
+    const expiryIso =
+      statusData?.expiresAt ||
+      statusData?.transaction?.expiresAt ||
+      statusData?.order?.payment?.expiresAt ||
+      computeExpiresAtIso(statusData?.transactionDate, DEFAULT_PAYMENT_TIMEOUT_SECONDS);
+
+    const updateTimer = () => {
+      const rem = computeRemainingSeconds(expiryIso);
+      setRemainingSeconds(rem);
+      if (rem <= 0 && !timeoutCancelRef.current) {
+        timeoutCancelRef.current = true;
+        handleCancelUnconfirmed('Payment confirmation timer expired (no confirmation received within time limit).');
+      }
+    };
+
+    updateTimer();
+    const tickId = window.setInterval(updateTimer, 1000);
+    const pollId = window.setInterval(() => {
+      verifyPaymentStatus(false, true);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(tickId);
+      window.clearInterval(pollId);
+    };
+  }, [
+    statusData?.paymentStatus,
+    statusData?.expiresAt,
+    statusData?.transactionDate,
+    statusData?.transaction?.expiresAt,
+    statusData?.order?.payment?.expiresAt,
+    handleCancelUnconfirmed,
+    verifyPaymentStatus
+  ]);
 
   if (loading) {
     return (
@@ -177,18 +266,29 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
 
         <h1 className="font-display text-3xl sm:text-4xl font-black text-white uppercase tracking-tight">
           {isSuccess
-            ? `Thank you, ${order?.customer.name || 'Customer'}`
+            ? `Order Placed! Thank you, ${order?.customer.name || 'Customer'}`
             : isPending
-            ? 'Awaiting Bank Settlement'
+            ? 'Awaiting Payment Confirmation'
+            : paymentStatus === 'CANCELLED'
+            ? 'Payment Cancelled'
             : 'Payment Could Not Be Completed'}
         </h1>
 
+        {isPending && (
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-950/60 border border-amber-500/40 font-mono text-sm font-bold text-[#E5A914] tabular-nums">
+            <Clock className="w-4 h-4" />
+            <span>Auto-cancel in {formatCountdown(remainingSeconds)}</span>
+          </div>
+        )}
+
         <p className="text-xs text-neutral-400 max-w-md mx-auto">
           {isSuccess
-            ? `Your order has been verified via Cashfree (${statusData?.paymentMethod || 'Online'}). Confirmation details have been sent to ${order?.customer.email || 'your email'}.`
+            ? `Your order is placed and confirmed via Cashfree (${statusData?.paymentMethod || 'Online'}). Your customer account and admin dashboard are updated.`
             : isPending
-            ? 'Cashfree has not yet marked this transaction as completed. Click refresh below once your bank confirms.'
-            : statusData?.errorMessage || 'Your payment was declined or cancelled. No amount has been charged for a failed attempt.'}
+            ? 'Checking with Cashfree every 3 seconds. If confirmation is not received before the timer hits 00:00, this order will automatically move to Cancelled Payment.'
+            : statusData?.cancellationReason ||
+              statusData?.errorMessage ||
+              'Your payment was declined or cancelled. No amount has been charged for a cancelled or failed attempt.'}
         </p>
       </div>
 
@@ -273,14 +373,23 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
         {/* Action Buttons */}
         <div className="pt-2 flex flex-col sm:flex-row gap-3">
           {isPending && (
-            <button
-              onClick={() => verifyPaymentStatus(true)}
-              disabled={refreshing}
-              className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>{refreshing ? 'Checking Cashfree...' : 'Refresh Payment Status'}</span>
-            </button>
+            <>
+              <button
+                onClick={() => verifyPaymentStatus(true)}
+                disabled={refreshing || cancelling}
+                className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>{refreshing ? 'Checking Cashfree...' : 'Verify Status Now'}</span>
+              </button>
+              <button
+                onClick={() => handleCancelUnconfirmed('Customer cancelled pending payment.')}
+                disabled={cancelling}
+                className="flex-1 border border-red-500/40 bg-red-950/30 hover:bg-red-950/60 text-red-300 font-bold py-3 px-4 rounded text-xs uppercase tracking-widest disabled:opacity-50"
+              >
+                {cancelling ? 'Cancelling...' : 'Cancel Payment'}
+              </button>
+            </>
           )}
 
           {isFailed && (
@@ -294,13 +403,22 @@ export const PaymentStatusPage: React.FC<PaymentStatusPageProps> = ({ orderId: p
           )}
 
           {isSuccess && order && (
-            <button
-              onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
-              className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-            >
-              <Package className="w-4 h-4 text-[#E5A914]" />
-              <span>Live Shipment Tracker</span>
-            </button>
+            <>
+              <button
+                onClick={() => onNavigate('account')}
+                className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+              >
+                <LayoutList className="w-4 h-4 text-[#E5A914]" />
+                <span>My Orders</span>
+              </button>
+              <button
+                onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
+                className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+              >
+                <Package className="w-4 h-4 text-[#E5A914]" />
+                <span>Track Order</span>
+              </button>
+            </>
           )}
 
           <button
