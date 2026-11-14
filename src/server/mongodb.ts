@@ -10,8 +10,11 @@ import type {
   InventoryTransaction,
   AdminActivityLog,
   EmailLog,
-  StoreSettings
+  StoreSettings,
+  PaymentTransaction
 } from '../types/index.ts';
+
+mongoose.set('bufferCommands', false);
 
 // ----------------------------------------------------
 // MONGOOSE SCHEMAS & MODELS
@@ -163,7 +166,13 @@ const OrderSchema = new Schema(
       status: { type: String, default: 'pending' },
       paidAt: { type: String },
       amount: { type: Number },
-      currency: { type: String, default: 'INR' }
+      currency: { type: String, default: 'INR' },
+      cashfreeOrderId: { type: String },
+      cashfreePaymentId: { type: String },
+      paymentSessionId: { type: String },
+      paymentMethodDetail: { type: String },
+      transactionDate: { type: String },
+      gatewayStatus: { type: String }
     },
     status: { type: String, default: 'Order Placed' },
     statusHistory: [OrderStatusHistorySchema],
@@ -340,6 +349,40 @@ const StockNotificationSchema = new Schema(
   { timestamps: true, collection: 'stock_notifications' }
 );
 
+// 13. Payment Transaction Schema
+const PaymentTransactionSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    orderId: { type: String, required: true },
+    orderNumber: { type: String, required: true },
+    cashfreeOrderId: { type: String, required: true, unique: true },
+    cashfreePaymentId: { type: String },
+    paymentSessionId: { type: String },
+    customerId: { type: String, required: true },
+    customerDetails: {
+      name: { type: String, required: true },
+      email: { type: String, required: true },
+      phone: { type: String, required: true }
+    },
+    amount: { type: Number, required: true },
+    currency: { type: String, default: 'INR' },
+    paymentStatus: {
+      type: String,
+      enum: ['PENDING', 'SUCCESS', 'FAILED', 'CANCELLED', 'USER_DROPPED', 'REFUNDED'],
+      default: 'PENDING'
+    },
+    paymentMethod: { type: String, default: 'Cashfree' },
+    paymentMethodDetails: { type: Schema.Types.Mixed },
+    environment: { type: String, enum: ['sandbox', 'production'], default: 'sandbox' },
+    transactionDate: { type: String, default: () => new Date().toISOString() },
+    updatedAt: { type: String },
+    processedWebhooks: [{ type: String }],
+    rawGatewayStatus: { type: String },
+    errorMessage: { type: String }
+  },
+  { timestamps: true, collection: 'payment_transactions' }
+);
+
 // Export Mongoose Models (preventing OverwriteModelError on hot reloads)
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 export const ProductModel = mongoose.models.Product || mongoose.model('Product', ProductSchema);
@@ -353,6 +396,7 @@ export const StoreSettingsModel = mongoose.models.StoreSettings || mongoose.mode
 export const AdminActivityLogModel = mongoose.models.AdminActivityLog || mongoose.model('AdminActivityLog', AdminActivityLogSchema);
 export const EmailLogModel = mongoose.models.EmailLog || mongoose.model('EmailLog', EmailLogSchema);
 export const StockNotificationModel = mongoose.models.StockNotification || mongoose.model('StockNotification', StockNotificationSchema);
+export const PaymentTransactionModel = mongoose.models.PaymentTransaction || mongoose.model('PaymentTransaction', PaymentTransactionSchema);
 
 // ----------------------------------------------------
 // MONGOOSE CONNECTION MANAGER & SYNC ENGINE
@@ -635,6 +679,22 @@ export async function syncLocalToMongo(dbData: any): Promise<{ success: boolean;
       );
     }
 
+    if (Array.isArray(dbData.transactions) && dbData.transactions.length > 0) {
+      counts.transactions = dbData.transactions.length;
+      ops.push(
+        PaymentTransactionModel.bulkWrite(
+          dbData.transactions.map((tx: PaymentTransaction) => ({
+            updateOne: {
+              filter: { id: tx.id },
+              update: { $set: tx },
+              upsert: true
+            }
+          })),
+          { ordered: false }
+        )
+      );
+    }
+
     if (dbData.settings) {
       counts.settings = 1;
       ops.push(StoreSettingsModel.findOneAndUpdate({}, dbData.settings, { upsert: true, returnDocument: 'after' }));
@@ -691,7 +751,7 @@ export async function syncMongoToLocal(): Promise<{
   }
 
   try {
-    const [products, categories, users, orders, coupons, returnRequests, reviews, stockNotifications, settings] = await Promise.all([
+    const [products, categories, users, orders, coupons, returnRequests, reviews, stockNotifications, transactions, settings] = await Promise.all([
       ProductModel.find().lean(),
       CategoryModel.find().lean(),
       UserModel.find().lean(),
@@ -700,6 +760,7 @@ export async function syncMongoToLocal(): Promise<{
       ReturnRequestModel.find().lean(),
       ReviewModel.find().lean(),
       StockNotificationModel.find().lean(),
+      PaymentTransactionModel.find().lean(),
       StoreSettingsModel.findOne().lean()
     ]);
 
@@ -747,6 +808,11 @@ export async function syncMongoToLocal(): Promise<{
       return cleanSn;
     });
 
+    const cleanTransactions = transactions.map((tx: any) => {
+      const { _id, __v, ...cleanTx } = tx;
+      return cleanTx;
+    });
+
     let cleanSettings = settings;
     if (cleanSettings) {
       const { _id, __v, ...cs } = cleanSettings as any;
@@ -761,7 +827,8 @@ export async function syncMongoToLocal(): Promise<{
       coupons: cleanCoupons.length,
       returns: cleanReturns.length,
       reviews: cleanReviews.length,
-      stockNotifications: cleanNotifications.length
+      stockNotifications: cleanNotifications.length,
+      transactions: cleanTransactions.length
     };
 
     return {
@@ -777,6 +844,7 @@ export async function syncMongoToLocal(): Promise<{
         returnRequests: cleanReturns,
         reviews: cleanReviews,
         stockNotifications: cleanNotifications,
+        transactions: cleanTransactions,
         settings: cleanSettings || undefined
       }
     };

@@ -11,10 +11,23 @@ import {
   Smartphone,
   Building2,
   Wallet,
-  X
+  Loader2,
+  Percent,
+  Clock
 } from 'lucide-react';
 import { useCart } from '../context/CartContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
+
+declare global {
+  interface Window {
+    Cashfree?: (config: { mode: 'sandbox' | 'production' }) => {
+      checkout: (options: {
+        paymentSessionId: string;
+        redirectTarget?: '_self' | '_blank' | '_modal';
+      }) => Promise<{ error?: any; redirect?: boolean; paymentDetails?: any }>;
+    };
+  }
+}
 
 interface CheckoutPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -67,30 +80,26 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
 
   // Step 4: Cashfree Gateway + COD
   const [paymentMethod, setPaymentMethod] = useState<'cashfree' | 'cod'>('cashfree');
-  const [cashfreeChannel, setCashfreeChannel] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
-  const [upiId, setUpiId] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-
-  // Cashfree Payment Session Modal
-  const [cashfreeSession, setCashfreeSession] = useState<{
-    cashfreeOrderId: string;
-    paymentSessionId: string;
-    environment: string;
-    appId: string;
-  } | null>(null);
-  const [verifyingCashfree, setVerifyingCashfree] = useState(false);
+  const [cashfreeEnv, setCashfreeEnv] = useState<'sandbox' | 'production'>('sandbox');
+  const [cashfreeConfigured, setCashfreeConfigured] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch('/api/payment/config')
       .then(res => res.json())
       .then(data => {
-        if (data?.settings && data.settings.codEnabled === false) {
-          setCodEnabled(false);
-          setPaymentMethod('cashfree');
-        } else {
-          setCodEnabled(true);
+        if (data) {
+          if (data.environment === 'production' || data.environment === 'sandbox') {
+            setCashfreeEnv(data.environment);
+          }
+          if (typeof data.configured === 'boolean') {
+            setCashfreeConfigured(data.configured);
+          }
+          if (data.codEnabled === false) {
+            setCodEnabled(false);
+            setPaymentMethod('cashfree');
+          } else {
+            setCodEnabled(true);
+          }
         }
       })
       .catch(() => setCodEnabled(true));
@@ -222,64 +231,74 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
         return;
       }
 
-      // Cashfree Payment Gateway: create real payment session
-      const sessionRes = await fetch('/api/payments/cashfree/create-session', {
+      // Official Cashfree Payment Gateway: create order on backend
+      const payload = {
+        customer: contact,
+        shippingAddress: {
+          ...address,
+          fullName: contact.name,
+          phone: contact.phone
+        },
+        items: items.map(i => ({
+          productId: i.productId,
+          variantId: i.variantId,
+          productTitle: i.productTitle,
+          colorName: i.colorName,
+          size: i.size,
+          sku: i.sku,
+          price: i.price,
+          quantity: i.quantity,
+          customPrint: i.customPrint
+        })),
+        couponCode: coupon?.code,
+        deliveryMethod,
+        amount: currentTotal
+      };
+
+      const sessionRes = await fetch('/api/payment/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: currentTotal,
-          customer: contact,
-          returnUrl: `${window.location.origin}/order-success`
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem('4lazy_token')
+            ? { Authorization: `Bearer ${localStorage.getItem('4lazy_token')}` }
+            : {})
+        },
+        body: JSON.stringify(payload)
       });
+
       const sessionData = await sessionRes.json();
-      if (!sessionRes.ok) {
-        throw new Error(sessionData.error || 'Unable to initialize Cashfree payment session.');
+      if (!sessionRes.ok || !sessionData.paymentSessionId) {
+        throw new Error(sessionData.error || 'Unable to create Cashfree payment order.');
       }
 
-      setCashfreeSession({
-        cashfreeOrderId: sessionData.cashfreeOrderId,
-        paymentSessionId: sessionData.paymentSessionId,
-        environment: sessionData.environment || 'sandbox',
-        appId: sessionData.appId || 'TEST1029384756CF'
-      });
+      sessionStorage.setItem('4lazy_pending_cf_order', sessionData.cashfreeOrderId);
+
+      const mode: 'sandbox' | 'production' =
+        sessionData.environment === 'production' ? 'production' : 'sandbox';
+
+      if (typeof window.Cashfree === 'function') {
+        const cashfree = window.Cashfree({ mode });
+        const result = await cashfree.checkout({
+          paymentSessionId: sessionData.paymentSessionId,
+          redirectTarget: '_self'
+        });
+
+        if (result?.error) {
+          throw new Error(result.error?.message || 'Cashfree checkout encountered an error.');
+        }
+        return;
+      }
+
+      // Fallback redirect to Cashfree hosted checkout URL if SDK script is blocked
+      if (sessionData.checkoutUrl) {
+        window.location.href = sessionData.checkoutUrl;
+        return;
+      }
+
+      throw new Error('Cashfree Checkout SDK failed to load. Please refresh and try again.');
     } catch (err: any) {
-      setErrorMsg(err.message || 'An error occurred initializing payment.');
-    } finally {
+      setErrorMsg(err.message || 'An error occurred initializing Cashfree payment.');
       setLoading(false);
-    }
-  };
-
-  const handleConfirmCashfreePayment = async () => {
-    if (!cashfreeSession) return;
-    setVerifyingCashfree(true);
-    setErrorMsg('');
-
-    try {
-      const verifyRes = await fetch('/api/payments/cashfree/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cashfreeOrderId: cashfreeSession.cashfreeOrderId,
-          paymentSessionId: cashfreeSession.paymentSessionId,
-          paymentMethod: cashfreeChannel
-        })
-      });
-      const verifyData = await verifyRes.json();
-      if (!verifyRes.ok || !verifyData.verified) {
-        throw new Error(verifyData.error || 'Cashfree verification failed.');
-      }
-
-      await submitOrderToBackend({
-        cashfreeOrderId: cashfreeSession.cashfreeOrderId,
-        paymentSessionId: cashfreeSession.paymentSessionId,
-        paymentTransactionId: verifyData.transactionId
-      });
-      setCashfreeSession(null);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Cashfree payment could not be completed.');
-    } finally {
-      setVerifyingCashfree(false);
     }
   };
 
@@ -673,36 +692,42 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
 
               {paymentMethod === 'cashfree' && (
                 <div className="p-4 bg-neutral-950 border border-neutral-800 rounded-lg space-y-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#E5A914]">
-                    Select Preferred Cashfree Mode
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#E5A914]">
+                      Supported Payment Methods
+                    </p>
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-neutral-300">
+                      {cashfreeEnv === 'production' ? 'LIVE' : 'SANDBOX'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-neutral-300">
                     {[
-                      { id: 'upi', label: 'UPI / QR', icon: Smartphone },
-                      { id: 'card', label: 'Cards', icon: CreditCard },
-                      { id: 'netbanking', label: 'NetBanking', icon: Building2 },
-                      { id: 'wallet', label: 'Wallets', icon: Wallet }
+                      { label: 'UPI (GPay, PhonePe, Paytm)', icon: Smartphone },
+                      { label: 'Credit & Debit Cards', icon: CreditCard },
+                      { label: 'Net Banking (All Banks)', icon: Building2 },
+                      { label: 'Wallets', icon: Wallet },
+                      { label: 'EMI Options', icon: Percent },
+                      { label: 'Pay Later', icon: Clock }
                     ].map(mode => {
                       const Icon = mode.icon;
                       return (
-                        <button
-                          key={mode.id}
-                          type="button"
-                          onClick={() => setCashfreeChannel(mode.id as any)}
-                          className={`p-2.5 rounded border text-xs flex flex-col items-center gap-1 transition-colors ${
-                            cashfreeChannel === mode.id
-                              ? 'border-[#E5A914] bg-[#E5A914]/10 text-white font-bold'
-                              : 'border-neutral-800 text-neutral-400 hover:text-white'
-                          }`}
+                        <div
+                          key={mode.label}
+                          className="p-2.5 rounded border border-neutral-800 bg-neutral-900/50 flex items-center gap-2"
                         >
-                          <Icon className="w-4 h-4 text-[#E5A914]" />
-                          <span className="text-[11px]">{mode.label}</span>
-                        </button>
+                          <Icon className="w-3.5 h-3.5 text-[#E5A914] shrink-0" />
+                          <span className="truncate">{mode.label}</span>
+                        </div>
                       );
                     })}
                   </div>
+                  {!cashfreeConfigured && (
+                    <p className="text-[11px] text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded px-3 py-2">
+                      Note: Server Cashfree API keys (`CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`) are required in environment variables to open Cashfree Checkout.
+                    </p>
+                  )}
                   <p className="text-[11px] text-neutral-400">
-                    Clicking below initializes a verified Cashfree payment session and completes settlement before order dispatch.
+                    Clicking <strong>Pay Now</strong> redirects you to Cashfree&apos;s official encrypted checkout page to complete payment and verify settlement.
                   </p>
                 </div>
               )}
@@ -716,7 +741,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="text-xs text-neutral-400 hover:text-white py-2"
+                  disabled={loading}
+                  className="text-xs text-neutral-400 hover:text-white py-2 disabled:opacity-50"
                 >
                   Back
                 </button>
@@ -724,16 +750,24 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                   type="button"
                   onClick={handlePlaceOrder}
                   disabled={loading}
-                  className="w-full sm:w-auto bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-7 py-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-xl disabled:opacity-50"
+                  className="w-full sm:w-auto bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-8 py-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-xl disabled:opacity-60"
                 >
-                  <span>
-                    {loading
-                      ? 'Initializing Cashfree...'
-                      : paymentMethod === 'cashfree'
-                      ? `Pay ₹${currentTotal.toLocaleString()} via Cashfree`
-                      : `Confirm COD Order ₹${currentTotal.toLocaleString()}`}
-                  </span>
-                  <CheckCircle2 className="w-4 h-4" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Opening Cashfree Checkout...</span>
+                    </>
+                  ) : paymentMethod === 'cashfree' ? (
+                    <>
+                      <span>Pay Now · ₹{currentTotal.toLocaleString()}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Confirm COD Order · ₹{currentTotal.toLocaleString()}</span>
+                      <CheckCircle2 className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -874,126 +908,6 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
-
-      {/* Cashfree Payment Gateway Sheet */}
-      {cashfreeSession && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full sm:max-w-md bg-neutral-950 border border-neutral-800 rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl">
-            <div className="bg-neutral-900 px-5 py-4 border-b border-neutral-800 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-mono uppercase tracking-widest text-[#E5A914]">
-                  CASHFREE PAYMENTS · {cashfreeSession.environment.toUpperCase()}
-                </p>
-                <h3 className="text-sm font-bold text-white">4LAAZY APPAREL INC.</h3>
-              </div>
-              <button
-                onClick={() => setCashfreeSession(null)}
-                className="p-1.5 text-neutral-400 hover:text-white"
-                aria-label="Cancel Cashfree Payment"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between bg-neutral-900/70 border border-neutral-800 rounded-lg p-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-neutral-400">Order Reference</p>
-                  <p className="text-xs font-mono text-white truncate max-w-[190px]">{cashfreeSession.cashfreeOrderId}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wider text-neutral-400">Amount</p>
-                  <p className="text-base font-mono font-bold text-[#E5A914] tabular-nums">₹{currentTotal.toLocaleString()}</p>
-                </div>
-              </div>
-
-              {cashfreeChannel === 'upi' && (
-                <div className="space-y-2">
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400">
-                    UPI ID / VPA (GPay · PhonePe · Paytm)
-                  </label>
-                  <input
-                    type="text"
-                    value={upiId}
-                    onChange={e => setUpiId(e.target.value)}
-                    placeholder="yourname@okaxis"
-                    className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-xs text-white rounded focus:outline-none focus:border-[#E5A914]"
-                  />
-                </div>
-              )}
-
-              {cashfreeChannel === 'card' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Card Number</label>
-                    <input
-                      type="text"
-                      maxLength={19}
-                      value={cardNumber}
-                      onChange={e => setCardNumber(e.target.value)}
-                      placeholder="4532 •••• •••• 8891"
-                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      maxLength={5}
-                      value={cardExpiry}
-                      onChange={e => setCardExpiry(e.target.value)}
-                      placeholder="MM / YY"
-                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                    />
-                    <input
-                      type="password"
-                      maxLength={4}
-                      value={cardCvv}
-                      onChange={e => setCardCvv(e.target.value)}
-                      placeholder="CVV"
-                      className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white font-mono rounded"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {cashfreeChannel === 'netbanking' && (
-                <div className="space-y-2">
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400">Select Bank</label>
-                  <select className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-xs text-white rounded">
-                    <option>HDFC Bank</option>
-                    <option>ICICI Bank</option>
-                    <option>State Bank of India</option>
-                    <option>Axis Bank</option>
-                    <option>Kotak Mahindra Bank</option>
-                  </select>
-                </div>
-              )}
-
-              {cashfreeChannel === 'wallet' && (
-                <div className="space-y-2">
-                  <label className="block text-[11px] uppercase tracking-wider text-neutral-400">Select Wallet</label>
-                  <select className="w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-xs text-white rounded">
-                    <option>Amazon Pay</option>
-                    <option>Paytm Wallet</option>
-                    <option>PhonePe Wallet</option>
-                    <option>MobiKwik</option>
-                  </select>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={handleConfirmCashfreePayment}
-                disabled={verifyingCashfree}
-                className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3.5 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>{verifyingCashfree ? 'Verifying with Cashfree...' : `Authorize ₹${currentTotal.toLocaleString()}`}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

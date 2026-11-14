@@ -11,6 +11,7 @@ import { ShopPage } from './pages/ShopPage.tsx';
 import { ProductDetailPage } from './pages/ProductDetailPage.tsx';
 import { CheckoutPage } from './pages/CheckoutPage.tsx';
 import { OrderSuccessPage } from './pages/OrderSuccessPage.tsx';
+import { PaymentStatusPage } from './pages/PaymentStatusPage.tsx';
 import { TrackOrderPage } from './pages/TrackOrderPage.tsx';
 import { AccountPage } from './pages/AccountPage.tsx';
 import { AuthPages } from './pages/AuthPages.tsx';
@@ -89,6 +90,15 @@ function parseRouteFromPath(pathname: string): { page: string; params: Record<st
         search: searchParams.get('search') || ''
       }
     };
+  }
+
+  if (segments[0] === 'payment-status' || segments[0] === 'order-success') {
+    const searchParams = new URLSearchParams(window.location.search);
+    const cfOrderId = searchParams.get('order_id') || searchParams.get('orderId') || '';
+    if (segments[0] === 'payment-status' || cfOrderId) {
+      return { page: 'payment-status', params: { orderId: cfOrderId } };
+    }
+    return { page: 'order-success', params: {} };
   }
 
   if (
@@ -185,6 +195,8 @@ export default function App() {
         );
       case 'checkout':
         return <CheckoutPage onNavigate={handleNavigate} />;
+      case 'payment-status':
+        return <PaymentStatusPage orderId={pageParams.orderId} onNavigate={handleNavigate} />;
       case 'order-success':
         return <OrderSuccessPage order={pageParams.order} onNavigate={handleNavigate} />;
       case 'track-order':

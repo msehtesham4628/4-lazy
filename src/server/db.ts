@@ -19,7 +19,8 @@ import type {
   EmailLog,
   StoreSettings,
   HeroSlide,
-  StockNotificationRequest
+  StockNotificationRequest,
+  PaymentTransaction
 } from '../types/index.ts';
 
 export interface DatabaseSchema {
@@ -29,6 +30,8 @@ export interface DatabaseSchema {
   products: Product[];
   categories: Category[];
   orders: Order[];
+  transactions: PaymentTransaction[];
+  processedWebhookKeys: string[];
   returnRequests: ReturnRequest[];
   coupons: Coupon[];
   reviews: Review[];
@@ -389,6 +392,24 @@ export function getInitialSeedData(): DatabaseSchema {
     products,
     categories,
     orders,
+    transactions: orders.map(o => ({
+      id: `tx_${o.id}`,
+      orderId: o.id,
+      orderNumber: o.orderNumber,
+      cashfreeOrderId: o.payment.cashfreeOrderId || o.orderNumber,
+      cashfreePaymentId: o.payment.transactionId,
+      customerId: o.userId || `cust_${o.customer.phone.replace(/\D/g, '').slice(-10) || 'guest'}`,
+      customerDetails: o.customer,
+      amount: o.total,
+      currency: o.payment.currency || 'INR',
+      paymentStatus: o.payment.status === 'completed' ? 'SUCCESS' : o.payment.status === 'failed' ? 'FAILED' : 'PENDING',
+      paymentMethod: o.payment.provider === 'upi' ? 'UPI' : o.payment.provider === 'cod' ? 'COD' : 'Cashfree',
+      environment: 'sandbox',
+      transactionDate: o.payment.paidAt || o.createdAt,
+      processedWebhooks: [],
+      rawGatewayStatus: o.payment.status === 'completed' ? 'PAID' : 'ACTIVE'
+    })),
+    processedWebhookKeys: [],
     returnRequests: [
       {
         id: 'ret_1001',
@@ -530,6 +551,8 @@ function ensureSchemaDefaults(target: DatabaseSchema): boolean {
   }
 
   target.returnRequests = target.returnRequests || [];
+  target.transactions = target.transactions || [];
+  target.processedWebhookKeys = target.processedWebhookKeys || [];
   target.carts = target.carts || {};
   target.wishlists = target.wishlists || {};
   target.stockNotifications = target.stockNotifications || [];
@@ -582,6 +605,9 @@ export function hydrateDbFromMongo(mongoData: Partial<DatabaseSchema>) {
   }
   if (Array.isArray(mongoData.stockNotifications)) {
     db.stockNotifications = mongoData.stockNotifications;
+  }
+  if (Array.isArray(mongoData.transactions)) {
+    db.transactions = mongoData.transactions;
   }
   if (mongoData.settings) {
     db.settings = { ...db.settings, ...mongoData.settings };

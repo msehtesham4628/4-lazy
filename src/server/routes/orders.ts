@@ -378,6 +378,23 @@ ordersRouter.post('/orders', optionalAuthenticate, (req: AuthenticatedRequest, r
   };
 
   db.orders.unshift(newOrder);
+  db.transactions.unshift({
+    id: `tx_${Date.now()}`,
+    orderId: newOrder.id,
+    orderNumber: newOrder.orderNumber,
+    cashfreeOrderId: newOrder.payment.cashfreeOrderId || newOrder.orderNumber,
+    cashfreePaymentId: newOrder.payment.transactionId,
+    customerId: req.user?.id || `cust_${newOrder.customer.phone.replace(/\D/g, '').slice(-10) || 'guest'}`,
+    customerDetails: newOrder.customer,
+    amount: newOrder.total,
+    currency: newOrder.payment.currency,
+    paymentStatus: paymentMethod === 'cod' ? 'PENDING' : 'SUCCESS',
+    paymentMethod: paymentMethod === 'cod' ? 'COD' : 'Cashfree',
+    environment: 'sandbox',
+    transactionDate: newOrder.createdAt,
+    processedWebhooks: [],
+    rawGatewayStatus: paymentMethod === 'cod' ? 'COD_PENDING' : 'PAID'
+  });
 
   // If user is authenticated and doesn't have this address, auto-save to their book
   if (req.user) {

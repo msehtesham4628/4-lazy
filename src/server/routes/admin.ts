@@ -2,6 +2,7 @@ import { Router, type Response } from 'express';
 import { getDB, saveDB, setDB, trackMongoOp, persistProduct } from '../db.ts';
 import { requireAdmin, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendShippingUpdateEmail } from '../emailService.ts';
+import { verifyAndSyncCashfreeOrder } from './payment.ts';
 import type { OrderStatus, InventoryTransaction } from '../../types/index.ts';
 import {
   getMongoStats,
@@ -868,5 +869,96 @@ adminRouter.delete('/stock-notifications/:id', (req: AuthenticatedRequest, res: 
   db.stockNotifications.splice(idx, 1);
   saveDB();
   return res.json({ success: true, message: 'Notification request removed.' });
+});
+
+// ----------------------------------------------------
+// PAYMENT MANAGEMENT (CASHFREE TRANSACTIONS)
+// ----------------------------------------------------
+
+// GET /api/admin/payments
+adminRouter.get('/payments', (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const { status, method, search } = req.query;
+
+  const allTransactions = [...(db.transactions || [])].sort(
+    (a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+  );
+
+  const summary = {
+    totalCount: allTransactions.length,
+    successCount: allTransactions.filter(t => t.paymentStatus === 'SUCCESS').length,
+    pendingCount: allTransactions.filter(t => t.paymentStatus === 'PENDING').length,
+    failedCount: allTransactions.filter(
+      t => t.paymentStatus === 'FAILED' || t.paymentStatus === 'CANCELLED' || t.paymentStatus === 'USER_DROPPED'
+    ).length,
+    totalSuccessVolume: allTransactions
+      .filter(t => t.paymentStatus === 'SUCCESS')
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
+    pendingVolume: allTransactions
+      .filter(t => t.paymentStatus === 'PENDING')
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  };
+
+  let filtered = allTransactions;
+
+  if (status && typeof status === 'string' && status !== 'all') {
+    const s = status.toUpperCase();
+    if (s === 'FAILED') {
+      filtered = filtered.filter(
+        t => t.paymentStatus === 'FAILED' || t.paymentStatus === 'CANCELLED' || t.paymentStatus === 'USER_DROPPED'
+      );
+    } else {
+      filtered = filtered.filter(t => t.paymentStatus === s);
+    }
+  }
+
+  if (method && typeof method === 'string' && method !== 'all') {
+    const m = method.toLowerCase();
+    filtered = filtered.filter(t => t.paymentMethod.toLowerCase().includes(m));
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    const q = search.trim().toLowerCase();
+    filtered = filtered.filter(
+      t =>
+        t.orderNumber.toLowerCase().includes(q) ||
+        t.orderId.toLowerCase().includes(q) ||
+        t.cashfreeOrderId.toLowerCase().includes(q) ||
+        (t.cashfreePaymentId || '').toLowerCase().includes(q) ||
+        t.customerDetails.name.toLowerCase().includes(q) ||
+        t.customerDetails.email.toLowerCase().includes(q)
+    );
+  }
+
+  return res.json({
+    transactions: filtered,
+    summary
+  });
+});
+
+// POST /api/admin/payments/:orderId/sync
+adminRouter.post('/payments/:orderId/sync', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const orderIdParam = String(req.params.orderId || '');
+    const result = await verifyAndSyncCashfreeOrder(orderIdParam);
+    if (!result.found) {
+      return res.status(404).json({ error: result.error || 'Transaction not found.' });
+    }
+    if (result.statusCode && result.statusCode >= 400 && result.error) {
+      return res.status(result.statusCode).json({
+        error: result.error,
+        transaction: result.transaction,
+        order: result.order
+      });
+    }
+    return res.json({
+      success: true,
+      transaction: result.transaction,
+      order: result.order,
+      message: `Synchronized Cashfree status: ${result.transaction?.paymentStatus}`
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Failed to sync payment status.' });
+  }
 });
 

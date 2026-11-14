@@ -64,6 +64,7 @@ export const VALID_DASHBOARD_TABS = [
   'inventory',
   'notify-requests',
   'orders',
+  'payments',
   'returns',
   'customers',
   'tally',

@@ -4,13 +4,21 @@ import { productsRouter } from './routes/products.ts';
 import { ordersRouter } from './routes/orders.ts';
 import { adminRouter } from './routes/admin.ts';
 import { paymentsRouter } from './routes/payments.ts';
+import { paymentRouter } from './routes/payment.ts';
 import { getDB, getPendingMongoSync, hydrateDbFromMongo } from './db.ts';
 import { getMongoStats, initMongoDB } from './mongodb.ts';
 
 export const app = express();
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '50mb',
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf.toString('utf8');
+    }
+  })
+);
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // CORS headers for API calls across deployments
 app.use((req, res, next) => {
@@ -80,6 +88,24 @@ app.use('/api', productsRouter);
 app.use('/api', ordersRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/payment', paymentRouter);
+
+// Graceful JSON error middleware for large payloads and offline DB
+app.use((err: any, req: any, res: any, next: any) => {
+  if (err?.type === 'entity.too.large' || err?.status === 413) {
+    return res.status(413).json({
+      error: 'Uploaded photo payload is too large. Please upload smaller images or let auto-compression optimize them.'
+    });
+  }
+  if (err?.name === 'MongooseError' || err?.name === 'MongoNetworkError' || err?.message?.includes('buffering timed out')) {
+    console.warn('[AI Studio] Database offline — returning fallback response');
+    if (req.method === 'GET') {
+      return res.json(req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {});
+    }
+    return res.status(503).json({ error: 'Database temporarily unavailable' });
+  }
+  next(err);
+});
 
 // Dynamic sitemap and robots.txt
 app.get('/robots.txt', (req, res) => {

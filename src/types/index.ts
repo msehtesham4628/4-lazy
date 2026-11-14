@@ -158,8 +158,8 @@ export type OrderStatus =
   | 'Cancelled'
   | 'Returned';
 
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
-export type PaymentMethod = 'cashfree' | 'razorpay' | 'stripe' | 'upi' | 'card' | 'cod';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
+export type PaymentMethod = 'cashfree' | 'razorpay' | 'stripe' | 'upi' | 'card' | 'netbanking' | 'wallet' | 'emi' | 'paylater' | 'cod';
 
 export interface PaymentInfo {
   provider: PaymentMethod;
@@ -169,7 +169,45 @@ export interface PaymentInfo {
   amount: number;
   currency: string;
   cashfreeOrderId?: string;
+  cashfreePaymentId?: string;
   paymentSessionId?: string;
+  paymentMethodDetail?: string;
+  transactionDate?: string;
+  gatewayStatus?: string;
+}
+
+export type PaymentTransactionStatus =
+  | 'PENDING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'USER_DROPPED'
+  | 'REFUNDED';
+
+export interface PaymentTransaction {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  cashfreeOrderId: string;
+  cashfreePaymentId?: string;
+  paymentSessionId?: string;
+  customerId: string;
+  customerDetails: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  amount: number;
+  currency: string;
+  paymentStatus: PaymentTransactionStatus;
+  paymentMethod: string;
+  paymentMethodDetails?: Record<string, any>;
+  environment: 'sandbox' | 'production';
+  transactionDate: string;
+  updatedAt?: string;
+  processedWebhooks?: string[];
+  rawGatewayStatus?: string;
+  errorMessage?: string;
 }
 
 export interface TrackingInfo {

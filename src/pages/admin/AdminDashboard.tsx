@@ -37,7 +37,9 @@ import {
   Bell,
   ArrowUp,
   ArrowDown,
-  Link2
+  Link2,
+  CreditCard,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { compressUploadImage } from '../../utils/imageUtils.ts';
@@ -53,7 +55,8 @@ import {
   ReturnRequest,
   ProductVariant,
   ProductColorGroup,
-  StockNotificationRequest
+  StockNotificationRequest,
+  PaymentTransaction
 } from '../../types/index.ts';
 
 interface AdminDashboardProps {
@@ -68,6 +71,7 @@ type AdminTab =
   | 'inventory'
   | 'notify-requests'
   | 'orders'
+  | 'payments'
   | 'returns'
   | 'customers'
   | 'tally'
@@ -156,6 +160,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     statusNotes: ''
   });
   const [viewInvoiceOrder, setViewInvoiceOrder] = useState<Order | null>(null);
+
+  // Payments Management (Cashfree Transactions)
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+  const [paymentSummary, setPaymentSummary] = useState<{
+    totalCount: number;
+    successCount: number;
+    pendingCount: number;
+    failedCount: number;
+    totalSuccessVolume: number;
+    pendingVolume: number;
+  } | null>(null);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'SUCCESS' | 'PENDING' | 'FAILED'>('all');
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [selectedTransaction, setSelectedTransaction] = useState<PaymentTransaction | null>(null);
+  const [syncingPaymentId, setSyncingPaymentId] = useState<string | null>(null);
 
   // Returns
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
@@ -542,6 +561,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     }
   };
 
+  const fetchPayments = async () => {
+    try {
+      const res = await fetch('/api/admin/payments', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setTransactions(d.transactions || []);
+        setPaymentSummary(d.summary || null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSyncPaymentStatus = async (cashfreeOrderId: string) => {
+    setSyncingPaymentId(cashfreeOrderId);
+    try {
+      const res = await fetch(`/api/admin/payments/${encodeURIComponent(cashfreeOrderId)}/sync`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await res.json();
+      if (res.ok) {
+        showNotice('success', d.message || 'Payment status synchronized with Cashfree.');
+        await Promise.all([fetchPayments(), fetchOrdersList(), fetchOverview()]);
+        if (d.transaction && selectedTransaction?.cashfreeOrderId === cashfreeOrderId) {
+          setSelectedTransaction(d.transaction);
+        }
+      } else {
+        showNotice('error', d.error || 'Failed to sync payment status.');
+      }
+    } catch (e: any) {
+      showNotice('error', e?.message || 'Network error syncing payment.');
+    } finally {
+      setSyncingPaymentId(null);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin && token) {
       setLoading(true);
@@ -550,6 +608,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         fetchProductsList(),
         fetchCategories(),
         fetchOrdersList(),
+        fetchPayments(),
         fetchReturnsList(),
         fetchInventory(),
         fetchCustomers(),
@@ -673,13 +732,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     const slideIdx = activeUploadSlideRef.current;
     setUploadingSlideIndex(slideIdx);
     try {
-      const compressedDataUrl = await compressUploadImage(file, 800, 0.78);
+      const compressedDataUrl = await compressUploadImage(file, 900, 0.78, 120 * 1024);
+      const approxKb = Math.max(1, Math.round((compressedDataUrl.length * 3) / 4 / 1024));
       setProductForm(prev => {
         const next: [string, string, string, string] = [...prev.imageUrls] as [string, string, string, string];
         next[slideIdx] = compressedDataUrl;
         return { ...prev, imageUrls: next };
       });
-      showNotice('success', `Photo Slide ${slideIdx + 1} uploaded and optimized.`);
+      showNotice('success', `Photo Slide ${slideIdx + 1} optimized (${approxKb} KB) and ready.`);
     } catch (err: any) {
       showNotice('error', 'Failed to process image: ' + (err?.message || 'Unknown error'));
     } finally {
@@ -718,7 +778,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
           size,
           sku: existingVar?.sku || `4L-${codePrefix}-${size}-${ts % 1000}`,
           stock,
-          images: finalImages
+          // Images are stored on colorGroups[0].images so large base64 strings are not duplicated 5x across every size variant
+          images: []
         };
       });
 
@@ -1451,6 +1512,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
     { id: 'inventory', label: 'Inventory', icon: Boxes, badge: lowStockItems.length > 0 ? `${lowStockItems.length} Low` : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
     { id: 'notify-requests', label: 'Notify Me', icon: Bell, badge: pendingNotifyCount > 0 ? pendingNotifyCount : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
     { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: orders.length },
+    { id: 'payments', label: 'Payments', icon: CreditCard, badge: paymentSummary?.pendingCount ? `${paymentSummary.pendingCount} Pending` : transactions.length, badgeColor: paymentSummary?.pendingCount ? 'bg-amber-500/20 text-[#E5A914]' : undefined },
     { id: 'returns', label: 'Returns', icon: RotateCcw, badge: returns.length > 0 ? returns.length : undefined, badgeColor: 'bg-amber-500/20 text-[#E5A914]' },
     { id: 'customers', label: 'Customers', icon: Users, badge: customers.length > 0 ? customers.length : undefined },
     { id: 'tally', label: 'Tally & GST', icon: FileSpreadsheet },
@@ -2538,6 +2600,233 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                     ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* PAYMENTS MANAGEMENT TAB (CASHFREE TRANSACTIONS) */}
+        {activeTab === 'payments' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-neutral-800">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">
+                  Payment Management
+                </h1>
+                <p className="text-xs text-neutral-400">
+                  Track Cashfree transactions, verify pending payments, inspect payment methods, and audit failed attempts.
+                </p>
+              </div>
+              <button
+                onClick={fetchPayments}
+                className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-lg flex items-center gap-2 self-start sm:self-auto"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-[#E5A914]" />
+                <span>Refresh Ledger</span>
+              </button>
+            </div>
+
+            {/* Payment KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Total Transactions
+                </span>
+                <p className="font-mono text-2xl font-black text-white tabular-nums">
+                  {paymentSummary?.totalCount ?? transactions.length}
+                </p>
+                <p className="text-[11px] text-neutral-400">All recorded attempts</p>
+              </div>
+
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Successful Payments
+                </span>
+                <p className="font-mono text-2xl font-black text-emerald-400 tabular-nums">
+                  ₹{(paymentSummary?.totalSuccessVolume ?? 0).toLocaleString()}
+                </p>
+                <p className="text-[11px] text-emerald-400/80">
+                  {paymentSummary?.successCount ?? 0} verified settlements
+                </p>
+              </div>
+
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Pending Payments
+                </span>
+                <p className="font-mono text-2xl font-black text-[#E5A914] tabular-nums">
+                  {paymentSummary?.pendingCount ?? 0}
+                </p>
+                <p className="text-[11px] text-amber-400/80">
+                  ₹{(paymentSummary?.pendingVolume ?? 0).toLocaleString()} awaiting confirmation
+                </p>
+              </div>
+
+              <div className="p-4 bg-neutral-900/60 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Failed / Cancelled
+                </span>
+                <p className="font-mono text-2xl font-black text-red-400 tabular-nums">
+                  {paymentSummary?.failedCount ?? 0}
+                </p>
+                <p className="text-[11px] text-neutral-400">Declined or dropped</p>
+              </div>
+            </div>
+
+            {/* Filters & Search */}
+            <div className="flex flex-col md:flex-row gap-3 justify-between">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: 'All Transactions' },
+                  { id: 'SUCCESS', label: 'Successful' },
+                  { id: 'PENDING', label: 'Pending' },
+                  { id: 'FAILED', label: 'Failed / Cancelled' }
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setPaymentStatusFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${
+                      paymentStatusFilter === f.id
+                        ? 'bg-[#E5A914] text-black'
+                        : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full md:w-80">
+                <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={paymentSearch}
+                  onChange={e => setPaymentSearch(e.target.value)}
+                  placeholder="Search Order ID, Cashfree ID, or customer..."
+                  className="w-full bg-neutral-900 border border-neutral-800 pl-9 pr-3 py-2 text-xs text-white rounded-lg focus:outline-none focus:border-[#E5A914]"
+                />
+              </div>
+            </div>
+
+            {/* Transactions Table */}
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse min-w-[820px]">
+                <thead>
+                  <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider">
+                    <th className="p-3.5">Order ID / Date</th>
+                    <th className="p-3.5">Cashfree IDs</th>
+                    <th className="p-3.5">Customer</th>
+                    <th className="p-3.5">Method</th>
+                    <th className="p-3.5">Amount</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800">
+                  {transactions
+                    .filter(tx => {
+                      if (paymentStatusFilter === 'FAILED') {
+                        return (
+                          tx.paymentStatus === 'FAILED' ||
+                          tx.paymentStatus === 'CANCELLED' ||
+                          tx.paymentStatus === 'USER_DROPPED'
+                        );
+                      }
+                      if (paymentStatusFilter !== 'all') {
+                        return tx.paymentStatus === paymentStatusFilter;
+                      }
+                      return true;
+                    })
+                    .filter(tx => {
+                      if (!paymentSearch.trim()) return true;
+                      const q = paymentSearch.trim().toLowerCase();
+                      return (
+                        tx.orderNumber.toLowerCase().includes(q) ||
+                        tx.orderId.toLowerCase().includes(q) ||
+                        tx.cashfreeOrderId.toLowerCase().includes(q) ||
+                        (tx.cashfreePaymentId || '').toLowerCase().includes(q) ||
+                        tx.customerDetails.name.toLowerCase().includes(q) ||
+                        tx.customerDetails.email.toLowerCase().includes(q)
+                      );
+                    })
+                    .map(tx => {
+                      const isSuccess = tx.paymentStatus === 'SUCCESS';
+                      const isPending = tx.paymentStatus === 'PENDING';
+                      return (
+                        <tr key={tx.id} className="hover:bg-neutral-800/20">
+                          <td className="p-3.5 align-top">
+                            <span className="font-mono font-bold text-[#E5A914] block">{tx.orderNumber}</span>
+                            <span className="text-[10px] text-neutral-500">
+                              {new Date(tx.transactionDate).toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="p-3.5 align-top font-mono text-[11px]">
+                            <span className="text-neutral-200 block">{tx.cashfreeOrderId}</span>
+                            <span className="text-neutral-500 block">
+                              Pay ID: {tx.cashfreePaymentId || '—'}
+                            </span>
+                          </td>
+                          <td className="p-3.5 align-top">
+                            <p className="font-bold text-white">{tx.customerDetails.name}</p>
+                            <p className="text-[11px] text-neutral-400">{tx.customerDetails.email}</p>
+                            <p className="text-[10px] text-neutral-500">{tx.customerDetails.phone}</p>
+                          </td>
+                          <td className="p-3.5 align-top">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-[11px] font-semibold text-neutral-200">
+                              {tx.paymentMethod}
+                            </span>
+                            <span className="block text-[10px] text-neutral-500 mt-1 uppercase font-mono">
+                              {tx.environment}
+                            </span>
+                          </td>
+                          <td className="p-3.5 align-top font-mono font-bold text-white tabular-nums">
+                            {tx.currency} ₹{Number(tx.amount).toLocaleString()}
+                          </td>
+                          <td className="p-3.5 align-top">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                isSuccess
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : isPending
+                                  ? 'bg-amber-500/20 text-amber-400'
+                                  : 'bg-red-500/20 text-red-400'
+                              }`}
+                            >
+                              {tx.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="p-3.5 align-top text-right space-x-2 whitespace-nowrap">
+                            {isPending && tx.paymentMethod !== 'COD' && (
+                              <button
+                                onClick={() => handleSyncPaymentStatus(tx.cashfreeOrderId)}
+                                disabled={syncingPaymentId === tx.cashfreeOrderId}
+                                className="inline-flex items-center gap-1 bg-[#E5A914]/15 hover:bg-[#E5A914]/25 border border-[#E5A914]/40 text-[#E5A914] px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider disabled:opacity-50"
+                              >
+                                <RefreshCw
+                                  className={`w-3 h-3 ${
+                                    syncingPaymentId === tx.cashfreeOrderId ? 'animate-spin' : ''
+                                  }`}
+                                />
+                                <span>Sync</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setSelectedTransaction(tx)}
+                              className="inline-flex items-center gap-1 bg-neutral-800 hover:bg-neutral-700 text-white px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Details</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+              {transactions.length === 0 && (
+                <div className="p-10 text-center text-xs text-neutral-500">
+                  No payment transactions recorded yet.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -4645,6 +4934,108 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
             <div className="flex-1 overflow-y-auto bg-neutral-950 p-4 rounded border border-neutral-800">
               <div dangerouslySetInnerHTML={{ __html: selectedEmailPreview.previewHtml }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAYMENT TRANSACTION DETAILS MODAL */}
+      {selectedTransaction && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-lg w-full p-6 text-neutral-100 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-800">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#E5A914]">
+                  CASHFREE TRANSACTION RECORD
+                </span>
+                <h3 className="font-display text-base font-bold text-white uppercase">
+                  {selectedTransaction.orderNumber}
+                </h3>
+              </div>
+              <button onClick={() => setSelectedTransaction(null)} className="text-neutral-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs bg-neutral-950 p-4 rounded-lg border border-neutral-800">
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Order ID</span>
+                <span className="font-mono text-white break-all">{selectedTransaction.orderId}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Cashfree Order ID</span>
+                <span className="font-mono text-[#E5A914] break-all">{selectedTransaction.cashfreeOrderId}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Cashfree Payment ID</span>
+                <span className="font-mono text-white break-all">
+                  {selectedTransaction.cashfreePaymentId || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Amount</span>
+                <span className="font-mono font-bold text-white">
+                  {selectedTransaction.currency} ₹{Number(selectedTransaction.amount).toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Payment Status</span>
+                <span className="font-mono font-bold text-white">{selectedTransaction.paymentStatus}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Payment Method</span>
+                <span className="text-white font-semibold">{selectedTransaction.paymentMethod}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Environment</span>
+                <span className="uppercase font-mono text-neutral-300">{selectedTransaction.environment}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-neutral-500 uppercase block">Transaction Date</span>
+                <span className="text-neutral-300">
+                  {new Date(selectedTransaction.transactionDate).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800 space-y-1 text-xs">
+              <span className="text-[10px] text-neutral-500 uppercase block">Customer Details</span>
+              <p className="font-bold text-white">{selectedTransaction.customerDetails.name}</p>
+              <p className="text-neutral-400">
+                {selectedTransaction.customerDetails.email} · {selectedTransaction.customerDetails.phone}
+              </p>
+              <p className="text-[10px] text-neutral-500 font-mono">
+                Customer ID: {selectedTransaction.customerId}
+              </p>
+            </div>
+
+            {selectedTransaction.errorMessage && (
+              <div className="p-3 bg-red-950/50 border border-red-500/40 rounded text-xs text-red-300">
+                {selectedTransaction.errorMessage}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              {selectedTransaction.paymentMethod !== 'COD' && (
+                <button
+                  onClick={() => handleSyncPaymentStatus(selectedTransaction.cashfreeOrderId)}
+                  disabled={syncingPaymentId === selectedTransaction.cashfreeOrderId}
+                  className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${
+                      syncingPaymentId === selectedTransaction.cashfreeOrderId ? 'animate-spin' : ''
+                    }`}
+                  />
+                  <span>Verify with Cashfree</span>
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedTransaction(null)}
+                className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
