@@ -4,7 +4,7 @@ import { authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
 import { sendOrderConfirmationEmail, sendOrderInvoiceEmail } from '../emailService.ts';
 import { reconcilePendingPayments } from './payment.ts';
 import { buildInvoiceData, renderInvoiceHtml } from '../../utils/invoice.ts';
-import type { Order, OrderItem, InventoryTransaction } from '../../types/index.ts';
+import type { Order, OrderItem, InventoryTransaction, ReturnRequest } from '../../types/index.ts';
 
 export const ordersRouter = Router();
 
@@ -504,10 +504,110 @@ ordersRouter.post('/orders/:id/resend-invoice', authenticate, async (req: Authen
     deliveryMode: result.deliveryMode,
     recipient: order.customer.email,
     message:
-      result.deliveryMode === 'smtp'
-        ? `GST Tax Invoice ${result.invoiceNumber} emailed to ${order.customer.email}.`
+      result.deliveryMode === 'resend' || result.deliveryMode === 'smtp'
+        ? `GST Tax Invoice ${result.invoiceNumber} emailed to ${order.customer.email}${result.deliveryMode === 'resend' ? ' via Resend' : ''}.`
         : `GST Tax Invoice ${result.invoiceNumber} queued and archived for ${order.customer.email}.`,
     emailLog: result.emailLog
+  });
+});
+
+// Customer: Get personal return / exchange requests
+ordersRouter.get('/returns/my', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const userEmail = (req.user!.email || '').toLowerCase();
+  const userPhoneLast10 = (req.user!.phone || '').replace(/\D/g, '').slice(-10);
+
+  const ownedOrderIds = new Set(
+    db.orders
+      .filter(o => {
+        const orderPhoneLast10 = (o.customer?.phone || '').replace(/\D/g, '').slice(-10);
+        return (
+          o.userId === req.user!.id ||
+          o.customer.email.toLowerCase() === userEmail ||
+          (userPhoneLast10.length >= 10 && orderPhoneLast10 === userPhoneLast10)
+        );
+      })
+      .map(o => o.id)
+  );
+
+  const returns = (db.returnRequests || [])
+    .filter(r => {
+      const retPhoneLast10 = (r.customerPhone || '').replace(/\D/g, '').slice(-10);
+      return (
+        ownedOrderIds.has(r.orderId) ||
+        r.customerEmail.toLowerCase() === userEmail ||
+        (userPhoneLast10.length >= 10 && retPhoneLast10 === userPhoneLast10)
+      );
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return res.json({ returnRequests: returns });
+});
+
+// Customer: Submit a new Return / Exchange request
+ordersRouter.post('/returns', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const { orderId, reason, details, itemSkus } = req.body || {};
+  if (!orderId || !reason) {
+    return res.status(400).json({ error: 'Order and return reason are required.' });
+  }
+
+  const db = getDB();
+  const order = db.orders.find(o => o.id === orderId || o.orderNumber === orderId);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found.' });
+  }
+  if (!canAccessOrderInvoice(req, order)) {
+    return res.status(403).json({ error: 'You are not authorized to request a return for this order.' });
+  }
+  if (order.status === 'Cancelled') {
+    return res.status(400).json({ error: 'Cancelled orders are not eligible for returns.' });
+  }
+
+  const selectedSkus = Array.isArray(itemSkus) && itemSkus.length > 0 ? new Set(itemSkus.map(String)) : null;
+  const matchedItems = selectedSkus
+    ? order.items.filter(item => selectedSkus.has(item.sku) || selectedSkus.has(item.variantId))
+    : order.items;
+
+  if (matchedItems.length === 0) {
+    return res.status(400).json({ error: 'Please select at least one item from the order to return.' });
+  }
+
+  const refundAmount = matchedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const now = new Date().toISOString();
+
+  const newReturn: ReturnRequest = {
+    id: `ret_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    customerName: order.customer.name || req.user!.name,
+    customerEmail: order.customer.email || req.user!.email,
+    customerPhone: order.customer.phone || req.user!.phone || '',
+    reason: String(reason).trim(),
+    details: String(details || '').trim(),
+    items: matchedItems.map(item => ({
+      productId: item.productId,
+      productTitle: item.productTitle,
+      variantSku: item.sku,
+      size: item.size,
+      colorName: item.colorName,
+      quantity: item.quantity,
+      price: item.price
+    })),
+    refundAmount,
+    status: 'Requested',
+    notes: 'Submitted via Customer Dashboard.',
+    createdAt: now,
+    updatedAt: now
+  };
+
+  db.returnRequests = db.returnRequests || [];
+  db.returnRequests.unshift(newReturn);
+  saveDB();
+
+  return res.status(201).json({
+    success: true,
+    returnRequest: newReturn,
+    message: `Return request ${newReturn.id} submitted for Order ${order.orderNumber}.`
   });
 });
 

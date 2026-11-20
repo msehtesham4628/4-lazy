@@ -16,6 +16,9 @@ export interface UserAddress {
 export interface User {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  gender?: 'Male' | 'Female' | 'Non-Binary' | 'Prefer not to say';
   email: string;
   phone: string;
   role: Role;

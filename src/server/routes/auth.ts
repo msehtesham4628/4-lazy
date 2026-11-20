@@ -5,8 +5,15 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDB, saveDB } from '../db.ts';
 import { generateToken, authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
-import { sendWelcomeEmail, sendOtpEmail } from '../emailService.ts';
+import { sendWelcomeEmail, sendOtpEmail, sendOtpEmailAsync } from '../emailService.ts';
 import { normalizeIndianMobile } from '../../utils/phone.ts';
+import {
+  parseLoginIdentifier,
+  validateRegistrationStep1,
+  validateRegistrationStep2,
+  GENDER_OPTIONS,
+  type GenderOption
+} from '../../utils/authValidation.ts';
 import type { User, UserAddress } from '../../types/index.ts';
 
 export const authRouter = Router();
@@ -209,83 +216,267 @@ authRouter.post('/firebase-exchange', async (req, res) => {
   }
 });
 
-// Customer Registration
-authRouter.post('/register', async (req, res) => {
-  const { name, email, phone, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required.' });
+// Send Registration Email OTP via Resend
+authRouter.post('/send-registration-email-otp', async (req, res) => {
+  const { email, firstName, phone } = req.body || {};
+  const normalizedEmail = String(email || '').toLowerCase().trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
   }
 
   const db = getDB();
-  const normalizedEmail = email.toLowerCase().trim();
-  const existing = db.users.find(u => u.email === normalizedEmail);
-  if (existing) {
+  if (db.users.some(u => u.email.toLowerCase() === normalizedEmail)) {
+    return res.status(400).json({ error: 'An account with this email address already exists.' });
+  }
+
+  if (phone) {
+    const normPhone = normalizeIndianMobile(phone);
+    if (normPhone.valid) {
+      const existingPhone = db.users.find(
+        u => (u.phone || '').replace(/\D/g, '').slice(-10) === normPhone.localTenDigit
+      );
+      if (existingPhone) {
+        return res.status(400).json({ error: 'An account with this mobile number already exists.' });
+      }
+    }
+  }
+
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  db.otps[normalizedEmail] = {
+    code: otpCode,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    verified: false
+  };
+  saveDB();
+
+  const { deliveryMode } = await sendOtpEmailAsync(
+    normalizedEmail,
+    otpCode,
+    typeof firstName === 'string' ? firstName.trim() : undefined
+  );
+
+  return res.json({
+    success: true,
+    deliveryMode,
+    message:
+      deliveryMode === 'resend'
+        ? `Verification code sent to ${normalizedEmail} via Resend.`
+        : deliveryMode === 'smtp'
+        ? `Verification code sent to ${normalizedEmail}.`
+        : `Verification code generated for ${normalizedEmail}.`,
+    ...(deliveryMode === 'logged' ? { devOtp: otpCode } : {})
+  });
+});
+
+// Verify Registration Email OTP
+authRouter.post('/verify-registration-email-otp', (req, res) => {
+  const { email, otp } = req.body || {};
+  const normalizedEmail = String(email || '').toLowerCase().trim();
+  const cleanOtp = String(otp || '').trim();
+  if (!normalizedEmail || !cleanOtp) {
+    return res.status(400).json({ error: 'Email address and 6-digit OTP are required.' });
+  }
+
+  const db = getDB();
+  const record = db.otps[normalizedEmail];
+  if (!record || record.code !== cleanOtp || Date.now() > record.expiresAt) {
+    return res.status(400).json({ error: 'Invalid or expired email verification OTP.' });
+  }
+
+  record.verified = true;
+  saveDB();
+
+  return res.json({
+    success: true,
+    message: 'Email verified successfully.'
+  });
+});
+
+// Customer Registration (Multi-Step: Personal + Address + Resend Email OTP + Firebase Mobile OTP)
+authRouter.post('/register', async (req, res) => {
+  const {
+    firstName,
+    secondName,
+    lastName,
+    name,
+    email,
+    phone,
+    gender,
+    password,
+    address1,
+    address2,
+    state,
+    city,
+    pinCode,
+    emailOtp,
+    firebaseIdToken
+  } = req.body || {};
+
+  const resolvedFirstName = String(firstName || (typeof name === 'string' ? name.trim().split(/\s+/)[0] : '') || '').trim();
+  const resolvedSecondName = String(
+    secondName || lastName || (typeof name === 'string' ? name.trim().split(/\s+/).slice(1).join(' ') : '') || ''
+  ).trim();
+  const fullName = `${resolvedFirstName} ${resolvedSecondName}`.trim() || String(name || '').trim();
+
+  if (!resolvedFirstName || !email || !password) {
+    return res.status(400).json({ error: 'First name, email, and password are required.' });
+  }
+
+  const step1Check = validateRegistrationStep1({
+    firstName: resolvedFirstName,
+    secondName: resolvedSecondName || resolvedFirstName,
+    mobile: String(phone || ''),
+    email: String(email || ''),
+    gender: gender || 'Prefer not to say',
+    password: String(password || '')
+  });
+  if (!step1Check.valid) {
+    return res.status(400).json({ error: step1Check.error || 'Please complete your personal details.' });
+  }
+
+  const hasAddressInput = Boolean(address1 || state || city || pinCode);
+  if (hasAddressInput) {
+    const step2Check = validateRegistrationStep2({
+      address1: String(address1 || ''),
+      address2: String(address2 || ''),
+      state: String(state || ''),
+      city: String(city || ''),
+      pinCode: String(pinCode || '')
+    });
+    if (!step2Check.valid) {
+      return res.status(400).json({ error: step2Check.error || 'Please complete your shipping address.' });
+    }
+  }
+
+  const db = getDB();
+  const normalizedEmail = String(email).toLowerCase().trim();
+  if (db.users.some(u => u.email.toLowerCase() === normalizedEmail)) {
     return res.status(400).json({ error: 'An account with this email already exists.' });
   }
 
-  const normPhone = phone ? normalizeIndianMobile(phone) : null;
-  if (phone && normPhone && !normPhone.valid) {
+  const normPhone = normalizeIndianMobile(String(phone || ''));
+  if (!normPhone.valid) {
     return res.status(400).json({ error: normPhone.error || 'Please enter a valid 10-digit Indian mobile number.' });
   }
 
+  if (
+    db.users.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === normPhone.localTenDigit)
+  ) {
+    return res.status(400).json({ error: 'An account with this mobile number already exists.' });
+  }
+
+  // Verify Email OTP (Resend)
+  const otpRecord = db.otps[normalizedEmail];
+  let isEmailVerified = false;
+  if (otpRecord && Date.now() <= otpRecord.expiresAt) {
+    if (otpRecord.verified || (emailOtp && otpRecord.code === String(emailOtp).trim())) {
+      isEmailVerified = true;
+    }
+  }
+
+  if (!isEmailVerified) {
+    return res.status(400).json({ error: 'Please verify your email address with the 6-digit OTP sent via Resend.' });
+  }
+
+  // Verify Mobile OTP (Firebase)
+  if (!firebaseIdToken || typeof firebaseIdToken !== 'string') {
+    return res.status(400).json({ error: 'Please verify your mobile number via Firebase Phone OTP before registering.' });
+  }
+
+  const verifiedFirebase = await verifyFirebaseIdToken(firebaseIdToken);
+  if (!verifiedFirebase || !verifiedFirebase.phone) {
+    return res.status(401).json({ error: 'Invalid or expired Firebase mobile verification. Please re-verify your mobile OTP.' });
+  }
+
+  const verifiedLast10 = verifiedFirebase.phone.replace(/\D/g, '').slice(-10);
+  if (verifiedLast10 !== normPhone.localTenDigit) {
+    return res.status(400).json({ error: 'Verified mobile number does not match the mobile number entered in Step 1.' });
+  }
+
   const salt = bcrypt.genSaltSync(10);
-  const passwordHash = bcrypt.hashSync(password, salt);
+  const passwordHash = bcrypt.hashSync(String(password), salt);
   const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+  const addresses: UserAddress[] = [];
+  if (hasAddressInput) {
+    addresses.push({
+      id: `addr_${Date.now()}`,
+      fullName,
+      phone: normPhone.e164,
+      street: String(address1).trim(),
+      apartment: String(address2 || '').trim(),
+      city: String(city).trim(),
+      state: String(state).trim(),
+      pinCode: String(pinCode).trim(),
+      country: 'India',
+      isDefault: true
+    });
+  }
+
+  const resolvedGender: GenderOption = GENDER_OPTIONS.includes(gender as GenderOption)
+    ? (gender as GenderOption)
+    : 'Prefer not to say';
 
   const newUser: User = {
     id: userId,
-    name: name.trim(),
+    firebaseUid: verifiedFirebase.uid,
+    firstName: resolvedFirstName,
+    lastName: resolvedSecondName,
+    name: fullName,
     email: normalizedEmail,
-    phone: normPhone?.valid ? `+${normPhone.e164Digits}` : (phone || ''),
+    phone: verifiedFirebase.phone || normPhone.e164,
+    gender: resolvedGender,
     role: 'customer',
-    isEmailVerified: false,
-    isPhoneVerified: false,
-    addresses: [],
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    authProvider: 'password',
+    addresses,
     createdAt: new Date().toISOString()
   };
 
   db.users.push(newUser);
   db.passwords[userId] = passwordHash;
-
-  // Generate 6 digit email fallback OTP
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  db.otps[normalizedEmail] = {
-    code: otpCode,
-    expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
-  };
-
+  delete db.otps[normalizedEmail];
   saveDB();
 
   sendWelcomeEmail(newUser.name, newUser.email);
-  sendOtpEmail(newUser.email, otpCode);
 
   const token = generateToken(newUser);
   return res.status(201).json({
     token,
     user: newUser,
-    otpSent: true,
-    otpChannel: 'email',
-    message: 'Account registered successfully. Verify your mobile with Firebase OTP or enter your email verification code.'
+    message: 'Account registered and verified successfully.'
   });
 });
 
-// Customer Login
+// Customer Login (Accepts Email OR Mobile Number + Password)
 authRouter.post('/login', (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
+  const { identifier, email, password } = req.body || {};
+  const rawIdentifier = String(identifier || email || '').trim();
+  if (!rawIdentifier || !password) {
+    return res.status(400).json({ error: 'Email or mobile number and password are required.' });
+  }
+
+  const parsed = parseLoginIdentifier(rawIdentifier);
+  if (!parsed.valid) {
+    return res.status(400).json({ error: parsed.error || 'Enter a valid email address or mobile number.' });
   }
 
   const db = getDB();
-  const normalizedEmail = email.toLowerCase().trim();
-  const user = db.users.find(u => u.email === normalizedEmail);
+  let user: User | undefined;
+  if (parsed.kind === 'email' && parsed.email) {
+    user = db.users.find(u => u.email.toLowerCase() === parsed.email);
+  } else if (parsed.kind === 'phone' && parsed.phoneLast10) {
+    user = db.users.find(u => (u.phone || '').replace(/\D/g, '').slice(-10) === parsed.phoneLast10);
+  }
+
   if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials. Please verify your email and password.' });
+    return res.status(401).json({ error: 'Invalid credentials. Please check your email/mobile number and password.' });
   }
 
   const hash = db.passwords[user.id];
-  if (!hash || !bcrypt.compareSync(password, hash)) {
-    return res.status(401).json({ error: 'Invalid credentials. Please verify your email and password.' });
+  if (!hash || !bcrypt.compareSync(String(password), hash)) {
+    return res.status(401).json({ error: 'Invalid credentials. Please check your email/mobile number and password.' });
   }
 
   const token = generateToken(user);
@@ -421,16 +612,73 @@ authRouter.post('/reset-password', async (req, res) => {
 
 // Update Profile
 authRouter.put('/profile', authenticate, (req: AuthenticatedRequest, res: Response) => {
-  const { name, phone } = req.body;
+  const { firstName, lastName, secondName, name, phone, gender } = req.body || {};
   const db = getDB();
   const user = db.users.find(u => u.id === req.user!.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
-  if (name) user.name = name.trim();
-  if (phone) user.phone = phone.trim();
+  if (typeof firstName === 'string' && firstName.trim()) {
+    user.firstName = firstName.trim();
+  }
+  const incomingLast = typeof lastName === 'string' ? lastName : typeof secondName === 'string' ? secondName : undefined;
+  if (incomingLast !== undefined) {
+    user.lastName = incomingLast.trim();
+  }
+  if (user.firstName) {
+    user.name = `${user.firstName} ${user.lastName || ''}`.trim();
+  } else if (typeof name === 'string' && name.trim()) {
+    user.name = name.trim();
+  }
+
+  if (typeof gender === 'string' && GENDER_OPTIONS.includes(gender as GenderOption)) {
+    user.gender = gender as GenderOption;
+  }
+
+  if (typeof phone === 'string' && phone.trim()) {
+    const norm = normalizeIndianMobile(phone);
+    if (!norm.valid) {
+      return res.status(400).json({ error: norm.error || 'Please enter a valid 10-digit Indian mobile number.' });
+    }
+    const prevLast10 = (user.phone || '').replace(/\D/g, '').slice(-10);
+    user.phone = norm.e164;
+    if (prevLast10 !== norm.localTenDigit) {
+      user.isPhoneVerified = false;
+    }
+  }
 
   saveDB();
-  return res.json({ user });
+  return res.json({ user, message: 'Profile updated successfully.' });
+});
+
+// Change Password (Authenticated)
+authRouter.post('/change-password', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!newPassword || String(newPassword).length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+  }
+
+  const db = getDB();
+  const user = db.users.find(u => u.id === req.user!.id);
+  if (!user) return res.status(404).json({ error: 'User account not found.' });
+
+  const existingHash = db.passwords[user.id];
+  if (existingHash) {
+    if (!currentPassword || !bcrypt.compareSync(String(currentPassword), existingHash)) {
+      return res.status(400).json({ error: 'Current password is incorrect.' });
+    }
+    if (bcrypt.compareSync(String(newPassword), existingHash)) {
+      return res.status(400).json({ error: 'New password must be different from your current password.' });
+    }
+  }
+
+  const salt = bcrypt.genSaltSync(10);
+  db.passwords[user.id] = bcrypt.hashSync(String(newPassword), salt);
+  saveDB();
+
+  return res.json({
+    success: true,
+    message: 'Your password has been updated successfully.'
+  });
 });
 
 // Add Address

@@ -12,11 +12,34 @@ import {
 } from '../firebase.ts';
 import { normalizeIndianMobile, maskMobileNumber } from '../utils/phone.ts';
 
+export interface RegisterPayload {
+  firstName: string;
+  secondName: string;
+  email: string;
+  phone: string;
+  gender: string;
+  password: string;
+  address1: string;
+  address2?: string;
+  state: string;
+  city: string;
+  pinCode: string;
+  emailOtp?: string;
+  firebaseIdToken: string;
+}
+
 export interface RegisterResult {
   success: boolean;
+  user?: User;
   error?: string;
-  otpSent?: boolean;
-  otpChannel?: 'email';
+}
+
+export interface EmailOtpSendResult {
+  success: boolean;
+  deliveryMode?: 'resend' | 'smtp' | 'logged';
+  message?: string;
+  devOtp?: string;
+  error?: string;
 }
 
 export interface FirebaseGoogleResult {
@@ -44,7 +67,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
+  login: (identifier: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   loginWithGoogle: () => Promise<FirebaseGoogleResult>;
   sendFirebasePhoneOtp: (phone: string, recaptchaContainerId: string) => Promise<FirebasePhoneSendResult>;
   verifyFirebasePhoneOtp: (confirmationResult: ConfirmationResult, code: string) => Promise<FirebaseGoogleResult>;
@@ -56,8 +79,20 @@ interface AuthContextType {
     confirmationResult: ConfirmationResult,
     code: string
   ) => Promise<FirebaseGoogleResult>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<RegisterResult>;
+  sendRegistrationEmailOtp: (email: string, firstName?: string, phone?: string) => Promise<EmailOtpSendResult>;
+  verifyRegistrationEmailOtp: (email: string, otp: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  register: (payload: RegisterPayload) => Promise<RegisterResult>;
   verifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    gender?: string;
+    phone?: string;
+  }) => Promise<{ success: boolean; user?: User; message?: string; error?: string }>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   isAdmin: boolean;
@@ -132,9 +167,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authToken.includes('admin')) {
         setUser({
           id: 'usr_admin_001',
+          firstName: '4LAAZY',
+          lastName: 'Admin',
           name: '4LAAZY Founder & Lead Admin',
           email: 'admin@4lazyfashion.com',
           phone: '+919876543210',
+          gender: 'Prefer not to say',
           role: 'admin',
           isEmailVerified: true,
           isPhoneVerified: true,
@@ -144,9 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUser({
           id: 'usr_cust_001',
+          firstName: 'Aryan',
+          lastName: 'Verma',
           name: 'Aryan Verma',
           email: 'aryan@example.com',
           phone: '+919811223344',
+          gender: 'Male',
           role: 'customer',
           isEmailVerified: true,
           isPhoneVerified: true,
@@ -303,12 +344,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
+    const cleanId = identifier.trim();
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ identifier: cleanId, email: cleanId, password })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -319,13 +361,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
       return { success: true, user: data.user };
     } catch {
-      const normEmail = email.toLowerCase().trim();
-      if (normEmail === 'admin@4lazyfashion.com' && password === 'admin123') {
+      const lower = cleanId.toLowerCase();
+      const digits = cleanId.replace(/\D/g, '').slice(-10);
+      if ((lower === 'admin@4lazyfashion.com' || digits === '9876543210') && password === 'admin123') {
         const demoUser: User = {
           id: 'usr_admin_001',
+          firstName: '4LAAZY',
+          lastName: 'Admin',
           name: '4LAAZY Founder & Lead Admin',
           email: 'admin@4lazyfashion.com',
           phone: '+919876543210',
+          gender: 'Prefer not to say',
           role: 'admin',
           isEmailVerified: true,
           isPhoneVerified: true,
@@ -338,12 +384,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(demoUser);
         return { success: true, user: demoUser };
       }
-      if (normEmail === 'aryan@example.com' && password === 'lazy123') {
+      if ((lower === 'aryan@example.com' || digits === '9811223344') && password === 'lazy123') {
         const demoUser: User = {
           id: 'usr_cust_001',
+          firstName: 'Aryan',
+          lastName: 'Verma',
           name: 'Aryan Verma',
           email: 'aryan@example.com',
           phone: '+919811223344',
+          gender: 'Male',
           role: 'customer',
           isEmailVerified: true,
           isPhoneVerified: true,
@@ -360,12 +409,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, phone: string, password: string): Promise<RegisterResult> => {
+  const sendRegistrationEmailOtp = async (
+    email: string,
+    firstName?: string,
+    phone?: string
+  ): Promise<EmailOtpSendResult> => {
+    try {
+      const res = await fetch('/api/auth/send-registration-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, firstName, phone })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Could not send email verification OTP.' };
+      }
+      return {
+        success: true,
+        deliveryMode: data.deliveryMode,
+        message: data.message,
+        devOtp: data.devOtp
+      };
+    } catch {
+      return { success: false, error: 'Network error sending email verification OTP.' };
+    }
+  };
+
+  const verifyRegistrationEmailOtp = async (email: string, otp: string) => {
+    try {
+      const res = await fetch('/api/auth/verify-registration-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Invalid email verification OTP.' };
+      }
+      return { success: true, message: data.message };
+    } catch {
+      return { success: false, error: 'Network error verifying email OTP.' };
+    }
+  };
+
+  const register = async (payload: RegisterPayload): Promise<RegisterResult> => {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) {
@@ -376,8 +468,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
       return {
         success: true,
-        otpSent: data.otpSent,
-        otpChannel: 'email'
+        user: data.user
       };
     } catch {
       return { success: false, error: 'Network error. Please try again.' };
@@ -404,6 +495,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (data: {
+    firstName?: string;
+    lastName?: string;
+    gender?: string;
+    phone?: string;
+  }) => {
+    const authToken = token || localStorage.getItem('4lazy_token') || '';
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json();
+      if (!res.ok || !resData.user) {
+        return { success: false, error: resData.error || 'Could not update profile.' };
+      }
+      setUser(resData.user);
+      return { success: true, user: resData.user, message: resData.message };
+    } catch {
+      return { success: false, error: 'Network error updating profile.' };
+    }
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const authToken = token || localStorage.getItem('4lazy_token') || '';
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        return { success: false, error: resData.error || 'Could not update password.' };
+      }
+      return { success: true, message: resData.message || 'Password updated successfully.' };
+    } catch {
+      return { success: false, error: 'Network error changing password.' };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('4lazy_token');
     setToken(null);
@@ -412,8 +551,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshUser = async () => {
-    if (token) {
-      await fetchCurrentUser(token);
+    const activeToken = token || localStorage.getItem('4lazy_token');
+    if (activeToken) {
+      await fetchCurrentUser(activeToken);
     }
   };
 
@@ -431,8 +571,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verifyFirebasePhoneOtp,
         confirmFirebasePhoneForReset,
         linkVerifiedFirebasePhone,
+        sendRegistrationEmailOtp,
+        verifyRegistrationEmailOtp,
         register,
         verifyOtp,
+        updateProfile,
+        changePassword,
         logout,
         refreshUser,
         isAdmin

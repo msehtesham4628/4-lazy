@@ -27,12 +27,70 @@ function getSmtpTransporter(): Transporter | null {
   return cachedTransporter;
 }
 
+export type EmailDeliveryMode = 'resend' | 'smtp' | 'logged';
+
+export function isResendConfigured(): boolean {
+  return Boolean((process.env.RESEND_API_KEY || '').trim());
+}
+
 export function isSmtpConfigured(): boolean {
   return Boolean(
     (process.env.SMTP_HOST || '').trim() &&
     (process.env.SMTP_USER || '').trim() &&
     (process.env.SMTP_PASS || '').trim()
   );
+}
+
+async function dispatchResendIfConfigured({
+  to,
+  subject,
+  html,
+  attachments
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: { filename: string; content: string; contentType?: string }[];
+}): Promise<boolean> {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (!apiKey) return false;
+
+  const from = (process.env.RESEND_FROM_EMAIL || '4LAAZY <onboarding@resend.dev>').trim();
+  try {
+    const payload: Record<string, any> = {
+      from,
+      to: [to],
+      subject,
+      html
+    };
+
+    if (attachments && attachments.length > 0) {
+      payload.attachments = attachments.map(att => ({
+        filename: att.filename,
+        content: Buffer.from(att.content, 'utf8').toString('base64')
+      }));
+    }
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      console.warn('[EmailService] Resend API returned non-OK:', res.status, errText);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('[EmailService] Resend delivery failed:', err instanceof Error ? err.message : err);
+    return false;
+  }
 }
 
 async function dispatchSmtpIfConfigured({
@@ -65,6 +123,22 @@ async function dispatchSmtpIfConfigured({
   }
 }
 
+async function dispatchEmailIfConfigured(params: {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: { filename: string; content: string; contentType?: string }[];
+}): Promise<EmailDeliveryMode> {
+  if (isResendConfigured()) {
+    const sentViaResend = await dispatchResendIfConfigured(params);
+    if (sentViaResend) return 'resend';
+  }
+  if (isSmtpConfigured()) {
+    return await dispatchSmtpIfConfigured(params);
+  }
+  return 'logged';
+}
+
 export function sendEmail({
   to,
   subject,
@@ -95,9 +169,9 @@ export function sendEmail({
   }
   saveDB();
 
-  // Fire-and-forget SMTP delivery when configured so API responses stay fast
-  if (isSmtpConfigured()) {
-    void dispatchSmtpIfConfigured({ to, subject, html: htmlContent, attachments });
+  // Fire-and-forget delivery (Resend primary, SMTP fallback) so API responses stay fast
+  if (isResendConfigured() || isSmtpConfigured()) {
+    void dispatchEmailIfConfigured({ to, subject, html: htmlContent, attachments });
   }
 
   return log;
@@ -135,29 +209,67 @@ export function sendWelcomeEmail(name: string, email: string) {
   });
 }
 
-export function sendOtpEmail(email: string, otp: string) {
-  const html = `
+function buildOtpEmailHtml(otp: string, firstName?: string) {
+  const greeting = firstName ? `Hi ${firstName}, please` : 'Please';
+  return `
     <div style="background-color: #0c0c0e; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <h1 style="letter-spacing: 4px; font-size: 24px; margin: 0;">4LAAZY</h1>
+        <h1 style="letter-spacing: 4px; font-size: 24px; margin: 0; color: #f4f4f5;">4LAAZY</h1>
+        <p style="font-size: 10px; letter-spacing: 2px; color: #E5A914; margin-top: 4px;">LESS EFFORT. MORE STYLE.</p>
       </div>
-      <div style="background-color: #18181b; padding: 24px; border: 1px solid #27272a; text-align: center;">
+      <div style="background-color: #18181b; padding: 28px; border: 1px solid #27272a; text-align: center;">
         <h2 style="font-size: 16px; margin-top: 0; color: #f4f4f5;">Email Verification Code</h2>
-        <p style="color: #a1a1aa; font-size: 13px;">Please use the one-time code below to verify your email address:</p>
-        <div style="display: inline-block; padding: 14px 28px; background-color: #0c0c0e; border: 1px solid #3f3f46; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: #E5A914; margin: 16px 0;">
+        <p style="color: #a1a1aa; font-size: 13px;">${greeting} use the one-time code below to verify your email address:</p>
+        <div style="display: inline-block; padding: 14px 28px; background-color: #0c0c0e; border: 1px solid #E5A914; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: #E5A914; margin: 16px 0;">
           ${otp}
         </div>
         <p style="color: #71717a; font-size: 11px; margin-bottom: 0;">This code is valid for 10 minutes. If you did not request this, please disregard.</p>
       </div>
     </div>
   `;
+}
 
+export function sendOtpEmail(email: string, otp: string, firstName?: string) {
   return sendEmail({
     to: email,
     subject: `${otp} is your 4LAAZY verification code`,
     type: 'email_otp',
-    htmlContent: html
+    htmlContent: buildOtpEmailHtml(otp, firstName)
   });
+}
+
+export async function sendOtpEmailAsync(
+  email: string,
+  otp: string,
+  firstName?: string
+): Promise<{ emailLog: EmailLog; deliveryMode: EmailDeliveryMode }> {
+  const db = getDB();
+  const html = buildOtpEmailHtml(otp, firstName);
+  const subject = `${otp} is your 4LAAZY verification code`;
+
+  const log: EmailLog = {
+    id: `eml_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    to: email,
+    subject,
+    type: 'email_otp',
+    sentAt: new Date().toISOString(),
+    status: 'delivered',
+    previewHtml: html
+  };
+
+  db.emailLogs.unshift(log);
+  if (db.emailLogs.length > 200) {
+    db.emailLogs.pop();
+  }
+  saveDB();
+
+  const deliveryMode = await dispatchEmailIfConfigured({
+    to: email,
+    subject,
+    html
+  });
+
+  return { emailLog: log, deliveryMode };
 }
 
 export function sendOrderConfirmationEmail(order: Order) {
@@ -239,7 +351,7 @@ export function sendOrderConfirmationEmail(order: Order) {
 export async function sendOrderInvoiceEmail(
   order: Order,
   settings?: Partial<StoreSettings>
-): Promise<{ emailLog: EmailLog; deliveryMode: 'smtp' | 'logged'; invoiceNumber: string }> {
+): Promise<{ emailLog: EmailLog; deliveryMode: EmailDeliveryMode; invoiceNumber: string }> {
   const db = getDB();
   const invoice = buildInvoiceData(order, settings || db.settings);
   const invoiceHtml = renderInvoiceHtml(invoice);
@@ -262,7 +374,7 @@ export async function sendOrderInvoiceEmail(
   }
   saveDB();
 
-  const deliveryMode = await dispatchSmtpIfConfigured({
+  const deliveryMode = await dispatchEmailIfConfigured({
     to: order.customer.email,
     subject,
     html: invoiceHtml,

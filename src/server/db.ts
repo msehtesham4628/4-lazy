@@ -26,7 +26,7 @@ import type {
 export interface DatabaseSchema {
   users: User[];
   passwords: Record<string, string>; // userId -> passwordHash
-  otps: Record<string, { code: string; expiresAt: number }>; // email -> OTP
+  otps: Record<string, { code: string; expiresAt: number; verified?: boolean }>; // email -> OTP
   products: Product[];
   categories: Category[];
   orders: Order[];
@@ -125,9 +125,12 @@ export function getInitialSeedData(): DatabaseSchema {
   const users: User[] = [
     {
       id: adminId,
+      firstName: '4LAAZY',
+      lastName: 'Admin',
       name: '4LAAZY Founder & Lead Admin',
       email: 'admin@4lazyfashion.com',
       phone: '+919876543210',
+      gender: 'Prefer not to say',
       role: 'admin',
       isEmailVerified: true,
       isPhoneVerified: true,
@@ -136,9 +139,12 @@ export function getInitialSeedData(): DatabaseSchema {
     },
     {
       id: customerId,
+      firstName: 'Aryan',
+      lastName: 'Verma',
       name: 'Aryan Verma',
       email: 'aryan@example.com',
       phone: '+919811223344',
+      gender: 'Male',
       role: 'customer',
       isEmailVerified: true,
       isPhoneVerified: true,

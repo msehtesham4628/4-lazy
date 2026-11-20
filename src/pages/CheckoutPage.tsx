@@ -445,19 +445,19 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
 
             <button
               type="button"
-              onClick={() => onNavigate('login', { returnTo: 'checkout', tab: 'otp' })}
+              onClick={() => onNavigate('login', { returnTo: 'checkout' })}
               className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
             >
               <Smartphone className="w-4 h-4" />
-              <span>Sign In with Phone OTP</span>
+              <span>Sign In with Email / Mobile &amp; Password</span>
             </button>
 
             <button
               type="button"
-              onClick={() => onNavigate('login', { returnTo: 'checkout', tab: 'password' })}
+              onClick={() => onNavigate('register', { returnTo: 'checkout' })}
               className="w-full bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors"
             >
-              Sign In with Email &amp; Password
+              Create Account (Verify Mail &amp; Mobile)
             </button>
           </div>
 
