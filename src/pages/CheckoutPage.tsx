@@ -27,6 +27,7 @@ import {
   computeRemainingSeconds,
   formatCountdown
 } from '../utils/paymentTimer.ts';
+import { InlinePhoneOtpVerifier } from '../components/InlinePhoneOtpVerifier.tsx';
 import type { Order } from '../types/index.ts';
 
 declare global {
@@ -55,7 +56,9 @@ const INDIAN_STATES = [
 
 export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
   const { items, subtotal, discount, tax, coupon, applyCoupon, removeCoupon, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading, loginWithGoogle } = useAuth();
+  const [googleSigningIn, setGoogleSigningIn] = useState(false);
+  const [gateError, setGateError] = useState('');
 
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -74,6 +77,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
     email: user?.email || '',
     phone: user?.phone || ''
   });
+  const [verifiedPhoneNumber, setVerifiedPhoneNumber] = useState<string>(
+    user?.isPhoneVerified && user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : ''
+  );
 
   // Step 2: Shipping Address
   const defaultAddr = user?.addresses?.find(a => a.isDefault) || user?.addresses?.[0];
@@ -145,6 +151,30 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
       })
       .catch(() => setCodEnabled(true));
   }, []);
+
+  // Auto-populate checkout contact & saved address once the customer signs in
+  useEffect(() => {
+    if (!user) return;
+    setContact(prev => ({
+      name: prev.name || user.name || '',
+      email: prev.email || user.email || '',
+      phone: prev.phone || user.phone || ''
+    }));
+    if (user.isPhoneVerified && user.phone) {
+      setVerifiedPhoneNumber(user.phone.replace(/\D/g, '').slice(-10));
+    }
+    const addr = user.addresses?.find(a => a.isDefault) || user.addresses?.[0];
+    if (addr) {
+      setAddress(prev => ({
+        street: prev.street || addr.street || '',
+        apartment: prev.apartment || addr.apartment || '',
+        city: prev.city || addr.city || '',
+        state: prev.state || addr.state || 'Telangana',
+        pinCode: prev.pinCode || addr.pinCode || '',
+        country: prev.country || addr.country || 'India'
+      }));
+    }
+  }, [user]);
 
   const cleanupCashfreeModal = React.useCallback(() => {
     setCashfreeModalOpen(false);
@@ -345,6 +375,112 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
     }
     setApplyingCoupon(false);
   };
+
+  if (authLoading) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 flex flex-col items-center justify-center text-center gap-3">
+        <Loader2 className="w-7 h-7 text-[#E5A914] animate-spin" />
+        <p className="text-xs text-neutral-400 uppercase tracking-widest">Verifying your session...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    const totalCount = items.reduce((sum, it) => sum + it.quantity, 0);
+    return (
+      <div className="max-w-lg mx-auto px-4 py-14 sm:py-20" data-testid="checkout-login-gate">
+        <div className="bg-neutral-900/70 border border-neutral-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-full bg-[#E5A914]/15 border border-[#E5A914]/40 flex items-center justify-center mx-auto text-[#E5A914]">
+              <Lock className="w-5 h-5" />
+            </div>
+            <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">
+              Sign In to Continue Checkout
+            </h1>
+            <p className="text-xs text-neutral-400 leading-relaxed max-w-sm mx-auto">
+              An authenticated 4LAAZY account is required to place orders, track live deliveries, and receive your GST tax invoice by email.
+            </p>
+          </div>
+
+          {totalCount > 0 && (
+            <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-lg flex items-center justify-between text-xs">
+              <span className="text-neutral-400">
+                Reserved in your bag: <strong className="text-white">{totalCount} {totalCount === 1 ? 'item' : 'items'}</strong>
+              </span>
+              <span className="font-mono font-bold text-[#E5A914] tabular-nums">
+                ₹{subtotal.toLocaleString()}
+              </span>
+            </div>
+          )}
+
+          {gateError && (
+            <div className="p-3 bg-red-950/60 border border-red-500/40 text-red-300 text-xs rounded-lg">
+              {gateError}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={googleSigningIn}
+              onClick={async () => {
+                setGoogleSigningIn(true);
+                setGateError('');
+                const res = await loginWithGoogle();
+                setGoogleSigningIn(false);
+                if (!res.success) {
+                  setGateError(res.error || 'Google sign-in failed.');
+                }
+              }}
+              className="w-full bg-white hover:bg-neutral-100 text-neutral-900 font-bold py-3 px-4 rounded-lg text-xs tracking-wide flex items-center justify-center gap-2.5 transition-colors shadow disabled:opacity-60"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />
+                <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z" />
+                <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z" />
+                <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" />
+              </svg>
+              <span>{googleSigningIn ? 'Signing in with Google...' : 'Continue with Google'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('login', { returnTo: 'checkout', tab: 'otp' })}
+              className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded-lg text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Sign In with Phone OTP</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('login', { returnTo: 'checkout', tab: 'password' })}
+              className="w-full bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors"
+            >
+              Sign In with Email &amp; Password
+            </button>
+          </div>
+
+          <div className="pt-3 border-t border-neutral-800 flex items-center justify-between text-xs text-neutral-400">
+            <button
+              type="button"
+              onClick={() => onNavigate('shop', { category: 'all' })}
+              className="hover:text-white flex items-center gap-1"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Back to Shop
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('register', { returnTo: 'checkout' })}
+              className="text-[#E5A914] hover:underline font-semibold"
+            >
+              Create New Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0 && paymentPhase === 'idle' && !confirmedOrder) {
     return (
@@ -634,6 +770,19 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
                     />
                   </div>
                 </div>
+
+                <InlinePhoneOtpVerifier
+                  phone={contact.phone}
+                  purpose="checkout"
+                  isVerified={
+                    Boolean(verifiedPhoneNumber) &&
+                    contact.phone.replace(/\D/g, '').slice(-10) === verifiedPhoneNumber
+                  }
+                  onVerified={() => {
+                    setVerifiedPhoneNumber(contact.phone.replace(/\D/g, '').slice(-10));
+                    setErrorMsg('');
+                  }}
+                />
               </div>
 
               <div className="pt-4 flex justify-end">

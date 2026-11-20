@@ -20,6 +20,10 @@ export interface User {
   phone: string;
   role: Role;
   isEmailVerified: boolean;
+  isPhoneVerified?: boolean;
+  firebaseUid?: string;
+  authProvider?: 'password' | 'google' | 'firebase-phone';
+  photoURL?: string;
   addresses: UserAddress[];
   createdAt: string;
 }
@@ -333,7 +337,7 @@ export interface EmailLog {
   id: string;
   to: string;
   subject: string;
-  type: 'welcome' | 'email_otp' | 'order_confirmation' | 'shipping_update' | 'password_reset' | 'back_in_stock';
+  type: 'welcome' | 'email_otp' | 'order_confirmation' | 'order_invoice' | 'shipping_update' | 'password_reset' | 'back_in_stock';
   sentAt: string;
   status: 'sent' | 'delivered';
   previewHtml: string;

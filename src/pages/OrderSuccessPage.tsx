@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle2, Truck, ArrowRight, Package, LayoutList } from 'lucide-react';
+import { CheckCircle2, Truck, ArrowRight, Package, LayoutList, FileText } from 'lucide-react';
 import { Order } from '../types/index.ts';
+import { InvoiceModal } from '../components/InvoiceModal.tsx';
 
 interface OrderSuccessPageProps {
   order?: Order;
@@ -9,6 +10,7 @@ interface OrderSuccessPageProps {
 }
 
 export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ order, onNavigate }) => {
+  const [showInvoice, setShowInvoice] = useState(false);
   useEffect(() => {
     confetti({
       particleCount: 80,
@@ -144,31 +146,41 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ order, onNav
         </div>
 
         {/* Buttons */}
-        <div className="pt-4 flex flex-col sm:flex-row gap-3">
+        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <button
+            type="button"
+            onClick={() => setShowInvoice(true)}
+            className="bg-neutral-950 hover:bg-neutral-800 border border-[#E5A914]/50 text-[#E5A914] font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+            GST Invoice
+          </button>
           <button
             onClick={() => onNavigate('account')}
-            className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+            className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
           >
             <LayoutList className="w-4 h-4 text-[#E5A914]" />
-            View in My Orders
+            My Orders
           </button>
           <button
             onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
-            className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+            className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
           >
             <Package className="w-4 h-4 text-[#E5A914]" />
-            Live Shipment Tracker
+            Track Order
           </button>
           <button
             onClick={() => onNavigate('shop')}
-            className="flex-1 bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
+            className="bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
           >
-            Continue Browsing
+            Shop More
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
       </div>
+
+      <InvoiceModal order={showInvoice ? order : null} onClose={() => setShowInvoice(false)} />
     </div>
   );
 };

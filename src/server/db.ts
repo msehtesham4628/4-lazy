@@ -130,6 +130,7 @@ export function getInitialSeedData(): DatabaseSchema {
       phone: '+919876543210',
       role: 'admin',
       isEmailVerified: true,
+      isPhoneVerified: true,
       addresses: [],
       createdAt: '2026-01-01T00:00:00Z'
     },
@@ -140,6 +141,7 @@ export function getInitialSeedData(): DatabaseSchema {
       phone: '+919811223344',
       role: 'customer',
       isEmailVerified: true,
+      isPhoneVerified: true,
       addresses: [
         {
           id: 'addr_01',

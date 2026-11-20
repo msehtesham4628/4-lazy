@@ -40,11 +40,15 @@ const UserAddressSchema = new Schema(
 const UserSchema = new Schema(
   {
     id: { type: String, required: true, unique: true },
+    firebaseUid: { type: String },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    phone: { type: String, required: true },
+    phone: { type: String, default: '' },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
     isEmailVerified: { type: Boolean, default: false },
+    isPhoneVerified: { type: Boolean, default: false },
+    authProvider: { type: String },
+    photoURL: { type: String },
     passwordHash: { type: String },
     addresses: [UserAddressSchema],
     createdAt: { type: String, default: () => new Date().toISOString() }

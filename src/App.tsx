@@ -1,29 +1,65 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { CartProvider } from './context/CartContext.tsx';
 import { WishlistProvider } from './context/WishlistContext.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { Footer } from './components/Footer.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
-
 import { HomePage } from './pages/HomePage.tsx';
-import { ShopPage } from './pages/ShopPage.tsx';
-import { ProductDetailPage } from './pages/ProductDetailPage.tsx';
-import { CheckoutPage } from './pages/CheckoutPage.tsx';
-import { OrderSuccessPage } from './pages/OrderSuccessPage.tsx';
-import { PaymentStatusPage } from './pages/PaymentStatusPage.tsx';
-import { TrackOrderPage } from './pages/TrackOrderPage.tsx';
-import { AccountPage } from './pages/AccountPage.tsx';
-import { AuthPages } from './pages/AuthPages.tsx';
-import { PolicyPages } from './pages/PolicyPages.tsx';
-import { CustomizeStudioPage } from './pages/CustomizeStudioPage.tsx';
-import { AdminDashboard } from './pages/admin/AdminDashboard.tsx';
-import { AdminSignInPage } from './pages/admin/AdminSignInPage.tsx';
 import {
   VALID_DASHBOARD_TABS,
   categoryToSlug,
   resolveCategoryFromSlugOrName
 } from './utils/routes.ts';
+
+// Code-split heavy secondary routes (AdminDashboard ~265KB, Three.js Studio ~600KB, Checkout, etc.)
+const ShopPage = lazy(() => import('./pages/ShopPage.tsx').then(m => ({ default: m.ShopPage })));
+const ProductDetailPage = lazy(() =>
+  import('./pages/ProductDetailPage.tsx').then(m => ({ default: m.ProductDetailPage }))
+);
+const CheckoutPage = lazy(() =>
+  import('./pages/CheckoutPage.tsx').then(m => ({ default: m.CheckoutPage }))
+);
+const OrderSuccessPage = lazy(() =>
+  import('./pages/OrderSuccessPage.tsx').then(m => ({ default: m.OrderSuccessPage }))
+);
+const PaymentStatusPage = lazy(() =>
+  import('./pages/PaymentStatusPage.tsx').then(m => ({ default: m.PaymentStatusPage }))
+);
+const TrackOrderPage = lazy(() =>
+  import('./pages/TrackOrderPage.tsx').then(m => ({ default: m.TrackOrderPage }))
+);
+const AccountPage = lazy(() =>
+  import('./pages/AccountPage.tsx').then(m => ({ default: m.AccountPage }))
+);
+const AuthPages = lazy(() =>
+  import('./pages/AuthPages.tsx').then(m => ({ default: m.AuthPages }))
+);
+const PolicyPages = lazy(() =>
+  import('./pages/PolicyPages.tsx').then(m => ({ default: m.PolicyPages }))
+);
+const CustomizeStudioPage = lazy(() =>
+  import('./pages/CustomizeStudioPage.tsx').then(m => ({ default: m.CustomizeStudioPage }))
+);
+const AdminDashboard = lazy(() =>
+  import('./pages/admin/AdminDashboard.tsx').then(m => ({ default: m.AdminDashboard }))
+);
+const AdminSignInPage = lazy(() =>
+  import('./pages/admin/AdminSignInPage.tsx').then(m => ({ default: m.AdminSignInPage }))
+);
+
+function RouteSkeleton() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center px-4">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-neutral-800 border-t-[#E5A914] animate-spin" />
+        <span className="text-[11px] font-mono uppercase tracking-widest text-neutral-500">
+          Loading 4LAAZY...
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function parseRouteFromPath(pathname: string): { page: string; params: Record<string, any> } {
   const clean = (pathname || '/').replace(/\/+$/, '') || '/';
@@ -101,8 +137,19 @@ function parseRouteFromPath(pathname: string): { page: string; params: Record<st
     return { page: 'order-success', params: {} };
   }
 
+  if (['login', 'register', 'forgot-password'].includes(segments[0])) {
+    const searchParams = new URLSearchParams(window.location.search);
+    return {
+      page: segments[0],
+      params: {
+        returnTo: searchParams.get('returnTo') || undefined,
+        tab: searchParams.get('tab') || undefined
+      }
+    };
+  }
+
   if (
-    ['checkout', 'account', 'wishlist', 'track-order', 'login', 'register', 'forgot-password', 'about', 'contact', 'shipping-returns', 'privacy-policy', 'terms', 'size-guide'].includes(
+    ['checkout', 'account', 'wishlist', 'track-order', 'about', 'contact', 'shipping-returns', 'privacy-policy', 'terms', 'size-guide'].includes(
       segments[0]
     )
   ) {
@@ -137,6 +184,15 @@ function buildPathForRoute(page: string, params: Record<string, any> = {}): stri
       return '/admin-login';
     case 'order-success':
       return '/order-success';
+    case 'login':
+    case 'register':
+    case 'forgot-password': {
+      const sp = new URLSearchParams();
+      if (params.returnTo) sp.set('returnTo', String(params.returnTo));
+      if (params.tab) sp.set('tab', String(params.tab));
+      const qs = sp.toString();
+      return `/${page}${qs ? `?${qs}` : ''}`;
+    }
     default:
       return `/${page}`;
   }
@@ -205,11 +261,30 @@ export default function App() {
       case 'wishlist':
         return <AccountPage onNavigate={handleNavigate} />;
       case 'login':
-        return <AuthPages mode="login" onNavigate={handleNavigate} />;
+        return (
+          <AuthPages
+            mode="login"
+            returnTo={pageParams.returnTo}
+            initialMethod={pageParams.tab === 'password' ? 'password' : 'otp'}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'register':
-        return <AuthPages mode="register" onNavigate={handleNavigate} />;
+        return (
+          <AuthPages
+            mode="register"
+            returnTo={pageParams.returnTo}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'forgot-password':
-        return <AuthPages mode="forgot-password" onNavigate={handleNavigate} />;
+        return (
+          <AuthPages
+            mode="forgot-password"
+            returnTo={pageParams.returnTo}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'about':
       case 'contact':
       case 'shipping-returns':
@@ -244,7 +319,9 @@ export default function App() {
             )}
 
             <main className="flex-1 min-w-0">
-              {renderCurrentView()}
+              <Suspense fallback={<RouteSkeleton />}>
+                {renderCurrentView()}
+              </Suspense>
             </main>
 
             {!isAdminView && (

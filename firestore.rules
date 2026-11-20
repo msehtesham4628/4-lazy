@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9._-]+$');
+    }
+
+    function isBootstrappedAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email == 'ehtesham4628@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() ||
+        (isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'name', 'role', 'createdAt']) &&
+        data.keys().hasOnly([
+          'uid', 'name', 'email', 'phone', 'photoURL',
+          'role', 'authProvider', 'isEmailVerified', 'isPhoneVerified',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.uid == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 24)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+        (!('authProvider' in data) || (data.authProvider is string && data.authProvider.size() <= 40)) &&
+        (!('isEmailVerified' in data) || data.isEmailVerified is bool) &&
+        (!('isPhoneVerified' in data) || data.isPhoneVerified is bool) &&
+        data.role in ['customer', 'admin'] &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['invoiceNumber', 'orderId', 'orderNumber', 'userId', 'total', 'issuedAt']) &&
+        data.keys().hasOnly([
+          'invoiceNumber', 'orderId', 'orderNumber', 'userId',
+          'customerEmail', 'customerName', 'total', 'tax',
+          'currency', 'paymentStatus', 'issuedAt'
+        ]) &&
+        data.invoiceNumber is string && data.invoiceNumber.size() >= 3 && data.invoiceNumber.size() <= 64 &&
+        data.orderId is string && data.orderId.size() >= 3 && data.orderId.size() <= 64 &&
+        data.orderNumber is string && data.orderNumber.size() >= 3 && data.orderNumber.size() <= 64 &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 160)) &&
+        (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 120)) &&
+        data.total is number && data.total >= 0 &&
+        (!('tax' in data) || (data.tax is number && data.tax >= 0)) &&
+        (!('currency' in data) || (data.currency is string && data.currency.size() <= 10)) &&
+        (!('paymentStatus' in data) || (data.paymentStatus is string && data.paymentStatus.size() <= 32)) &&
+        data.issuedAt is string && data.issuedAt.size() <= 64;
+    }
+
+    function isValidAdminRole(data, adminId) {
+      return data.keys().hasAll(['uid', 'role', 'grantedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'role', 'grantedAt']) &&
+        data.uid == adminId &&
+        data.role == 'admin' &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+        data.grantedAt is string && data.grantedAt.size() <= 64;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) &&
+        isValidUserProfile(request.resource.data, userId) &&
+        ((isOwner(userId) && request.resource.data.role == 'customer') || isAdmin());
+      allow update: if isValidId(userId) &&
+        isValidUserProfile(request.resource.data, userId) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            request.resource.data.role == resource.data.role &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'name', 'email', 'phone', 'photoURL', 'authProvider',
+              'isEmailVerified', 'isPhoneVerified', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      allow get: if isValidId(invoiceId) && (
+        isAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid)
+      );
+      allow list: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(invoiceId) &&
+        isValidInvoice(request.resource.data) &&
+        (isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid));
+      allow update: if isValidId(invoiceId) && isValidInvoice(request.resource.data) && isAdmin();
+      allow delete: if isValidId(invoiceId) && isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isValidId(adminId) &&
+        isBootstrappedAdmin() &&
+        isValidAdminRole(request.resource.data, adminId);
+      allow delete: if isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

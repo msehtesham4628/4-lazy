@@ -11,11 +11,12 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
   const isProd = process.env.NODE_ENV === 'production';
 
-  // Serve static assets from public with direct mounts for /assets and fallback /src/assets
-  app.use(express.static(path.resolve(__dirname, 'public')));
-  app.use('/assets', express.static(path.resolve(__dirname, 'public', 'assets')));
-  app.use('/src/assets', express.static(path.resolve(__dirname, 'public', 'assets')));
-  app.use('/src/assets', express.static(path.resolve(__dirname, 'src', 'assets')));
+  // Serve static assets from public with caching headers for faster repeat loads
+  const assetCacheOpts = { maxAge: '7d', etag: true, immutable: false };
+  app.use(express.static(path.resolve(__dirname, 'public'), assetCacheOpts));
+  app.use('/assets', express.static(path.resolve(__dirname, 'public', 'assets'), assetCacheOpts));
+  app.use('/src/assets', express.static(path.resolve(__dirname, 'public', 'assets'), assetCacheOpts));
+  app.use('/src/assets', express.static(path.resolve(__dirname, 'src', 'assets'), assetCacheOpts));
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');

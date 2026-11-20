@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated customer or admin profile synced with Firebase Auth.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "admin"] },
+        "authProvider": { "type": "string" },
+        "isEmailVerified": { "type": "boolean" },
+        "isPhoneVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "role", "createdAt"]
+    },
+    "InvoiceRecord": {
+      "title": "InvoiceRecord",
+      "description": "GST tax invoice metadata synced for customer and admin retrieval.",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string" },
+        "orderId": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "userId": { "type": "string" },
+        "customerEmail": { "type": "string", "format": "email" },
+        "customerName": { "type": "string" },
+        "total": { "type": "number" },
+        "tax": { "type": "number" },
+        "currency": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "issuedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoiceNumber", "orderId", "orderNumber", "userId", "total", "issuedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Admin role assignment document keyed by Firebase UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin"] },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role", "grantedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Owner-scoped user profile documents keyed by Firebase Auth UID."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": { "$ref": "#/entities/InvoiceRecord" },
+      "description": "Order GST invoice metadata readable by the owning customer or admin."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Dedicated admin role collection restricted to bootstrapped and verified admins."
+    }
+  }
+}

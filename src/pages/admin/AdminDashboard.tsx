@@ -44,6 +44,7 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { compressUploadImage } from '../../utils/imageUtils.ts';
 import { getPaymentBadgeMeta } from '../../utils/paymentTimer.ts';
+import { InvoiceModal } from '../../components/InvoiceModal.tsx';
 import {
   Order,
   Product,
@@ -257,7 +258,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
   const categoryImageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingCategoryImage, setUploadingCategoryImage] = useState(false);
 
-  // Emails
+  // Transactional Email Logs
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [selectedEmailPreview, setSelectedEmailPreview] = useState<EmailLog | null>(null);
 
@@ -542,11 +543,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
 
   const fetchEmails = async () => {
     try {
-      const res = await fetch('/api/admin/emails', {
+      const emailRes = await fetch('/api/admin/emails', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const d = await res.json();
-      setEmails(d.emails || []);
+      if (emailRes.ok) {
+        const d = await emailRes.json();
+        setEmails(d.emails || []);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -2730,10 +2733,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                               {order.tracking?.trackingNumber ? 'Edit AWB' : 'Assign Courier'}
                             </button>
                             <button
+                              type="button"
                               onClick={() => setViewInvoiceOrder(order)}
-                              className="block ml-auto text-xs text-neutral-400 hover:text-white underline"
+                              className="inline-flex items-center gap-1 ml-auto mt-1 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-100 font-semibold px-2.5 py-1 rounded text-[11px] transition-colors"
                             >
-                              Print Invoice
+                              <FileText className="w-3 h-3 text-[#E5A914]" />
+                              GST Invoice
                             </button>
                           </td>
                         </tr>
@@ -3990,15 +3995,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
           </div>
         )}
 
-        {/* EMAIL NOTIFICATIONS LOG TAB */}
+        {/* TRANSACTIONAL EMAIL LOGS TAB */}
         {activeTab === 'emails' && (
           <div className="space-y-6">
-            <div className="pb-4 border-b border-neutral-800">
-              <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Transactional Notification Logs</h1>
-              <p className="text-xs text-neutral-400">Inspect branded emails sent to buyers (OTP verification, invoices, courier tracking).</p>
+            <div className="pb-4 border-b border-neutral-800 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <h1 className="font-display text-2xl font-black text-white uppercase tracking-tight">Transactional Email Logs</h1>
+                <p className="text-xs text-neutral-400">Inspect dispatched GST tax invoices, order confirmations, and courier tracking emails.</p>
+              </div>
+              <span className="text-xs font-mono text-neutral-400">
+                {emails.length} {emails.length === 1 ? 'record' : 'records'}
+              </span>
             </div>
 
-            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden">
+            <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800 text-neutral-400 uppercase tracking-wider font-sans">
@@ -4015,7 +4025,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
                       <td className="p-3.5 font-sans font-bold text-white">{eml.to}</td>
                       <td className="p-3.5 font-sans text-neutral-200">{eml.subject}</td>
                       <td className="p-3.5">
-                        <span className="bg-neutral-800 text-[#E5A914] px-2 py-0.5 rounded text-[10px] uppercase font-bold">
+                        <span className="text-[#E5A914] text-[11px] uppercase font-bold">
                           {eml.type}
                         </span>
                       </td>
@@ -4756,132 +4766,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, init
         </div>
       )}
 
-      {/* PRINTABLE GST INVOICE MODAL */}
-      {viewInvoiceOrder && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white text-neutral-950 max-w-2xl w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 rounded-xl shadow-2xl space-y-6 font-sans">
-            <div className="flex justify-between items-start border-b border-neutral-300 pb-5">
-              <div>
-                <h2 className="text-2xl font-black tracking-tight">4LAAZY</h2>
-                <p className="text-xs text-neutral-500 uppercase tracking-widest mt-0.5">LESS EFFORT. MORE STYLE.</p>
-                <p className="text-xs text-neutral-600 mt-2">GSTIN: 36AABCL4921E1Z8</p>
-                <p className="text-xs text-neutral-600">Road No. 36, Jubilee Hills, Hyderabad 500033</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-bold text-neutral-500 uppercase block">TAX INVOICE</span>
-                <p className="text-base font-bold font-mono">{viewInvoiceOrder.orderNumber}</p>
-                <p className="text-xs text-neutral-600 mt-1">Date: {new Date(viewInvoiceOrder.createdAt).toLocaleDateString()}</p>
-                {(() => {
-                  const invMeta = getPaymentBadgeMeta(
-                    viewInvoiceOrder.payment.status,
-                    viewInvoiceOrder.payment.gatewayStatus
-                  );
-                  const invBadgeStyle =
-                    invMeta.tone === 'success'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : invMeta.tone === 'pending'
-                      ? 'bg-amber-100 text-amber-800'
-                      : invMeta.tone === 'refunded'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-red-100 text-red-800';
-                  return (
-                    <span className={`inline-block mt-2 px-2 py-0.5 text-[10px] font-bold rounded uppercase ${invBadgeStyle}`}>
-                      {invMeta.label} ({(viewInvoiceOrder.payment.paymentMethodDetail || viewInvoiceOrder.payment.provider).toUpperCase()})
-                    </span>
-                  );
-                })()}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-xs border-b border-neutral-300 pb-4">
-              <div>
-                <span className="font-bold uppercase text-neutral-500 block mb-1">Billed &amp; Shipped To:</span>
-                <p className="font-bold">{viewInvoiceOrder.shippingAddress.fullName}</p>
-                <p>{viewInvoiceOrder.shippingAddress.street}</p>
-                <p>{viewInvoiceOrder.shippingAddress.city}, {viewInvoiceOrder.shippingAddress.state} - {viewInvoiceOrder.shippingAddress.pinCode}</p>
-                <p>Phone: {viewInvoiceOrder.shippingAddress.phone}</p>
-              </div>
-              <div className="text-right">
-                <span className="font-bold uppercase text-neutral-500 block mb-1">Logistics Reference:</span>
-                <p>Courier: <strong>{viewInvoiceOrder.tracking?.courierCompany || 'Blue Dart Express'}</strong></p>
-                <p className="font-mono">AWB: {viewInvoiceOrder.tracking?.trackingNumber || 'Pending Generation'}</p>
-              </div>
-            </div>
-
-            {/* Invoice Line Items */}
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b-2 border-neutral-300 text-neutral-500 uppercase tracking-wider">
-                  <th className="py-2">Item Description</th>
-                  <th className="py-2">Variant / SKU</th>
-                  <th className="py-2 text-center">Qty</th>
-                  <th className="py-2 text-right">Rate</th>
-                  <th className="py-2 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200">
-                {viewInvoiceOrder.items.map((it, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 font-bold">{it.productTitle}</td>
-                    <td className="py-2.5 text-neutral-600 font-mono text-[11px]">{it.sku} ({it.colorName}/{it.size})</td>
-                    <td className="py-2.5 text-center font-mono">{it.quantity}</td>
-                    <td className="py-2.5 text-right font-mono">₹{it.price.toLocaleString()}</td>
-                    <td className="py-2.5 text-right font-mono font-bold">₹{(it.price * it.quantity).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Calculations Breakdown */}
-            <div className="pt-4 border-t border-neutral-300 space-y-1.5 text-xs text-neutral-600 ml-auto max-w-xs">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span className="font-mono font-bold text-neutral-900">₹{viewInvoiceOrder.subtotal.toLocaleString()}</span>
-              </div>
-              {viewInvoiceOrder.discount > 0 && (
-                <div className="flex justify-between text-emerald-700">
-                  <span>Privilege Coupon Discount:</span>
-                  <span className="font-mono font-bold">-₹{viewInvoiceOrder.discount.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span>Delivery Charges:</span>
-                <span className="font-mono text-neutral-900">{viewInvoiceOrder.shippingFee === 0 ? 'FREE' : `₹${viewInvoiceOrder.shippingFee}`}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>CGST (2.5%):</span>
-                <span className="font-mono text-neutral-900">₹{Math.round(viewInvoiceOrder.tax / 2).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SGST (2.5%):</span>
-                <span className="font-mono text-neutral-900">₹{Math.round(viewInvoiceOrder.tax / 2).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-base font-black text-neutral-950 pt-2 border-t-2 border-neutral-900">
-                <span>Invoice Total:</span>
-                <span className="font-mono">₹{viewInvoiceOrder.total.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-neutral-300 flex justify-between items-center text-xs">
-              <span className="text-neutral-500 text-[11px]">Computer generated tax invoice. No signature required.</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-4 py-2 rounded text-xs uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Print / PDF
-                </button>
-                <button
-                  onClick={() => setViewInvoiceOrder(null)}
-                  className="bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-bold px-4 py-2 rounded text-xs uppercase tracking-wider"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* GST TAX INVOICE MODAL (PRINT / PDF / DOWNLOAD / EMAIL) */}
+      <InvoiceModal
+        order={viewInvoiceOrder}
+        settings={storeSettings || undefined}
+        onClose={() => setViewInvoiceOrder(null)}
+        onEmailSent={() => {
+          const authToken = token || localStorage.getItem('4lazy_token') || '';
+          fetch('/api/admin/emails', {
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+          })
+            .then(r => r.json())
+            .then(d => {
+              if (Array.isArray(d?.emails)) setEmails(d.emails);
+            })
+            .catch(() => {});
+        }}
+      />
 
       {/* STOCK ADJUST MODAL */}
       {adjustModalItem && (() => {

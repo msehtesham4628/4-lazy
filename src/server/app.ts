@@ -40,25 +40,41 @@ try {
   console.warn('Local DB initialization notice:', e);
 }
 
-// Kick off background init on Node servers, and await once per cold-start in serverless
+// Kick off background init on Node servers without blocking initial storefront requests
+let mongoBootPromise: Promise<unknown> | null = null;
 function ensureMongoReady(forceRefresh = false) {
-  return initMongoDB(initialData || getDB(), hydrateDbFromMongo, forceRefresh).catch(err => {
+  const task = initMongoDB(initialData || getDB(), hydrateDbFromMongo, forceRefresh).catch(err => {
     console.warn('MongoDB initialization notice:', err?.message || err);
   });
+  if (!mongoBootPromise) mongoBootPromise = task;
+  return task;
 }
 ensureMongoReady(false);
 
 app.use('/api', async (req, res, next) => {
   const isMutation = req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS';
   const isAdminRead = req.path.startsWith('/admin');
-  await ensureMongoReady(isMutation || isAdminRead);
+
+  // Public storefront GETs (/products, /categories, /settings) respond immediately from in-memory DB
+  // while MongoDB hydrates asynchronously in the background.
+  if (isMutation || isAdminRead) {
+    await Promise.race([
+      ensureMongoReady(isMutation || isAdminRead),
+      new Promise(resolve => setTimeout(resolve, 600))
+    ]);
+  } else if (
+    req.method === 'GET' &&
+    (req.path === '/products' || req.path === '/categories' || req.path === '/settings')
+  ) {
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+  }
 
   if (isMutation) {
     const origJson = res.json.bind(res);
     res.json = ((body: any) => {
       const pending = getPendingMongoSync();
       if (pending) {
-        pending.finally(() => {
+        Promise.race([pending, new Promise(resolve => setTimeout(resolve, 1200))]).finally(() => {
           if (!res.headersSent) {
             origJson(body);
           }

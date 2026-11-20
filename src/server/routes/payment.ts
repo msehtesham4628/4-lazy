@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import crypto from 'crypto';
 import { getDB, saveDB } from '../db.ts';
-import { optionalAuthenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
-import { sendOrderConfirmationEmail } from '../emailService.ts';
+import { authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
+import { sendOrderConfirmationEmail, sendOrderInvoiceEmail } from '../emailService.ts';
 import type {
   Order,
   OrderItem,
@@ -211,8 +211,9 @@ function finalizePaidOrderIdempotently(order: Order, tx: PaymentTransaction, not
 
     try {
       sendOrderConfirmationEmail(order);
+      void sendOrderInvoiceEmail(order, db.settings);
     } catch (e) {
-      console.error('Failed to send Cashfree order confirmation email:', e);
+      console.error('Failed to send Cashfree order confirmation/invoice email:', e);
     }
   }
 }
@@ -695,8 +696,8 @@ paymentRouter.get('/config', (_req: Request, res: Response) => {
   });
 });
 
-// POST /api/payment/create-order
-paymentRouter.post('/create-order', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response) => {
+// POST /api/payment/create-order (Mandatory Authenticated User)
+paymentRouter.post('/create-order', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       customer,

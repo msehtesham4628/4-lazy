@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Plus, Minus, Trash2, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ArrowRight, ShieldCheck, Tag, Lock } from 'lucide-react';
 import { useCart } from '../context/CartContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface CartDrawerProps {
   onNavigate: (page: string) => void;
@@ -24,6 +25,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
     freeShippingThreshold,
     freeShippingProgress
   } = useCart();
+  const { user } = useAuth();
 
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -299,7 +301,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                   }}
                   className="w-full bg-[#E5A914] hover:bg-[#d49b10] text-black font-extrabold py-3.5 px-4 rounded text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-transform active:scale-[0.99]"
                 >
-                  Proceed to Secure Checkout
+                  {!user && <Lock className="w-3.5 h-3.5" />}
+                  {user ? 'Proceed to Secure Checkout' : 'Sign In & Proceed to Checkout'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button

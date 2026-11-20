@@ -10,12 +10,15 @@ import {
   Trash2,
   ExternalLink,
   RefreshCw,
-  CreditCard
+  CreditCard,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useWishlist } from '../context/WishlistContext.tsx';
 import { Order, Product } from '../types/index.ts';
 import { ProductCard } from '../components/ProductCard.tsx';
+import { InlinePhoneOtpVerifier } from '../components/InlinePhoneOtpVerifier.tsx';
+import { InvoiceModal } from '../components/InvoiceModal.tsx';
 import { getPaymentBadgeMeta } from '../utils/paymentTimer.ts';
 
 interface AccountPageProps {
@@ -23,7 +26,7 @@ interface AccountPageProps {
 }
 
 export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
-  const { user, logout, token } = useAuth();
+  const { user, logout, token, refreshUser } = useAuth();
   const { wishlistIds } = useWishlist();
 
   const [activeTab, setActiveTab] = useState<'orders' | 'addresses' | 'wishlist' | 'profile'>('orders');
@@ -32,6 +35,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [refreshingOrders, setRefreshingOrders] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   // New Address modal state
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -149,15 +153,28 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
             {user.name.charAt(0)}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-xl font-bold text-white uppercase">{user.name}</h1>
-              {user.isEmailVerified && (
-                <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded">
-                  <ShieldCheck className="w-3 h-3" /> Verified Customer
+              {(user.isEmailVerified || user.isPhoneVerified) && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  {user.isPhoneVerified ? 'Mobile Verified (Firebase)' : 'Verified Customer'}
                 </span>
               )}
             </div>
-            <p className="text-xs text-neutral-400 font-mono mt-0.5">{user.email} · {user.phone}</p>
+            <p className="text-xs text-neutral-400 font-mono mt-0.5">{user.email} · {user.phone || 'No mobile linked'}</p>
+            {!user.isPhoneVerified && user.phone && (
+              <div className="mt-2 max-w-md">
+                <InlinePhoneOtpVerifier
+                  phone={user.phone}
+                  purpose="verify-phone"
+                  isVerified={Boolean(user.isPhoneVerified)}
+                  onVerified={() => {
+                    refreshUser();
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -323,6 +340,14 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
                             </button>
                           )}
                         <button
+                          type="button"
+                          onClick={() => setInvoiceOrder(order)}
+                          className="text-[11px] bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-semibold px-2.5 py-1 rounded flex items-center gap-1 transition-colors"
+                        >
+                          <FileText className="w-3 h-3 text-[#E5A914]" />
+                          Invoice
+                        </button>
+                        <button
                           onClick={() => onNavigate('track-order', { orderNumber: order.orderNumber, email: order.customer.email })}
                           className="text-xs text-[#E5A914] hover:underline flex items-center gap-1 font-semibold ml-1"
                         >
@@ -478,6 +503,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onNavigate }) => {
         </div>
       )}
 
+      <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />
     </div>
   );
 };

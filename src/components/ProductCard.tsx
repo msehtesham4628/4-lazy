@@ -57,6 +57,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onNavigate })
         <img
           src={displayImage}
           alt={product.title}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover object-center group-hover:scale-[1.03] transition-transform duration-500 ease-out"
           referrerPolicy="no-referrer"
         />

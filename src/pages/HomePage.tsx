@@ -67,7 +67,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [apiCategories, setApiCategories] = useState<Category[]>([]);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -164,6 +164,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               key={slide.id || `${slide.imageUrl}_${idx}`}
               src={slide.imageUrl}
               alt={slide.heading || `4LAAZY Slide ${idx + 1}`}
+              loading={idx === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchPriority={idx === 0 ? 'high' : 'low'}
               className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 ease-in-out ${
                 idx === activeHeroSlide ? 'opacity-100' : 'opacity-0'
               }`}
@@ -265,6 +268,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <img
                 src={bannerImage}
                 alt={catMeta.name}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover object-center opacity-65 group-hover:scale-[1.03] transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
@@ -334,6 +339,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <img
               src={lookbookImg}
               alt="4LAAZY Lookbook Model"
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover object-top"
               referrerPolicy="no-referrer"
             />

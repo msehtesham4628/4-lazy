@@ -1,9 +1,10 @@
 import { Router, type Response } from 'express';
 import { getDB, saveDB } from '../db.ts';
-import { optionalAuthenticate, authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
-import { sendOrderConfirmationEmail } from '../emailService.ts';
+import { authenticate, type AuthenticatedRequest } from '../authMiddleware.ts';
+import { sendOrderConfirmationEmail, sendOrderInvoiceEmail } from '../emailService.ts';
 import { reconcilePendingPayments } from './payment.ts';
-import type { Order, OrderItem, UserAddress, InventoryTransaction } from '../../types/index.ts';
+import { buildInvoiceData, renderInvoiceHtml } from '../../utils/invoice.ts';
+import type { Order, OrderItem, InventoryTransaction } from '../../types/index.ts';
 
 export const ordersRouter = Router();
 
@@ -174,8 +175,8 @@ ordersRouter.post('/payments/cashfree/verify', async (req, res) => {
   });
 });
 
-// Create Order (Multi-Step Checkout)
-ordersRouter.post('/orders', optionalAuthenticate, (req: AuthenticatedRequest, res: Response) => {
+// Create Order (Multi-Step Checkout — Mandatory Authenticated User)
+ordersRouter.post('/orders', authenticate, (req: AuthenticatedRequest, res: Response) => {
   const {
     customer,
     shippingAddress,
@@ -407,9 +408,10 @@ ordersRouter.post('/orders', optionalAuthenticate, (req: AuthenticatedRequest, r
 
   saveDB();
 
-  // Send automated email notification
+  // Send automated order confirmation + GST Tax Invoice email
   try {
     sendOrderConfirmationEmail(newOrder);
+    void sendOrderInvoiceEmail(newOrder, db.settings);
   } catch (e) {
     console.error('Failed to send order email:', e);
   }
@@ -417,7 +419,7 @@ ordersRouter.post('/orders', optionalAuthenticate, (req: AuthenticatedRequest, r
   return res.status(201).json({
     success: true,
     order: newOrder,
-    message: 'Order placed and payment confirmed.'
+    message: 'Order placed, confirmed, and GST tax invoice dispatched to your email.'
   });
 });
 
@@ -455,6 +457,58 @@ ordersRouter.get('/orders/my-orders', authenticate, async (req: AuthenticatedReq
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return res.json({ orders: refreshed });
+});
+
+function canAccessOrderInvoice(req: AuthenticatedRequest, order: Order): boolean {
+  if (!req.user) return false;
+  if (req.user.role === 'admin') return true;
+  const userEmail = (req.user.email || '').toLowerCase();
+  const userPhoneLast10 = (req.user.phone || '').replace(/\D/g, '').slice(-10);
+  const orderPhoneLast10 = (order.customer?.phone || '').replace(/\D/g, '').slice(-10);
+  return (
+    order.userId === req.user.id ||
+    order.customer.email.toLowerCase() === userEmail ||
+    (userPhoneLast10.length >= 10 && orderPhoneLast10 === userPhoneLast10)
+  );
+}
+
+// Authenticated: Fetch GST Tax Invoice JSON + printable HTML (Customer owner or Admin)
+ordersRouter.get('/orders/:id/invoice', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const order = db.orders.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found.' });
+  }
+  if (!canAccessOrderInvoice(req, order)) {
+    return res.status(403).json({ error: 'You are not authorized to view this invoice.' });
+  }
+  const invoice = buildInvoiceData(order, db.settings);
+  const html = renderInvoiceHtml(invoice);
+  return res.json({ invoice, html });
+});
+
+// Authenticated: Email / Resend GST Tax Invoice to customer inbox (Customer owner or Admin)
+ordersRouter.post('/orders/:id/resend-invoice', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  const db = getDB();
+  const order = db.orders.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found.' });
+  }
+  if (!canAccessOrderInvoice(req, order)) {
+    return res.status(403).json({ error: 'You are not authorized to resend this invoice.' });
+  }
+  const result = await sendOrderInvoiceEmail(order, db.settings);
+  return res.json({
+    success: true,
+    invoiceNumber: result.invoiceNumber,
+    deliveryMode: result.deliveryMode,
+    recipient: order.customer.email,
+    message:
+      result.deliveryMode === 'smtp'
+        ? `GST Tax Invoice ${result.invoiceNumber} emailed to ${order.customer.email}.`
+        : `GST Tax Invoice ${result.invoiceNumber} queued and archived for ${order.customer.email}.`,
+    emailLog: result.emailLog
+  });
 });
 
 // Public: Get single order by ID or Order Number

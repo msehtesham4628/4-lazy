@@ -1,16 +1,82 @@
+import nodemailer, { type Transporter } from 'nodemailer';
 import { getDB, saveDB } from './db.ts';
-import type { EmailLog, Order } from '../types/index.ts';
+import type { EmailLog, Order, StoreSettings } from '../types/index.ts';
+import { buildInvoiceData, renderInvoiceHtml } from '../utils/invoice.ts';
+
+let cachedTransporter: Transporter | null | undefined;
+
+function getSmtpTransporter(): Transporter | null {
+  if (cachedTransporter !== undefined) return cachedTransporter;
+
+  const host = (process.env.SMTP_HOST || '').trim();
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').trim();
+  const port = Number(process.env.SMTP_PORT) || 587;
+
+  if (!host || !user || !pass) {
+    cachedTransporter = null;
+    return null;
+  }
+
+  cachedTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+  return cachedTransporter;
+}
+
+export function isSmtpConfigured(): boolean {
+  return Boolean(
+    (process.env.SMTP_HOST || '').trim() &&
+    (process.env.SMTP_USER || '').trim() &&
+    (process.env.SMTP_PASS || '').trim()
+  );
+}
+
+async function dispatchSmtpIfConfigured({
+  to,
+  subject,
+  html,
+  attachments
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: { filename: string; content: string; contentType?: string }[];
+}): Promise<'smtp' | 'logged'> {
+  const transporter = getSmtpTransporter();
+  if (!transporter) return 'logged';
+
+  const from = (process.env.SMTP_FROM || process.env.SMTP_USER || 'concierge@4lazyfashion.com').trim();
+  try {
+    await transporter.sendMail({
+      from: `4LAAZY Concierge <${from}>`,
+      to,
+      subject,
+      html,
+      attachments
+    });
+    return 'smtp';
+  } catch (err) {
+    console.warn('[EmailService] SMTP delivery failed, recorded in emailLogs:', err instanceof Error ? err.message : err);
+    return 'logged';
+  }
+}
 
 export function sendEmail({
   to,
   subject,
   type,
-  htmlContent
+  htmlContent,
+  attachments
 }: {
   to: string;
   subject: string;
   type: EmailLog['type'];
   htmlContent: string;
+  attachments?: { filename: string; content: string; contentType?: string }[];
 }) {
   const db = getDB();
   const log: EmailLog = {
@@ -28,6 +94,12 @@ export function sendEmail({
     db.emailLogs.pop();
   }
   saveDB();
+
+  // Fire-and-forget SMTP delivery when configured so API responses stay fast
+  if (isSmtpConfigured()) {
+    void dispatchSmtpIfConfigured({ to, subject, html: htmlContent, attachments });
+  }
+
   return log;
 }
 
@@ -162,6 +234,52 @@ export function sendOrderConfirmationEmail(order: Order) {
     type: 'order_confirmation',
     htmlContent: html
   });
+}
+
+export async function sendOrderInvoiceEmail(
+  order: Order,
+  settings?: Partial<StoreSettings>
+): Promise<{ emailLog: EmailLog; deliveryMode: 'smtp' | 'logged'; invoiceNumber: string }> {
+  const db = getDB();
+  const invoice = buildInvoiceData(order, settings || db.settings);
+  const invoiceHtml = renderInvoiceHtml(invoice);
+  const subject = `Tax Invoice ${invoice.invoiceNumber} — Order ${order.orderNumber} | 4LAAZY`;
+  const filename = `4LAAZY-Invoice-${order.orderNumber}.html`;
+
+  const log: EmailLog = {
+    id: `eml_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    to: order.customer.email,
+    subject,
+    type: 'order_invoice',
+    sentAt: new Date().toISOString(),
+    status: 'delivered',
+    previewHtml: invoiceHtml
+  };
+
+  db.emailLogs.unshift(log);
+  if (db.emailLogs.length > 200) {
+    db.emailLogs.pop();
+  }
+  saveDB();
+
+  const deliveryMode = await dispatchSmtpIfConfigured({
+    to: order.customer.email,
+    subject,
+    html: invoiceHtml,
+    attachments: [
+      {
+        filename,
+        content: invoiceHtml,
+        contentType: 'text/html; charset=utf-8'
+      }
+    ]
+  });
+
+  return {
+    emailLog: log,
+    deliveryMode,
+    invoiceNumber: invoice.invoiceNumber
+  };
 }
 
 export function sendShippingUpdateEmail(order: Order) {
